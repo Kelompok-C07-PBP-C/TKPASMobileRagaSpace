@@ -11,9 +11,16 @@ class VenueAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ("venue", "user", "has_been_paid", "date_paid", "created_at")
+    list_display = (
+        "venue",
+        "user",
+        "contact_phone",
+        "has_been_paid",
+        "date_paid",
+        "created_at",
+    )
     list_filter = ("has_been_paid", "created_at")
-    search_fields = ("venue__title", "user__username")
+    search_fields = ("venue__title", "user__username", "contact_phone")
 
 
 @admin.register(BookingDate)

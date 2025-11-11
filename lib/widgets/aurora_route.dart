@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
   AuroraWarpRoute(this.child)
       : super(
-          transitionDuration: const Duration(milliseconds: 1300),
-          reverseTransitionDuration: const Duration(milliseconds: 900),
+          transitionDuration: const Duration(milliseconds: 560),
+          reverseTransitionDuration: const Duration(milliseconds: 380),
           pageBuilder: (_, __, ___) => child,
         );
 
@@ -26,7 +26,7 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
     );
     final blurCurve = CurvedAnimation(
       parent: animation,
-      curve: const Interval(0.0, 0.7, curve: Curves.easeOutQuart),
+      curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic),
     );
     final glowCurve = CurvedAnimation(
       parent: animation,
@@ -34,7 +34,7 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
     );
     final scaleCurve = CurvedAnimation(
       parent: animation,
-      curve: const Interval(0.2, 1.0, curve: Curves.easeOutBack),
+      curve: const Interval(0.06, 1.0, curve: Curves.easeOutBack),
     );
     final fadeCurve = CurvedAnimation(
       parent: animation,
@@ -97,7 +97,8 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
           child: AnimatedBuilder(
             animation: blurCurve,
             builder: (context, _) {
-              final value = (1 - blurCurve.value) * 26;
+              final fast = math.pow(blurCurve.value.clamp(0.0, 1.0), 0.45);
+              final value = (1 - (fast as double)) * 42;
               return BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: value, sigmaY: value),
                 child: const SizedBox(),
@@ -113,7 +114,7 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
               end: Offset.zero,
             ).animate(slideCurve),
             child: ScaleTransition(
-              scale: Tween<double>(begin: 0.82, end: 1.0).animate(scaleCurve),
+              scale: Tween<double>(begin: 0.88, end: 1.0).animate(scaleCurve),
               child: RotationTransition(
                 turns:
                     Tween<double>(begin: -0.02, end: 0.0).animate(scaleCurve),
@@ -126,3 +127,34 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
     );
   }
 }
+
+class ZoomInRoute<T> extends PageRouteBuilder<T> {
+  ZoomInRoute(this.child,
+      {this.duration = const Duration(milliseconds: 480),
+      this.reverseDuration = const Duration(milliseconds: 320)})
+      : super(
+          transitionDuration: duration,
+          reverseTransitionDuration: reverseDuration,
+          pageBuilder: (_, __, ___) => child,
+        );
+
+  final Widget child;
+  final Duration duration;
+  final Duration reverseDuration;
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+    return FadeTransition(
+      opacity: fade,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.92, end: 1.0).animate(curve),
+        child: child,
+      ),
+    );
+  }
+}
+
+

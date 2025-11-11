@@ -1,11 +1,22 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:io' show Platform;
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:marco/services/api.dart';
+import 'package:marco/widgets/aurora_route.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+part 'home_screen_models.dart';
+part 'home_screen_catalog.dart';
+part 'home_screen_wishlist.dart';
+part 'home_screen_bookings.dart';
+part 'home_screen_widgets.dart';
 
 const _backgroundGradient = LinearGradient(
   colors: [
@@ -19,6 +30,60 @@ const _backgroundGradient = LinearGradient(
 );
 const _ctaBlue = Color(0xFF1FA2FF);
 const _ctaTeal = Color(0xFF2CD5FF);
+const _imageFallbackGradient = LinearGradient(
+  colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+const _wishlistStorageKey = 'wishlist_venues';
+const List<String> _filterCities = [
+  'All cities',
+  'Jakarta',
+  'Bandung',
+  'Surabaya',
+  'Bali',
+];
+const List<String> _filterCategories = [
+  'All categories',
+  'Futsal',
+  'Badminton',
+  'Basket',
+  'Tennis',
+];
+const List<String> _filterPrices = [
+  'Any price',
+  '< Rp 200k',
+  '< Rp 400k',
+  '< Rp 600k',
+  'Premium',
+];
+
+Widget _buildNetworkImage(String url, {BoxFit fit = BoxFit.cover}) {
+  final placeholder = DecoratedBox(
+    decoration: const BoxDecoration(gradient: _imageFallbackGradient),
+    child: const Center(
+      child: Icon(Icons.image_outlined, color: Colors.white70),
+    ),
+  );
+  if (url.isEmpty) return placeholder;
+  return Image.network(
+    url,
+    fit: fit,
+    loadingBuilder: (context, child, progress) {
+      if (progress == null) return child;
+      return placeholder;
+    },
+    errorBuilder: (_, __, ___) => placeholder,
+  );
+}
+
+String _resolveApiBaseUrl() {
+  const envOverride = String.fromEnvironment('API_BASE_URL');
+  if (envOverride.isNotEmpty) return envOverride;
+  if (kIsWeb) return 'http://localhost:8000';
+  if (Platform.isAndroid) return 'http://10.0.2.2:8000';
+  return 'http://127.0.0.1:8000';
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +92,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  static const _apiBaseUrl = 'http://127.0.0.1:8000';
+  static final String _apiBaseUrl = _resolveApiBaseUrl();
   static const List<_CategoryChipData> _categories = [
     _CategoryChipData(label: 'Tennis', icon: Icons.sports_tennis),
     _CategoryChipData(label: 'Badminton', icon: Icons.sports),
@@ -60,41 +125,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.auto_awesome,
     ),
   ];
-  static const List<_VenueCardData> _fallbackVenues = [
-    _VenueCardData(
-      category: 'Futsal',
-      name: 'Aurora Sports Dome',
-      location: 'Jakarta, Indonesia',
-      description:
-          'Indoor futsal pitch with climate control, lounge seating, and LED scoreboards.',
-      price: 550000,
-      rating: 4.9,
-      imageUrl:
-          'https://media.istockphoto.com/id/2172873491/photo/university-student-and-man-in-portrait-outdoor-on-campus-with-book-for-education-learning-and.jpg?s=612x612&w=0&k=20&c=0jJ62Pxg9qWg2DKCl0pVQmN1j618h01SXJ7DGdlpsZM=',
-    ),
-    _VenueCardData(
-      category: 'Badminton',
-      name: 'Harborview Badminton Center',
-      location: 'Surabaya, Indonesia',
-      description:
-          'Six international-standard courts with sprung flooring and onsite stringing service.',
-      price: 320000,
-      rating: 4.8,
-      imageUrl:
-          'https://media.gettyimages.com/id/2063799507/photo/business-portrait-and-black-man-in-city-outdoor-for-career-or-job-of-businessman-face.jpg?s=612x612&w=gi&k=20&c=aV_6jGmVEE5WQR6F__JPMwAxJZiPBBIg-a0pdzKgL6A=',
-    ),
-    _VenueCardData(
-      category: 'Basket',
-      name: 'Summit Court Arena',
-      location: 'Bandung, Indonesia',
-      description:
-          'Full-sized basketball court complete with seating for 500 and premium locker rooms.',
-      price: 680000,
-      rating: 4.7,
-      imageUrl:
-          'https://plus.unsplash.com/premium_photo-1689530775582-83b8abdb5020?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cmFuZG9tJTIwcGVyc29ufGVufDB8fDB8fHww&fm=jpg&q=60&w=3000',
-    ),
-  ];
   static const List<_PromoCardData> _promoCards = [
     _PromoCardData(
       title: 'Cara Booking Kilat',
@@ -125,7 +155,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<_VenueCardData> _venues = [];
   bool _loadingVenues = true;
   String? _venuesError;
-  bool _usingFallbackVenues = false;
+  bool _venuesCanRetry = false;
+  String _selectedCity = _filterCities.first;
+  String _selectedCategory = _filterCategories.first;
+  String _selectedPrice = _filterPrices.first;
+  List<_VenueCardData> get _filteredVenues => _filterVenues(
+        _venues,
+        city: _selectedCity,
+        category: _selectedCategory,
+        price: _selectedPrice,
+      );
+  List<_VenueCardData> _wishlist = [];
+  Set<String> _wishlistKeys = {};
+  SharedPreferences? _prefs;
   static const List<_TestimonialData> _testimonials = [
     _TestimonialData(
       name: 'RPM Dimaz',
@@ -183,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     )..repeat();
     _scrollController = ScrollController()..addListener(_handleScroll);
     _fetchTopVenues();
+    _loadWishlist();
   }
 
   @override
@@ -518,6 +561,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  void _openVenueDetail(_VenueCardData data) {
+    Navigator.of(context).push(
+      AuroraWarpRoute(
+        _VenueDetailLoadingScreen(
+          data: data,
+          apiBaseUrl: _apiBaseUrl,
+        ),
+      ),
+    );
+  }
+
   void _handleScroll() {
     final shouldShow = _scrollController.offset > 40;
     if (shouldShow != _stickyNavVisible) {
@@ -537,8 +591,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset('assets/hero_gradient.png', fit: BoxFit.cover),
-                Container(),
+                const DecoratedBox(
+                  decoration: BoxDecoration(gradient: _imageFallbackGradient),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(
@@ -613,32 +668,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final List<Widget> filters = [
             _FilterInput(
               label: 'All cities',
-              value: 'All cities',
+              value: _selectedCity,
+              options: _filterCities,
               icon: Icons.location_on_outlined,
+              onChanged: (value) => setState(() => _selectedCity = value!),
             ),
             _FilterInput(
               label: 'All categories',
-              value: 'All categories',
+              value: _selectedCategory,
+              options: _filterCategories,
               icon: Icons.watch_later_outlined,
+              onChanged: (value) => setState(() => _selectedCategory = value!),
             ),
             _FilterInput(
               label: 'Max price',
-              value: 'Max Price',
+              value: _selectedPrice,
+              options: _filterPrices,
               icon: Icons.attach_money_rounded,
+              onChanged: (value) => setState(() => _selectedPrice = value!),
             ),
           ];
-          return Wrap(
-            spacing: spacing,
-            runSpacing: 18,
-            alignment: WrapAlignment.start,
-            children: [
-              for (final filter in filters)
-                SizedBox(width: itemWidth, child: filter),
-              SizedBox(
-                width: singleColumn ? width : itemWidth,
-                child: _buildSearchButton(),
+          final children = <Widget>[
+            Wrap(
+              spacing: spacing,
+              runSpacing: 18,
+              alignment: WrapAlignment.start,
+              children: [
+                for (final filter in filters)
+                  SizedBox(width: itemWidth, child: filter),
+                SizedBox(
+                  width: singleColumn ? width : itemWidth,
+                  child: _buildSearchButton(),
+                ),
+              ],
+            ),
+          ];
+          final bool showEmptyHint = !_loadingVenues &&
+              _venuesError == null &&
+              _filteredVenues.isEmpty &&
+              _venues.isNotEmpty;
+          if (showEmptyHint) {
+            children.add(const SizedBox(height: 12));
+            children.add(
+              Text(
+                'Tidak ada venue untuk kombinasi filter ini. '
+                'Coba ubah kota/kategori atau buka katalog untuk opsi lain.',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  height: 1.4,
+                ),
               ),
-            ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
           );
         },
       ),
@@ -670,7 +754,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(36),
           child: InkWell(
             borderRadius: BorderRadius.circular(36),
-            onTap: () {},
+            onTap: () => _openCatalog(
+              initialCity: _selectedCity,
+              initialCategory: _selectedCategory,
+              initialPrice: _selectedPrice,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Row(
@@ -940,6 +1028,125 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _goToTestimonial(prev);
   }
 
+  Future<void> _openCatalog({
+    String? initialCity,
+    String? initialCategory,
+    String? initialPrice,
+  }) async {
+    if (_navIndex == 1) return;
+    setState(() => _navIndex = 1);
+    final selected = await Navigator.of(context).push<_CatalogProduct>(
+      AuroraWarpRoute(
+        _ProductCatalogScreen(
+          initialCity: initialCity ?? _selectedCity,
+          initialCategory: initialCategory ?? _selectedCategory,
+          initialPrice: initialPrice ?? _selectedPrice,
+          apiBaseUrl: _apiBaseUrl,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _navIndex = 0);
+    if (selected != null) _openCatalogVenue(selected);
+  }
+
+  Future<void> _openWishlist() async {
+    if (_navIndex == 2) return;
+    if (_wishlist.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Belum ada venue di wishlist.')),
+      );
+      return;
+    }
+    setState(() => _navIndex = 2);
+    await Navigator.of(context).push(
+      AuroraWarpRoute(
+        _WishlistScreen(
+          items: _wishlist,
+          onRemove: _toggleWishlist,
+          onSelect: (venue) => _openVenueDetail(venue),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _navIndex = 0);
+  }
+
+  Future<void> _openBookings() async {
+    if (_navIndex == 3) return;
+    setState(() => _navIndex = 3);
+    await Navigator.of(context).push(
+      AuroraWarpRoute(
+        _BookingsScreen(
+          loadBookings: _fetchBookingsFromServer,
+          onSelectBooking: (booking) {
+            final venue = _bookingToVenueCard(booking);
+            _openVenueDetail(venue);
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _navIndex = 0);
+  }
+
+  Future<List<_BookingSummary>> _fetchBookingsFromServer() async {
+    final username = Api.currentUsername;
+    Uri uri = Uri.parse('$_apiBaseUrl/api/bookings/');
+    if (username != null && username.isNotEmpty) {
+      uri = uri.replace(queryParameters: {'username': username});
+    }
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat daftar booking');
+    }
+    final payload = jsonDecode(response.body) as List<dynamic>;
+    return payload
+        .map(
+          (raw) =>
+              _BookingSummary.fromJson(raw as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  _VenueCardData _bookingToVenueCard(_BookingSummary booking) {
+    final description = booking.venueDescription.isNotEmpty
+        ? booking.venueDescription
+        : 'Nikmati sesi terbaikmu di ${booking.venueName}.';
+    final location = booking.venueLocation.isNotEmpty
+        ? booking.venueLocation
+        : 'Lokasi belum tersedia';
+    return _VenueCardData(
+      id: booking.venueId == 0 ? null : booking.venueId,
+      category:
+          booking.venueType.isNotEmpty ? booking.venueType : 'Venue',
+      name: booking.venueName,
+      location: location,
+      description: description,
+      price: booking.venuePrice,
+      rating: 0,
+      imageUrl: booking.venueImageUrl,
+    );
+  }
+
+  void _openCatalogVenue(_CatalogProduct product) {
+    _openVenueDetail(_catalogProductToVenue(product));
+  }
+
+  _VenueCardData _catalogProductToVenue(_CatalogProduct product) {
+    return _VenueCardData(
+      id: null,
+      category: product.category,
+      name: product.title,
+      location: '${product.city}, Indonesia',
+      description:
+          'Venue ${product.category.toLowerCase()} favorit di ${product.city}.',
+      price: product.price,
+      rating: product.rating,
+      imageUrl: product.imageUrl,
+    );
+  }
+
   void _goToTestimonial(int index) {
     if (!_testimonialController.hasClients || _testimonials.length <= 1) return;
     _testimonialController.animateToPage(
@@ -958,46 +1165,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (_venuesError != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Text(
-          _venuesError!,
-          style: GoogleFonts.plusJakartaSans(
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
+        padding: const EdgeInsets.only(bottom: 20),
+        child: _ErrorNotice(
+          title: 'Tidak dapat memuat venue',
+          message: _venuesError!,
+          actionLabel: _venuesCanRetry ? 'Coba lagi' : null,
+          onRetry: _venuesCanRetry ? () => _fetchTopVenues() : null,
         ),
       );
     }
-    if (_venues.isEmpty) {
+    final filteredVenues = _filteredVenues;
+    if (filteredVenues.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Text(
-          'No venues available yet.',
-          style: GoogleFonts.plusJakartaSans(
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No venues match these filters.',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Coba pilih kota atau kategori lain, atau tekan "Search venues" untuk jelajahi katalog.',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white.withValues(alpha: 0.7),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _openCatalog(
+                initialCity: _selectedCity,
+                initialCategory: _selectedCategory,
+                initialPrice: _selectedPrice,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1FA2FF),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: const Text('Browse Catalog'),
+            ),
+          ],
         ),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_usingFallbackVenues)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: _DemoDataNotice(onRetry: () => _fetchTopVenues()),
-          ),
-        for (var i = 0; i < _venues.length; i++) ...[
+        for (var i = 0; i < filteredVenues.length; i++) ...[
           _FadeSlideIn(
             delay: Duration(milliseconds: 500 + i * 160),
-            child: _VenueCard(data: _venues[i]),
+            child: _VenueCard(
+              data: filteredVenues[i],
+              onTap: () => _openVenueDetail(filteredVenues[i]),
+              isFavorite:
+                  _wishlistKeys.contains(filteredVenues[i].storageKey),
+              onToggleFavorite: () => _toggleWishlist(filteredVenues[i]),
+            ),
           ),
-          if (i != _venues.length - 1) const SizedBox(height: 20),
+          if (i != filteredVenues.length - 1) const SizedBox(height: 20),
         ],
       ],
     );
   }
 
   Future<void> _fetchTopVenues() async {
+    if (!mounted) return;
+    setState(() {
+      _loadingVenues = true;
+      _venuesError = null;
+      _venuesCanRetry = false;
+    });
     try {
       final uri = Uri.parse('$_apiBaseUrl/api/venues/top/?limit=3');
       final response = await http.get(uri).timeout(const Duration(seconds: 5));
@@ -1007,37 +1255,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
       final venues = data
           .map(
-            (raw) => _VenueCardData(
-              category: (raw['type'] ?? '').toString(),
-              name: (raw['title'] ?? '').toString(),
-              location: (raw['location'] ?? '').toString(),
-              description: (raw['description'] ?? '').toString(),
-              price: int.tryParse(raw['price'].toString()) ?? 0,
-              rating: (raw['avg_rating'] ?? 0).toDouble(),
-              imageUrl: (raw['image_url'] ?? '').toString(),
-            ),
+            (raw) {
+              final dynamic idValue = (raw as Map<String, dynamic>)['id'];
+              final parsedId =
+                  idValue is int ? idValue : int.tryParse('$idValue');
+              return _VenueCardData(
+                id: parsedId,
+                category: (raw['type'] ?? '').toString(),
+                name: (raw['title'] ?? '').toString(),
+                location: (raw['location'] ?? '').toString(),
+                description: (raw['description'] ?? '').toString(),
+                price: int.tryParse(raw['price'].toString()) ?? 0,
+                rating: (raw['avg_rating'] ?? 0).toDouble(),
+                imageUrl: (raw['image_url'] ?? '').toString(),
+              );
+            },
           )
           .toList();
+      if (!mounted) return;
       setState(() {
-        if (venues.isEmpty) {
-          _venues = List<_VenueCardData>.of(_fallbackVenues);
-          _usingFallbackVenues = true;
-        } else {
-          _venues = venues;
-          _usingFallbackVenues = false;
-        }
+        _venues = venues;
         _loadingVenues = false;
-        _venuesError = null;
+        if (venues.isEmpty) {
+          _venuesError =
+              'Belum ada venue pada server ini. Tambahkan dari dashboard lalu coba lagi.';
+          _venuesCanRetry = true;
+        } else {
+          _venuesError = null;
+          _venuesCanRetry = false;
+        }
       });
     } catch (err) {
       if (!mounted) return;
       setState(() {
-        _venues = List<_VenueCardData>.of(_fallbackVenues);
-        _usingFallbackVenues = true;
+        _venues = [];
         _loadingVenues = false;
-        _venuesError = null;
+        _venuesError =
+            'Tidak bisa memuat data. Pastikan backend berjalan dan server dapat diakses dari aplikasi ini.';
+        _venuesCanRetry = true;
       });
     }
+  }
+
+  Future<void> _loadWishlist() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final stored = _prefs!.getStringList(_wishlistStorageKey) ?? [];
+    final parsed = stored
+        .map((item) => _VenueCardData.fromMap(jsonDecode(item)))
+        .toList();
+    setState(() {
+      _wishlist = parsed;
+      _wishlistKeys = parsed.map((e) => e.storageKey).toSet();
+    });
+  }
+
+  Future<void> _persistWishlist() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final encoded = _wishlist.map((e) => jsonEncode(e.toMap())).toList();
+    await _prefs!.setStringList(_wishlistStorageKey, encoded);
+  }
+
+  Future<void> _toggleWishlist(_VenueCardData data) async {
+    final key = data.storageKey;
+    setState(() {
+      if (_wishlistKeys.contains(key)) {
+        _wishlist.removeWhere((item) => item.storageKey == key);
+        _wishlistKeys.remove(key);
+      } else {
+        _wishlist.add(data);
+        _wishlistKeys.add(key);
+      }
+    });
+    await _persistWishlist();
   }
 
   Widget _buildPromoSpotlight() {
@@ -1134,18 +1423,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _NavItem(
             data: items[1],
             selected: _navIndex == 1,
-            onTap: () => setState(() => _navIndex = 1),
+            onTap: _openCatalog,
           ),
           const SizedBox(width: 70),
           _NavItem(
             data: items[2],
             selected: _navIndex == 2,
-            onTap: () => setState(() => _navIndex = 2),
+            onTap: _openWishlist,
           ),
           _NavItem(
             data: items[3],
             selected: _navIndex == 3,
-            onTap: () => setState(() => _navIndex = 3),
+            onTap: _openBookings,
           ),
         ],
       ),
@@ -1157,11 +1446,15 @@ class _FilterInput extends StatelessWidget {
   const _FilterInput({
     required this.label,
     required this.value,
+    required this.options,
+    required this.onChanged,
     required this.icon,
   });
 
   final String label;
   final String value;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
   final IconData icon;
 
   @override
@@ -1188,25 +1481,35 @@ class _FilterInput extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            child: Row(
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.expand_more, color: Colors.white70),
-              ],
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                icon: const Icon(Icons.expand_more, color: Colors.white70),
+                dropdownColor: const Color(0xFF0F1D3C),
+                isExpanded: true,
+                onChanged: onChanged,
+                items: options
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(
+                          item,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
           ),
         ],
@@ -1391,276 +1694,28 @@ class _ExploreVenuesCard extends StatelessWidget {
   }
 }
 
-class _VenueCard extends StatelessWidget {
-  const _VenueCard({required this.data});
+List<_VenueCardData> _filterVenues(List<_VenueCardData> venues,
+    {String? city, String? category, String? price}) {
+  final cityFilter = city ?? _filterCities.first;
+  final categoryFilter = category ?? _filterCategories.first;
+  final priceFilter = price ?? _filterPrices.first;
 
-  final _VenueCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassPanel(
-      radius: 36,
-      padding: const EdgeInsets.all(24),
-      overlayColor: Colors.white.withValues(alpha: 0.04),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: data.imageUrl.isNotEmpty
-                  ? FadeInImage.assetNetwork(
-                      placeholder: 'assets/hero_gradient.png',
-                      image: data.imageUrl,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.asset(
-                      'assets/hero_gradient.png',
-                      fit: BoxFit.cover,
-                    ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            data.category.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            data.name,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${data.location} • ${data.rating.toStringAsFixed(1)}/5',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.75),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            data.description,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              height: 1.5,
-              color: Colors.white.withValues(alpha: 0.85),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: const Color(0x331FA2FF),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  _formatPriceLabel(data.price),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  textStyle: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                child: const Text('View product'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PromoCard extends StatelessWidget {
-  const _PromoCard({required this.data});
-
-  final _PromoCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassPanel(
-      radius: 30,
-      padding: const EdgeInsets.all(24),
-      overlayColor: data.gradient.first.withValues(alpha: 0.18),
-      borderColor: data.gradient.last.withValues(alpha: 0.35),
-      boxShadow: [
-        BoxShadow(
-          color: data.gradient.last.withValues(alpha: 0.22),
-          blurRadius: 40,
-          offset: const Offset(0, 22),
-        ),
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(data.icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            data.title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            data.description,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              height: 1.5,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-          ),
-          const SizedBox(height: 18),
-          for (final bullet in data.bullets) ...[
-            _PromoBullet(text: bullet),
-            if (bullet != data.bullets.last) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PromoBullet extends StatelessWidget {
-  const _PromoBullet({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.85),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white.withValues(alpha: 0.9),
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
+  bool matchPrice(int value) {
+    if (priceFilter == '< Rp 200k') return value < 200000;
+    if (priceFilter == '< Rp 400k') return value < 400000;
+    if (priceFilter == '< Rp 600k') return value < 600000;
+    if (priceFilter == 'Premium') return value >= 600000;
+    return true;
   }
 
-}
-
-class _DemoDataNotice extends StatelessWidget {
-  const _DemoDataNotice({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, color: Colors.white70),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Showing demo venues',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Start the backend server and tap retry to fetch real venues.',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            ),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
+  return venues.where((venue) {
+    final cityMatch = cityFilter == _filterCities.first ||
+        venue.location.toLowerCase().contains(cityFilter.toLowerCase());
+    final categoryMatch = categoryFilter == _filterCategories.first ||
+        venue.category.toLowerCase() == categoryFilter.toLowerCase();
+    final priceMatch = matchPrice(venue.price);
+    return cityMatch && categoryMatch && priceMatch;
+  }).toList();
 }
 
 class _TestimonialCard extends StatelessWidget {
@@ -1802,67 +1857,46 @@ class _AuroraBackdrops extends StatelessWidget {
           _Halo(
             alignment: Alignment(-1.05 + wave * 0.18, -0.85 + swell * 0.07),
             size: 420 + swell * 38,
-            colors: [Color(0x6633478E), Color(0x000A0F1E)],
-            shadowColor: Color(0x4433478E),
-            blur: 150,
-            spread: 18,
+            colors: const [Color(0x3333478E), Color(0x00070D1C)],
+            shadowColor: const Color(0x2233478E),
+            blur: 140,
+            spread: 14,
           ),
           _Halo(
             alignment: Alignment(0.95 + swell * 0.22, -0.78 + wave * 0.05),
             size: 360 + wave * 40,
-            colors: [Color(0x77FF8EC7), Color(0x000A0F1E)],
-            shadowColor: Color(0x55FF8EC7),
-            blur: 170,
-            spread: 22,
-          ),
-          _Halo(
-            alignment: Alignment(-0.35 + wave * 0.15, 0.1 + swell * 0.1),
-            size: 300 + swell * 40,
-            colors: [Color(0x44475B94), Color(0x000A0F1E)],
-            shadowColor: Color(0x55FFCF70),
-            blur: 160,
-            spread: 18,
-          ),
-          _Halo(
-            alignment: Alignment(0.35 + swell * 0.18, -0.05 + wave * 0.08),
-            size: 280 + wave * 35,
-            colors: [Color(0x44355FB5), Color(0x000A0F1E)],
-            shadowColor: Color(0x5546E4C1),
+            colors: const [Color(0x44FF8EC7), Color(0x00070D1C)],
+            shadowColor: const Color(0x22FF8EC7),
             blur: 150,
             spread: 16,
           ),
           _Halo(
-            alignment: Alignment(0.05 + wave * 0.12, 0.7 + swell * 0.08),
-            size: 520 + wave * 56,
-            colors: [Color(0x55304D8E), Color(0x000A0F1E)],
-            shadowColor: Color(0x3A304D8E),
-            blur: 220,
-            spread: 16,
+            alignment: Alignment(-0.35 + wave * 0.15, 0.1 + swell * 0.1),
+            size: 300 + swell * 40,
+            colors: const [Color(0x22475B94), Color(0x00070D1C)],
+            shadowColor: const Color(0x22475B94),
+            blur: 140,
+            spread: 12,
+          ),
+          _Halo(
+            alignment: Alignment(0.35 + swell * 0.18, -0.05 + wave * 0.08),
+            size: 280 + wave * 35,
+            colors: const [Color(0x22355FB5), Color(0x00070D1C)],
+            shadowColor: const Color(0x1A46E4C1),
+            blur: 140,
+            spread: 12,
           ),
           _Halo(
             alignment: Alignment(0.05 + wave * 0.12, 0.7 + swell * 0.08),
             size: 520 + wave * 56,
-            colors: [Color(0x8835F7FF), Color(0x000A0F1E)],
-            shadowColor: Color(0x55304D8E),
-            blur: 220,
-            spread: 16,
+            colors: const [Color(0x22304D8E), Color(0x00070D1C)],
+            shadowColor: const Color(0x1A304D8E),
+            blur: 200,
+            spread: 14,
           ),
-          Positioned(
-            top: 140 + swell * 18,
-            left: -120 + wave * 26,
-            child: _LightRibbon(
-              width: 320,
-              height: 280,
-              colors: [Color(0x30FFFFFF), Color(0x00223B6E)],
-            ),
-          ),
-          Positioned(
-            right: -100 + wave * 30,
-            bottom: 80 + swell * 24,
-            child: _LightRibbon(
-              width: 280,
-              height: 300,
-              colors: [Color(0x18FFFFFF), Color(0x402D4E8F)],
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _AuroraCurtainPainter(phase: phase),
             ),
           ),
           Positioned.fill(
@@ -1870,22 +1904,22 @@ class _AuroraBackdrops extends StatelessWidget {
               painter: _NebulaParticlePainter(phase: phase),
             ),
           ),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white.withValues(alpha: 0.04),
-                  Colors.transparent,
-                  Colors.white.withValues(alpha: 0.02),
-                ],
-                stops: const [0.0, 0.35, 1.0],
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: const [
+                    Color(0x1517314F),
+                    Colors.transparent,
+                    Color(0x0F0A1C36),
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+                ),
               ),
             ),
           ),
-        ),
         ],
       ),
     );
@@ -1930,40 +1964,110 @@ class _Halo extends StatelessWidget {
   }
 }
 
-class _LightRibbon extends StatelessWidget {
-  const _LightRibbon({
-    required this.width,
+class _AuroraCurtainPainter extends CustomPainter {
+  const _AuroraCurtainPainter({required this.phase});
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final wave = math.sin(phase * 2 * math.pi);
+    final swell = math.cos(phase * 2 * math.pi);
+    const specs = [
+      _CurtainSpec(
+        verticalFactor: 0.18,
+        height: 240,
+        horizontalShift: -180,
+        waveShift: 26,
+        swellShift: 40,
+        blur: 80,
+        colors: [Color(0x3338D0FF), Color(0x00112A40)],
+      ),
+      _CurtainSpec(
+        verticalFactor: 0.42,
+        height: 260,
+        horizontalShift: -80,
+        waveShift: 20,
+        swellShift: -30,
+        blur: 70,
+        colors: [Color(0x3323FFC3), Color(0x000C1F2F)],
+      ),
+      _CurtainSpec(
+        verticalFactor: 0.68,
+        height: 220,
+        horizontalShift: -140,
+        waveShift: 16,
+        swellShift: 55,
+        blur: 85,
+        colors: [Color(0x332AD7FF), Color(0x00081423)],
+      ),
+    ];
+
+    for (final spec in specs) {
+      final baseY = size.height * spec.verticalFactor +
+          wave * spec.waveShift +
+          swell * (spec.waveShift * 0.2);
+      final left = spec.horizontalShift + swell * spec.swellShift;
+      final rect = Rect.fromLTWH(left, baseY, size.width + 280, spec.height);
+      final crest = wave * 40;
+      final trough = swell * 30;
+      final path = Path()
+        ..moveTo(rect.left, rect.top + 20)
+        ..cubicTo(
+          rect.left + rect.width * 0.25,
+          rect.top - 50 - crest,
+          rect.left + rect.width * 0.6,
+          rect.top + 60 + trough,
+          rect.right,
+          rect.top + 12,
+        )
+        ..lineTo(rect.right, rect.bottom - 16)
+        ..cubicTo(
+          rect.left + rect.width * 0.65,
+          rect.bottom + 50 + crest * 0.6,
+          rect.left + rect.width * 0.2,
+          rect.bottom - 30 - trough,
+          rect.left,
+          rect.bottom + 14,
+        )
+        ..close();
+
+      final paint = Paint()
+        ..shader = LinearGradient(
+          colors: spec.colors,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(rect)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, spec.blur)
+        ..blendMode = BlendMode.plus;
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AuroraCurtainPainter oldDelegate) {
+    return oldDelegate.phase != phase;
+  }
+}
+
+class _CurtainSpec {
+  const _CurtainSpec({
+    required this.verticalFactor,
     required this.height,
+    required this.horizontalShift,
+    required this.waveShift,
+    required this.swellShift,
+    required this.blur,
     required this.colors,
   });
-  final double width;
+
+  final double verticalFactor;
   final double height;
+  final double horizontalShift;
+  final double waveShift;
+  final double swellShift;
+  final double blur;
   final List<Color> colors;
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.4,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(height * 0.5),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: colors,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: colors.last.withValues(alpha: 0.4),
-              blurRadius: 60,
-              spreadRadius: 10,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _NebulaParticlePainter extends CustomPainter {
@@ -2103,80 +2207,1367 @@ class _FadeSlideInState extends State<_FadeSlideIn> {
   }
 }
 
-class _CategoryChipData {
-  const _CategoryChipData({required this.label, required this.icon});
+class _VenueDetailLoadingScreen extends StatefulWidget {
+  const _VenueDetailLoadingScreen({
+    required this.data,
+    required this.apiBaseUrl,
+  });
+
+  final _VenueCardData data;
+  final String apiBaseUrl;
+
+  @override
+  State<_VenueDetailLoadingScreen> createState() =>
+      _VenueDetailLoadingScreenState();
+}
+
+class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _orbitController;
+  late final AnimationController _pulseController;
+  late final AnimationController _haloController;
+
+  @override
+  void initState() {
+    super.initState();
+    _orbitController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 6))
+          ..repeat();
+    _pulseController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat(reverse: true);
+    _haloController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 4))
+          ..repeat();
+    _navigateToDetail();
+  }
+
+  Future<void> _navigateToDetail() async {
+    await Future<void>.delayed(const Duration(milliseconds: 2400));
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      AuroraWarpRoute(
+        _VenueDetailScreen(
+          data: widget.data,
+          apiBaseUrl: widget.apiBaseUrl,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _orbitController.dispose();
+    _pulseController.dispose();
+    _haloController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF030816), Color(0xFF0C1F3E), Color(0xFF1B2F6B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _haloController,
+              builder: (context, _) {
+                final wave = math.sin(_haloController.value * 2 * math.pi);
+                final swell = math.cos(_haloController.value * 2 * math.pi);
+                return Stack(
+                  children: [
+                    _halo(
+                      alignment: Alignment(-0.6 + wave * 0.2, -0.4 + swell * 0.15),
+                      radius: 400 + wave * 60,
+                      color: const Color(0x6648E0FF),
+                    ),
+                    _halo(
+                      alignment: Alignment(0.7 + swell * 0.15, 0.5 + wave * 0.18),
+                      radius: 480 + swell * 70,
+                      color: const Color(0x449C4CFF),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _haloController,
+              builder: (context, _) {
+                final wave = math.sin(_haloController.value * 2 * math.pi);
+                final sigma = 38 + wave * 18;
+                return BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: sigma,
+                    sigmaY: sigma * 0.85,
+                  ),
+                  child: const SizedBox(),
+                );
+              },
+            ),
+          ),
+          Center(child: _buildLoader()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoader() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_orbitController, _pulseController]),
+      builder: (context, child) {
+        final orbit = _orbitController.value * 2 * math.pi;
+        final pulse = 0.8 + _pulseController.value * 0.2;
+        return Container(
+          width: 280,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            color: Colors.white.withValues(alpha: 0.05),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0x993A8CFF).withValues(alpha: 0.4),
+                blurRadius: 60,
+                spreadRadius: 6,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 120,
+                height: 120,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 90 * pulse,
+                      height: 90 * pulse,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: SweepGradient(
+                          colors: [
+                            Color(0xFF3BE4FF),
+                            Color(0xFF7F5CFF),
+                            Color(0xFFFD8EFF),
+                            Color(0xFF3BE4FF),
+                          ],
+                        ),
+                      ),
+                    ),
+                    for (var i = 0; i < 4; i++)
+                      Transform.translate(
+                        offset: Offset.fromDirection(
+                          orbit + (math.pi / 2) * i,
+                          42,
+                        ),
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation(
+                          Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Opening ${widget.data.name}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Fetching availability and polishing details...',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _halo({
+    required Alignment alignment,
+    required double radius,
+    required Color color,
+  }) {
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: radius,
+        height: radius,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color, color.withValues(alpha: 0.01)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+class _DetailAuroraBackdrops extends StatelessWidget {
+  const _DetailAuroraBackdrops({required this.phase});
+  final double phase;
+
+  @override
+  Widget build(BuildContext context) {
+    final wave = math.sin(phase * 2 * math.pi);
+    final swell = math.cos(phase * 2 * math.pi);
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          _Halo(
+            alignment: Alignment(-0.6 + wave * 0.1, -0.8 + swell * 0.05),
+            size: 280 + swell * 30,
+            colors: [const Color(0x5533478E), Colors.transparent],
+            shadowColor: const Color(0x3333478E),
+            blur: 160,
+            spread: 12,
+          ),
+          _Halo(
+            alignment: Alignment(0.7 + swell * 0.12, -0.6 + wave * 0.05),
+            size: 240 + wave * 40,
+            colors: [const Color(0x55304D8E), Colors.transparent],
+            shadowColor: const Color(0x33304D8E),
+            blur: 140,
+            spread: 10,
+          ),
+          _Halo(
+            alignment: Alignment(0.0 + wave * 0.12, 0.55 + swell * 0.08),
+            size: 360 + wave * 50,
+            colors: [const Color(0x553B5E9C), Colors.transparent],
+            shadowColor: const Color(0x333B5E9C),
+            blur: 200,
+            spread: 14,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VenueDetailScreen extends StatelessWidget {
+  const _VenueDetailScreen({
+    required this.data,
+    required this.apiBaseUrl,
+  });
+
+  final _VenueCardData data;
+  final String apiBaseUrl;
+
+  Future<void> _openBookingDialog(BuildContext context) async {
+    final summary = await _showBookingDialog(context);
+    if (summary == null || !context.mounted) return;
+    await _showConfirmationDialog(context, summary);
+  }
+
+  Future<_BookingSummary?> _showBookingDialog(BuildContext context) {
+    return showGeneralDialog<_BookingSummary>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'booking-dialog',
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 520),
+      pageBuilder: (_, __, ___) => _DialogShell(
+        child: _BookingDialog(
+          pricePerSession: data.price,
+          venueName: data.name,
+          onSubmit: (start, end, phone) =>
+              _submitBookingRequest(start, end, phone),
+        ),
+      ),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.12),
+              end: Offset.zero,
+            ).animate(curved),
+            child: Transform.scale(
+              scale: 0.92 + 0.08 * curved.value,
+              child: child,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showConfirmationDialog(
+    BuildContext context,
+    _BookingSummary summary,
+  ) {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'booking-confirmation',
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      transitionDuration: const Duration(milliseconds: 620),
+      pageBuilder: (_, __, ___) => _DialogShell(
+        child: _BookingConfirmationCard(summary: summary),
+      ),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.elasticOut,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, (1 - curved.value) * 70),
+            child: Transform.rotate(
+              angle: (1 - curved.value) * 0.18,
+              child: Transform.scale(
+                scale: 0.8 + 0.2 * curved.value,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<_BookingSummary> _submitBookingRequest(
+    DateTime start,
+    DateTime end,
+    String phone,
+  ) async {
+    final venueId = data.id;
+    if (venueId == null) {
+      return _BookingSummary.localMock(
+        venueName: data.name,
+        venuePrice: data.price,
+        startDate: start,
+        endDate: end,
+        phoneNumber: phone,
+      );
+    }
+    final uri = Uri.parse('$apiBaseUrl/api/bookings/');
+    final username = Api.currentUsername;
+    final response = await http.post(
+      uri,
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'venue_id': venueId,
+        'start_date': start.toIso8601String().split('T').first,
+        'end_date': end.toIso8601String().split('T').first,
+        'phone_number': phone,
+        'notes': 'Booking dibuat via aplikasi mobile',
+        if (username != null && username.isNotEmpty) 'username': username,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      try {
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        final detail = payload['detail']?.toString();
+        throw Exception(detail ?? 'Gagal membuat booking');
+      } catch (_) {
+        throw Exception('Gagal membuat booking');
+      }
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    return _BookingSummary.fromJson(decoded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = const Color(0xFF060C18);
+    final highlight = const Color(0xFF12213D);
+    final amenities = [
+      'Locker rooms',
+      'Premium lighting',
+      'Cafe & lounge',
+      'Free parking',
+    ];
+    return Scaffold(
+      backgroundColor: background,
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: _backgroundGradient),
+            ),
+          ),
+          Positioned.fill(
+            child: _DetailAuroraBackdrops(phase: 0.35),
+          ),
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(36),
+                            child: AspectRatio(
+                              aspectRatio: 4 / 3,
+                              child: data.imageUrl.isNotEmpty
+                                  ? Image.network(
+                                      data.imageUrl,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder:
+                                          (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return const DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            gradient: _imageFallbackGradient,
+                                          ),
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (_, __, ___) =>
+                                          const DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: _imageFallbackGradient,
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : const DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: _imageFallbackGradient,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 16,
+                            left: 16,
+                            child: CircleAvatar(
+                              backgroundColor: Colors.black54,
+                              child: IconButton(
+                                icon:
+                                    const Icon(Icons.close, color: Colors.white),
+                                onPressed: () => Navigator.of(context).pushReplacement(
+                                  AuroraWarpRoute(const HomeScreen()),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.category.toUpperCase(),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                letterSpacing: 1.5,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              data.name,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    size: 16),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    data.location,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(Icons.star, color: Colors.amber),
+                                const SizedBox(width: 4),
+                                Text(
+                                  data.rating.toStringAsFixed(1),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _GlassPanel(
+                              overlayColor: highlight.withValues(alpha: 0.8),
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Mulai dari',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _formatPriceLabel(data.price),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    data.description,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.85),
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Fasilitas unggulan',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: amenities
+                                  .map(
+                                    (amenity) => _DetailChip(text: amenity),
+                                  )
+                                  .toList(),
+                            ),
+                            const SizedBox(height: 32),
+                            _DetailActionBar(
+                              priceLabel: _formatPriceLabel(data.price),
+                              onTapBook: () => _openBookingDialog(context),
+                            ),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailChip extends StatelessWidget {
+  const _DetailChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: 0.08),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.plusJakartaSans(
+          color: Colors.white,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailActionBar extends StatelessWidget {
+  const _DetailActionBar({
+    required this.priceLabel,
+    required this.onTapBook,
+  });
+
+  final String priceLabel;
+  final VoidCallback onTapBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      overlayColor: const Color(0x33213A65),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      radius: 24,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Biaya per sesi',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      priceLabel,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  backgroundColor: const Color(0xFF1FA2FF),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                onPressed: onTapBook,
+                icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                label: const Text('Pesan Jadwal'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DialogShell extends StatelessWidget {
+  const _DialogShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context).maybePop(),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Center(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () {},
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingDialog extends StatefulWidget {
+  const _BookingDialog({
+    required this.pricePerSession,
+    required this.venueName,
+    required this.onSubmit,
+  });
+
+  final int pricePerSession;
+  final String venueName;
+  final Future<_BookingSummary> Function(
+    DateTime startDate,
+    DateTime endDate,
+    String phoneNumber,
+  ) onSubmit;
+
+  @override
+  State<_BookingDialog> createState() => _BookingDialogState();
+}
+
+class _BookingDialogState extends State<_BookingDialog> {
+  final _startCtrl = TextEditingController();
+  final _endCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String? _error;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _startCtrl.dispose();
+    _endCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final initial = isStart
+        ? (_startDate ?? now)
+        : (_endDate ?? _startDate ?? now.add(const Duration(days: 1)));
+    final firstDate = isStart ? now : (_startDate ?? now);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF1FA2FF),
+              surface: Color(0xFF0B152C),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _startDate = picked;
+        _startCtrl.text = _formatReadableDate(picked);
+        if (_endDate != null && _endDate!.isBefore(picked)) {
+          _endDate = picked;
+          _endCtrl.text = _formatReadableDate(picked);
+        }
+      } else {
+        _endDate = picked;
+        _endCtrl.text = _formatReadableDate(picked);
+      }
+      _error = null;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final phone = _phoneCtrl.text.trim();
+    if (_startDate == null || _endDate == null || phone.isEmpty) {
+      setState(
+        () => _error = 'Mohon pilih tanggal mulai/selesai dan isi nomor telepon.',
+      );
+      return;
+    }
+    if (_endDate!.isBefore(_startDate!)) {
+      setState(() => _error = 'Tanggal selesai tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _error = null;
+      _submitting = true;
+    });
+    try {
+      final summary = await widget.onSubmit(_startDate!, _endDate!, phone);
+      if (!mounted) return;
+      Navigator.of(context).pop(summary);
+    } catch (err) {
+      final message = err.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _error = message;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      radius: 36,
+      padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
+      overlayColor: Colors.white.withValues(alpha: 0.05),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Atur Jadwal',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${_formatPriceLabel(widget.pricePerSession)} · ${widget.venueName}',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 360;
+              final startField = _DateField(
+                label: 'Mulai',
+                value: _startCtrl.text,
+                hint: 'Pilih tanggal',
+                onTap: () => _pickDate(isStart: true),
+              );
+              final endField = _DateField(
+                label: 'Selesai',
+                value: _endCtrl.text,
+                hint: 'Pilih tanggal',
+                onTap: () => _pickDate(isStart: false),
+              );
+              if (isWide) {
+                return Row(
+                  children: [
+                    Expanded(child: startField),
+                    const SizedBox(width: 16),
+                    Expanded(child: endField),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  startField,
+                  const SizedBox(height: 16),
+                  endField,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nomor telepon',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                style: GoogleFonts.plusJakartaSans(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Contoh: 0812 3456 7890',
+                  hintStyle: GoogleFonts.plusJakartaSans(
+                    color: Colors.white54,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(color: Color(0xFF1FA2FF)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFFFF8E8E),
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF1FA2FF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Booking...',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Book Now',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.hint,
+    required this.onTap,
+  });
+
   final String label;
-  final IconData icon;
+  final String value;
+  final String hint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final display = value.isEmpty ? hint : value;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.05),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today_rounded,
+                    size: 18, color: Colors.white.withValues(alpha: 0.8)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    display,
+                    style: GoogleFonts.plusJakartaSans(
+                      color:
+                          value.isEmpty ? Colors.white54 : Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _HighlightCardData {
-  const _HighlightCardData({
-    required this.title,
-    required this.subtitle,
-    required this.gradient,
-    required this.icon,
-  });
-  final String title;
-  final String subtitle;
-  final List<Color> gradient;
-  final IconData icon;
+class _BookingConfirmationCard extends StatelessWidget {
+  const _BookingConfirmationCard({required this.summary});
+
+  final _BookingSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateRange =
+        '${_formatReadableDate(summary.startDate)} \u2022 ${_formatReadableDate(summary.endDate)}';
+    return _GlassPanel(
+      radius: 36,
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 30),
+      overlayColor: Colors.white.withValues(alpha: 0.05),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 66,
+            height: 66,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Color(0xFF1FA2FF), Color(0xFF6B7CFF)],
+              ),
+            ),
+            child: const Icon(Icons.auto_awesome, color: Colors.white),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Booking terkirim!',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "You'll be contacted very soon.",
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            summary.venueName,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _ConfirmationRow(
+            label: 'ID Booking',
+            value: '#${summary.id.toString().padLeft(4, '0')}',
+          ),
+          const SizedBox(height: 8),
+          _ConfirmationRow(label: 'Rentang tanggal', value: dateRange),
+          const SizedBox(height: 8),
+          _ConfirmationRow(
+            label: 'Total sesi',
+            value: '${summary.sessions}x',
+          ),
+          const SizedBox(height: 8),
+          _ConfirmationRow(
+            label: 'Status',
+            value: summary.hasBeenPaid ? 'Paid' : 'Menunggu konfirmasi',
+          ),
+          const SizedBox(height: 8),
+          _ConfirmationRow(
+            label: 'Subtotal',
+            value: _formatCurrency(summary.subtotal),
+            emphasize: true,
+          ),
+          const SizedBox(height: 8),
+          _ConfirmationRow(
+            label: 'Kontak',
+            value: summary.phoneNumber,
+          ),
+          if ((summary.notes ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _ConfirmationRow(
+              label: 'Catatan',
+              value: summary.notes!,
+            ),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                backgroundColor: const Color(0xFF1FA2FF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Okay',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _PromoCardData {
-  const _PromoCardData({
-    required this.title,
-    required this.description,
-    required this.bullets,
-    required this.gradient,
-    required this.icon,
+class _ConfirmationRow extends StatelessWidget {
+  const _ConfirmationRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
   });
-  final String title;
-  final String description;
-  final List<String> bullets;
-  final List<Color> gradient;
-  final IconData icon;
+
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasize
+        ? GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          )
+        : GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 140,
+          child: Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white70,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.left,
+            style: style,
+            softWrap: true,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _VenueCardData {
-  const _VenueCardData({
-    required this.category,
-    required this.name,
-    required this.location,
-    required this.description,
-    required this.price,
-    required this.rating,
-    required this.imageUrl,
+class _BookingSummary {
+  const _BookingSummary({
+    required this.id,
+    required this.venueId,
+    required this.venueName,
+    required this.venueType,
+    required this.venueLocation,
+    required this.venueDescription,
+    required this.venueImageUrl,
+    required this.venuePrice,
+    required this.startDate,
+    required this.endDate,
+    required this.sessions,
+    required this.subtotal,
+    required this.phoneNumber,
+    required this.hasBeenPaid,
+    required this.datePaid,
+    required this.createdAt,
+    this.notes,
   });
-  final String category;
-  final String name;
-  final String location;
-  final String description;
-  final int price;
-  final double rating;
-  final String imageUrl;
+
+  factory _BookingSummary.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(String? value) =>
+        DateTime.tryParse(value ?? '') ?? DateTime.now();
+    final venue = (json['venue'] as Map<String, dynamic>?) ?? const {};
+    return _BookingSummary(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      venueId: (venue['id'] as num?)?.toInt() ?? 0,
+      venueName: (venue['title'] ?? 'Venue').toString(),
+      venueType: (venue['type'] ?? '').toString(),
+      venueLocation: (venue['location'] ?? '').toString(),
+      venueDescription: (venue['description'] ?? '').toString(),
+      venueImageUrl: (venue['image_url'] ?? '').toString(),
+      venuePrice: (venue['price'] as num?)?.toInt() ?? 0,
+      startDate: parseDate(json['start_date']?.toString()),
+      endDate: parseDate(json['end_date']?.toString()),
+      sessions: (json['sessions'] as num?)?.toInt() ?? 1,
+      subtotal: (json['subtotal'] as num?)?.toInt() ?? 0,
+      phoneNumber: (json['contact_phone'] ?? '').toString(),
+      hasBeenPaid: json['has_been_paid'] == true,
+      datePaid:
+          json['date_paid'] == null ? null : parseDate(json['date_paid']?.toString()),
+      createdAt: parseDate(json['created_at']?.toString()),
+      notes: json['notes']?.toString(),
+    );
+  }
+
+  factory _BookingSummary.localMock({
+    required String venueName,
+    required int venuePrice,
+    required DateTime startDate,
+    required DateTime endDate,
+    required String phoneNumber,
+  }) {
+    final sessions = endDate.difference(startDate).inDays + 1;
+    final now = DateTime.now();
+    return _BookingSummary(
+      id: now.millisecondsSinceEpoch,
+      venueId: 0,
+      venueName: venueName,
+      venueType: 'Venue',
+      venueLocation: 'Jakarta, Indonesia',
+      venueDescription: 'Booking simulasi untuk $venueName.',
+      venueImageUrl: '',
+      venuePrice: venuePrice,
+      startDate: startDate,
+      endDate: endDate,
+      sessions: sessions,
+      subtotal: sessions * venuePrice,
+      phoneNumber: phoneNumber,
+      hasBeenPaid: false,
+      datePaid: null,
+      createdAt: now,
+      notes: 'Booking demo tanpa backend',
+    );
+  }
+
+  final int id;
+  final int venueId;
+  final String venueName;
+  final String venueType;
+  final String venueLocation;
+  final String venueDescription;
+  final String venueImageUrl;
+  final int venuePrice;
+  final DateTime startDate;
+  final DateTime endDate;
+  final int sessions;
+  final int subtotal;
+  final String phoneNumber;
+  final bool hasBeenPaid;
+  final DateTime? datePaid;
+  final DateTime createdAt;
+  final String? notes;
 }
 
 String _formatPriceLabel(int price) {
   if (price <= 0) return 'Check availability';
-  final digits = price.toString();
+  return '${_formatCurrency(price)} / sesi';
+}
+
+String _formatCurrency(int value) {
+  if (value <= 0) return 'Rp 0';
+  final digits = value.toString();
   final buffer = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     final needsSeparator = i != 0 && (digits.length - i) % 3 == 0;
     if (needsSeparator) buffer.write('.');
     buffer.write(digits[i]);
   }
-  return 'Rp ${buffer.toString()} / sesi';
+  return 'Rp ${buffer.toString()}';
 }
 
-class _TestimonialData {
-  const _TestimonialData({
-    required this.name,
-    required this.role,
-    required this.quote,
-    required this.avatarUrl,
-  });
-  final String name;
-  final String role;
-  final String quote;
-  final String avatarUrl;
+String _formatReadableDate(DateTime date) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ];
+  final month = months[date.month - 1];
+  final day = date.day.toString().padLeft(2, '0');
+  return '$day $month ${date.year}';
 }
+
+
+
+

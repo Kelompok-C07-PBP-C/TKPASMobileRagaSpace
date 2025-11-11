@@ -65,6 +65,7 @@ class Booking(models.Model):
       BookingDate, related_name="booking", on_delete=models.CASCADE
   )
   notes = models.TextField(blank=True)
+  contact_phone = models.CharField(max_length=32, blank=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
 
