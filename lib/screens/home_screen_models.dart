@@ -87,7 +87,9 @@ class _VenueCardData {
         price: int.tryParse(map['price']?.toString() ?? '') ?? 0,
         rating: double.tryParse(map['rating']?.toString() ?? '') ?? 0,
         imageUrl: (map['imageUrl'] ?? '').toString(),
-        id: map['id'] is int ? map['id'] as int : null,
+        id: map['id'] is int
+            ? map['id'] as int
+            : int.tryParse(map['id']?.toString() ?? ''),
       );
 
   String get storageKey =>
@@ -99,72 +101,19 @@ class _CatalogProduct {
     required this.title,
     required this.category,
     required this.city,
+    required this.description,
     required this.price,
     required this.rating,
     required this.imageUrl,
+    this.id,
   });
 
+  final int? id;
   final String title;
   final String category;
   final String city;
+  final String description;
   final int price;
   final double rating;
   final String imageUrl;
 }
-
-const List<_CatalogProduct> _catalogProducts = [
-  _CatalogProduct(
-    title: 'Harborview Badminton Center',
-    category: 'Badminton',
-    city: 'Surabaya',
-    price: 320000,
-    rating: 4.8,
-    imageUrl:
-        'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?auto=format&fit=crop&w=600&q=80',
-  ),
-  _CatalogProduct(
-    title: 'Aurora Sports Dome',
-    category: 'Futsal',
-    city: 'Jakarta',
-    price: 550000,
-    rating: 4.9,
-    imageUrl:
-        'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80',
-  ),
-  _CatalogProduct(
-    title: 'Summit Court Arena',
-    category: 'Basket',
-    city: 'Bandung',
-    price: 680000,
-    rating: 4.7,
-    imageUrl:
-        'https://images.unsplash.com/photo-1502740479091-635887520276?auto=format&fit=crop&w=600&q=80',
-  ),
-  _CatalogProduct(
-    title: 'Padel Loft',
-    category: 'Tennis',
-    city: 'Jakarta',
-    price: 420000,
-    rating: 4.5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=600&q=80',
-  ),
-  _CatalogProduct(
-    title: 'Bali Seaside Court',
-    category: 'Basket',
-    city: 'Bali',
-    price: 360000,
-    rating: 4.6,
-    imageUrl:
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80',
-  ),
-  _CatalogProduct(
-    title: 'Neo Badminton Pods',
-    category: 'Badminton',
-    city: 'Jakarta',
-    price: 250000,
-    rating: 4.4,
-    imageUrl:
-        'https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=600&q=80',
-  ),
-];

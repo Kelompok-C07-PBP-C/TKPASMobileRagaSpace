@@ -134,28 +134,12 @@ class _VenueCard extends StatelessWidget {
             Positioned(
               top: 18,
               right: 18,
-              child: GestureDetector(
+              child: _FavoriteBadgeButton(
+                isFavorite: isFavorite,
                 onTap: () {
                   onToggleFavorite();
                   Feedback.forTap(context);
                 },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: 0.35),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Icon(
-                    isFavorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_outline_rounded,
-                    color: isFavorite ? Colors.pinkAccent : Colors.white,
-                  ),
-                ),
               ),
             ),
           ],
@@ -320,6 +304,38 @@ class _ErrorNotice extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _FavoriteBadgeButton extends StatelessWidget {
+  const _FavoriteBadgeButton({
+    required this.isFavorite,
+    required this.onTap,
+    this.backgroundColor = const Color(0xAA000000),
+  });
+
+  final bool isFavorite;
+  final VoidCallback onTap;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: backgroundColor,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        ),
+        child: Icon(
+          isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+          color: isFavorite ? Colors.pinkAccent : Colors.white,
+        ),
       ),
     );
   }

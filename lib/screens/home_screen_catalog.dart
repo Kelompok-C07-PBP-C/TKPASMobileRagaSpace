@@ -6,12 +6,16 @@ class _ProductCatalogScreen extends StatefulWidget {
     required this.initialCategory,
     required this.initialPrice,
     required this.apiBaseUrl,
+    required this.initialWishlistKeys,
+    required this.onToggleFavorite,
   });
 
   final String initialCity;
   final String initialCategory;
   final String initialPrice;
   final String apiBaseUrl;
+  final Set<String> initialWishlistKeys;
+  final Future<bool> Function(_VenueCardData data) onToggleFavorite;
 
   @override
   State<_ProductCatalogScreen> createState() => _ProductCatalogScreenState();
@@ -22,10 +26,11 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
   late String _city;
   late String _category;
   late String _price;
-  List<_CatalogProduct> _products = _catalogProducts;
+  List<_CatalogProduct> _products = const <_CatalogProduct>[];
   bool _loading = true;
   String? _error;
   late final AnimationController _auroraController;
+  late Set<String> _favoriteKeys;
 
   @override
   void initState() {
@@ -33,6 +38,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
     _city = widget.initialCity;
     _category = widget.initialCategory;
     _price = widget.initialPrice;
+    _favoriteKeys = Set<String>.from(widget.initialWishlistKeys);
     _auroraController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 18),
@@ -301,20 +307,23 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
                         ),
                       )
                     else
-                      SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.72,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                      SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, index) => _CatalogProductCard(
-                            product: products[index],
-                            onTap: () =>
-                                Navigator.of(context).pop(products[index]),
-                          ),
+                          (context, index) {
+                            final product = products[index];
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == products.length - 1 ? 0 : 16,
+                              ),
+                              child: _CatalogProductCard(
+                                product: product,
+                                onTap: () => Navigator.of(context).pop(product),
+                                isFavorite: _isFavoriteProduct(product),
+                                onToggleFavorite: () =>
+                                    _toggleProductFavorite(product),
+                              ),
+                            );
+                          },
                           childCount: products.length,
                         ),
                       ),
@@ -354,16 +363,20 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
         final location = (map['location'] ?? '').toString();
         final city = (map['city'] ?? '').toString();
         return _CatalogProduct(
+          id: map['id'] is int
+              ? map['id'] as int
+              : int.tryParse(map['id']?.toString() ?? ''),
           title: (map['title'] ?? '').toString(),
           category: (map['type'] ?? '').toString(),
           city: city.isNotEmpty ? city : (location.split(',').first.trim()),
+          description: (map['description'] ?? '').toString(),
           price: int.tryParse(map['price']?.toString() ?? '') ?? 0,
           rating: double.tryParse(map['average_rating']?.toString() ?? '') ?? 0,
           imageUrl: (map['image_url'] ?? '').toString(),
         );
       }).where((product) => product.title.isNotEmpty).toList();
       setState(() {
-        _products = fetched.isNotEmpty ? fetched : _catalogProducts;
+        _products = fetched;
         _loading = false;
       });
     } catch (err) {
@@ -375,14 +388,13 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
   }
 
   List<_CatalogProduct> _filterProducts() {
-    final source = _products.isNotEmpty ? _products : _catalogProducts;
-    return source.where((product) {
+    return _products.where((product) {
       final dummyVenue = _VenueCardData(
-        id: product.hashCode,
+        id: product.id,
         category: product.category,
         name: product.title,
         location: '${product.city}, Indonesia',
-        description: '',
+        description: product.description,
         price: product.price,
         rating: product.rating,
         imageUrl: product.imageUrl,
@@ -394,6 +406,46 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
         price: _price,
       ).isNotEmpty;
     }).toList();
+  }
+
+  bool _isFavoriteProduct(_CatalogProduct product) {
+    return _favoriteKeys.contains(_productStorageKey(product));
+  }
+
+  Future<void> _toggleProductFavorite(_CatalogProduct product) async {
+    final venue = _productToVenue(product);
+    try {
+      final isFavorite = await widget.onToggleFavorite(venue);
+      if (!mounted) return;
+      final key = _productStorageKey(product);
+      setState(() {
+        if (isFavorite) {
+          _favoriteKeys.add(key);
+        } else {
+          _favoriteKeys.remove(key);
+        }
+      });
+    } catch (_) {
+      // ignore toggle errors for now
+    }
+  }
+
+  String _productStorageKey(_CatalogProduct product) =>
+      _productToVenue(product).storageKey;
+
+  _VenueCardData _productToVenue(_CatalogProduct product) {
+    return _VenueCardData(
+      id: product.id,
+      category: product.category,
+      name: product.title,
+      location: '${product.city}, Indonesia',
+      description: product.description.isNotEmpty
+          ? product.description
+          : 'Venue ${product.category.toLowerCase()} favorit di ${product.city}.',
+      price: product.price,
+      rating: product.rating,
+      imageUrl: product.imageUrl,
+    );
   }
 }
 
@@ -462,10 +514,17 @@ class _CatalogDropdown extends StatelessWidget {
 }
 
 class _CatalogProductCard extends StatelessWidget {
-  const _CatalogProductCard({required this.product, required this.onTap});
+  const _CatalogProductCard({
+    required this.product,
+    required this.onTap,
+    required this.isFavorite,
+    required this.onToggleFavorite,
+  });
 
   final _CatalogProduct product;
   final VoidCallback onTap;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -479,12 +538,28 @@ class _CatalogProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: AspectRatio(
-                aspectRatio: 4 / 3,
-                child: _buildNetworkImage(product.imageUrl),
-              ),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: _buildNetworkImage(product.imageUrl),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _FavoriteBadgeButton(
+                    isFavorite: isFavorite,
+                    onTap: () {
+                      Feedback.forTap(context);
+                      onToggleFavorite();
+                    },
+                    backgroundColor: const Color(0xAA0F1F35),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Text(
@@ -505,7 +580,17 @@ class _CatalogProductCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 6),
+            Text(
+              product.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white70,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(

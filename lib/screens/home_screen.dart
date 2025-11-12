@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
@@ -11,6 +11,8 @@ import 'package:marco/services/api.dart';
 import 'package:marco/widgets/aurora_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'account_settings_screen.dart';
+import 'login_screen.dart';
 
 part 'home_screen_models.dart';
 part 'home_screen_catalog.dart';
@@ -133,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       bullets: [
         'Filter tipe olahraga, kota, dan harga.',
         'Lihat slot realtime & pilih jadwal.',
-        'Checkout aman—invoice otomatis dikirim.',
+        'Checkout aman�invoice otomatis dikirim.',
       ],
       gradient: [Color(0xFF4F46E5), Color(0xFF9337FF)],
       icon: Icons.flash_on_rounded,
@@ -228,6 +230,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadWishlist();
   }
 
+  void _startHighlightAutoScroll() {
+    _highlightTimer?.cancel();
+    if (_highlightPageCount <= 1) return;
+    _highlightTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_highlightController.hasClients) return;
+      final current = _highlightController.page?.round() ??
+          _highlightController.initialPage;
+      final next = (current + 1) % _highlightPageCount;
+      _highlightController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _startTestimonialAutoScroll() {
+    _testimonialTimer?.cancel();
+    if (_testimonials.length <= 1) return;
+    _testimonialTimer = Timer.periodic(const Duration(seconds: 7), (_) {
+      final next = (_testimonialPage + 1) % _testimonials.length;
+      _goToTestimonial(next);
+    });
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final shouldShow = _scrollController.offset > 120;
+    if (shouldShow != _stickyNavVisible) {
+      setState(() => _stickyNavVisible = shouldShow);
+    }
+  }
+
+  int get _highlightPageCount => _highlightCards.length + 1;
+
   @override
   void dispose() {
     _highlightTimer?.cancel();
@@ -245,9 +282,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       extendBody: true,
       backgroundColor: Colors.transparent,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _buildCentralFab(),
-      body: Stack(
+       body: Stack(
         clipBehavior: Clip.none,
         children: [
           const Positioned.fill(
@@ -423,22 +458,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const Spacer(),
           IconButton(
-            tooltip: 'Search',
-            onPressed: () {},
-            icon: const Icon(Icons.search_rounded, color: Colors.white),
-          ),
-          IconButton(
             tooltip: 'Notifications',
             onPressed: () {},
             icon: const Icon(Icons.notifications_none_rounded,
                 color: Colors.white),
           ),
-          CircleAvatar(
-            radius: 16,
-            backgroundImage: const NetworkImage(
-              'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=60',
+          InkWell(
+            onTap: _showProfileMenu,
+            borderRadius: BorderRadius.circular(24),
+            child: CircleAvatar(
+              radius: 16,
+              backgroundImage: const NetworkImage(
+                'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=60',
+              ),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
             ),
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
           ),
         ],
       ),
@@ -481,9 +515,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             final int itemsPerRow = extraWide ? 5 : 4;
             final double chipWidth =
                 ((width - 16 * (itemsPerRow - 1)) / itemsPerRow).clamp(
-                  140.0,
-                  220.0,
-                );
+              140.0,
+              220.0,
+            );
             return Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -526,119 +560,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         },
       ),
-    );
-  }
-
-  void _startHighlightAutoScroll() {
-    _highlightTimer?.cancel();
-    final totalPages = _highlightPageCount;
-    if (totalPages <= 1) return;
-    _highlightTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!_highlightController.hasClients) return;
-      final currentPage = _highlightController.page?.round() ?? 0;
-      final nextPage = (currentPage + 1) % totalPages;
-      _highlightController.animateToPage(
-        nextPage,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
-
-
-  int get _highlightPageCount => _highlightCards.length + 1;
-  void _startTestimonialAutoScroll() {
-    _testimonialTimer?.cancel();
-    if (_testimonials.length <= 1) return;
-    _testimonialTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!_testimonialController.hasClients) return;
-      final next = (_testimonialPage + 1) % _testimonials.length;
-      _testimonialController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
-
-  void _openVenueDetail(_VenueCardData data) {
-    Navigator.of(context).push(
-      AuroraWarpRoute(
-        _VenueDetailLoadingScreen(
-          data: data,
-          apiBaseUrl: _apiBaseUrl,
-        ),
-      ),
-    );
-  }
-
-  void _handleScroll() {
-    final shouldShow = _scrollController.offset > 40;
-    if (shouldShow != _stickyNavVisible) {
-      setState(() => _stickyNavVisible = shouldShow);
-    }
-  }
-
-  Widget _buildHeroBanner() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: SizedBox(
-            height: 420,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: _imageFallbackGradient),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Cari venue terbaik untuk sesi berikutnya.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Filter kota, kategori, dan anggaranmu di satu tempat.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          color: Colors.white.withValues(alpha: 0.82),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: IgnorePointer(child: Container(height: 200)),
-        ),
-        Positioned(
-          left: 24,
-          right: 24,
-          bottom: 15,
-          child: _FadeSlideIn(
-            delay: const Duration(milliseconds: 300),
-            offset: const Offset(0, 0.15),
-            child: _buildSearchCard(),
-          ),
-        ),
-      ],
     );
   }
 
@@ -795,6 +716,69 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeroBanner() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(36),
+          child: SizedBox(
+            height: 420,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const DecoratedBox(
+                  decoration: BoxDecoration(gradient: _imageFallbackGradient),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cari venue terbaik untuk sesi berikutnya.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Filter kota, kategori, dan anggaranmu di satu tempat.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          color: Colors.white.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: IgnorePointer(child: Container(height: 200)),
+        ),
+        Positioned(
+          left: 24,
+          right: 24,
+          bottom: 15,
+          child: _FadeSlideIn(
+            delay: const Duration(milliseconds: 300),
+            offset: const Offset(0, 0.15),
+            child: _buildSearchCard(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -965,7 +949,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildTestimonialControls() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         Row(
           children: List.generate(_testimonials.length, (index) {
@@ -1042,6 +1026,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           initialCategory: initialCategory ?? _selectedCategory,
           initialPrice: initialPrice ?? _selectedPrice,
           apiBaseUrl: _apiBaseUrl,
+          initialWishlistKeys: Set<String>.from(_wishlistKeys),
+          onToggleFavorite: _toggleWishlistAndReturn,
         ),
       ),
     );
@@ -1090,6 +1076,97 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _navIndex = 0);
   }
 
+  Future<void> _openVenueDetail(_VenueCardData data) async {
+    final isFavorite = _wishlistKeys.contains(data.storageKey);
+    await Navigator.of(context).push(
+      AuroraWarpRoute(
+        _VenueDetailLoadingScreen(
+          data: data,
+          apiBaseUrl: _apiBaseUrl,
+          isFavorite: isFavorite,
+          onToggleFavorite: _toggleWishlistAndReturn,
+        ),
+      ),
+    );
+  }
+
+  void _showProfileMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: _GlassPanel(
+          radius: 24,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          overlayColor: Colors.white.withValues(alpha: 0.08),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.settings_rounded, color: Colors.white),
+                  title: Text(
+                    'Account settings',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Update profile & preferences',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openAccountSettings();
+                  },
+                ),
+                const Divider(height: 0, color: Color(0x33FFFFFF)),
+                ListTile(
+                  leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                  title: Text(
+                    'Log out',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _performLogout();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openAccountSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
+    );
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      await Api().logout();
+    } catch (_) {
+      // ignore network errors, still navigate to login
+    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Future<List<_BookingSummary>> _fetchBookingsFromServer() async {
     final username = Api.currentUsername;
     Uri uri = Uri.parse('$_apiBaseUrl/api/bookings/');
@@ -1135,12 +1212,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   _VenueCardData _catalogProductToVenue(_CatalogProduct product) {
     return _VenueCardData(
-      id: null,
+      id: product.id,
       category: product.category,
       name: product.title,
       location: '${product.city}, Indonesia',
-      description:
-          'Venue ${product.category.toLowerCase()} favorit di ${product.city}.',
+      description: product.description.isNotEmpty
+          ? product.description
+          : 'Venue ${product.category.toLowerCase()} favorit di ${product.city}.',
       price: product.price,
       rating: product.rating,
       imageUrl: product.imageUrl,
@@ -1303,10 +1381,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final parsed = stored
         .map((item) => _VenueCardData.fromMap(jsonDecode(item)))
         .toList();
+    var cleaned = parsed.where((item) => item.id != null).toList();
+    bool needsPersist = cleaned.length != parsed.length;
+    try {
+      final existingIds = await _fetchAllVenueIds();
+      if (existingIds != null && existingIds.isNotEmpty) {
+        final filtered =
+            cleaned.where((item) => existingIds.contains(item.id)).toList();
+        if (filtered.length != cleaned.length) {
+          cleaned = filtered;
+          needsPersist = true;
+        }
+      }
+    } catch (_) {
+      // ignore network errors; fallback to currently known items
+    }
+    if (needsPersist) {
+      final encoded = cleaned.map((e) => jsonEncode(e.toMap())).toList();
+      await _prefs!.setStringList(_wishlistStorageKey, encoded);
+    }
     setState(() {
-      _wishlist = parsed;
-      _wishlistKeys = parsed.map((e) => e.storageKey).toSet();
+      _wishlist = cleaned;
+      _wishlistKeys = cleaned.map((e) => e.storageKey).toSet();
     });
+  }
+
+  Future<Set<int>?> _fetchAllVenueIds() async {
+    try {
+      final uri = Uri.parse('$_apiBaseUrl/api/venues/');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return null;
+      final payload = jsonDecode(res.body) as List<dynamic>;
+      final ids = <int>{};
+      for (final raw in payload) {
+        final map = raw as Map<String, dynamic>;
+        final idValue = map['id'];
+        final parsed = idValue is int ? idValue : int.tryParse('$idValue');
+        if (parsed != null) ids.add(parsed);
+      }
+      return ids;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _persistWishlist() async {
@@ -1327,6 +1443,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
     await _persistWishlist();
+  }
+
+  Future<bool> _toggleWishlistAndReturn(_VenueCardData data) async {
+    final wasFavorite = _wishlistKeys.contains(data.storageKey);
+    await _toggleWishlist(data);
+    return !wasFavorite;
   }
 
   Widget _buildPromoSpotlight() {
@@ -1361,43 +1483,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCentralFab() {
-    return SizedBox(
-      height: 70,
-      width: 70,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(5),
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [_ctaBlue, _ctaTeal],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () {},
-                child: const Center(
-                  child: Icon(Icons.add_rounded, color: Colors.white, size: 32),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomNavigation(BuildContext context) {
     final items = [
       _NavItemData(icon: Icons.home_rounded, label: 'Home'),
@@ -1413,7 +1498,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _NavItem(
             data: items[0],
@@ -1425,7 +1510,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             selected: _navIndex == 1,
             onTap: _openCatalog,
           ),
-          const SizedBox(width: 70),
           _NavItem(
             data: items[2],
             selected: _navIndex == 2,
@@ -2211,10 +2295,14 @@ class _VenueDetailLoadingScreen extends StatefulWidget {
   const _VenueDetailLoadingScreen({
     required this.data,
     required this.apiBaseUrl,
+    required this.isFavorite,
+    required this.onToggleFavorite,
   });
 
   final _VenueCardData data;
   final String apiBaseUrl;
+  final bool isFavorite;
+  final Future<bool> Function(_VenueCardData data) onToggleFavorite;
 
   @override
   State<_VenueDetailLoadingScreen> createState() =>
@@ -2250,6 +2338,8 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
         _VenueDetailScreen(
           data: widget.data,
           apiBaseUrl: widget.apiBaseUrl,
+          isFavorite: widget.isFavorite,
+          onToggleFavorite: widget.onToggleFavorite,
         ),
       ),
     );
@@ -2482,14 +2572,41 @@ class _DetailAuroraBackdrops extends StatelessWidget {
   }
 }
 
-class _VenueDetailScreen extends StatelessWidget {
+class _VenueDetailScreen extends StatefulWidget {
   const _VenueDetailScreen({
     required this.data,
     required this.apiBaseUrl,
+    required this.isFavorite,
+    required this.onToggleFavorite,
   });
 
   final _VenueCardData data;
   final String apiBaseUrl;
+  final bool isFavorite;
+  final Future<bool> Function(_VenueCardData data) onToggleFavorite;
+
+  @override
+  State<_VenueDetailScreen> createState() => _VenueDetailScreenState();
+}
+
+class _VenueDetailScreenState extends State<_VenueDetailScreen> {
+  late _VenueCardData data;
+  late String apiBaseUrl;
+  late bool _isFavorite;
+
+  @override
+  void initState() {
+    super.initState();
+    data = widget.data;
+    apiBaseUrl = widget.apiBaseUrl;
+    _isFavorite = widget.isFavorite;
+  }
+
+  Future<void> _toggleFavorite() async {
+    final result = await widget.onToggleFavorite(data);
+    if (!mounted) return;
+    setState(() => _isFavorite = result);
+  }
 
   Future<void> _openBookingDialog(BuildContext context) async {
     final summary = await _showBookingDialog(context);
@@ -2688,11 +2805,11 @@ class _VenueDetailScreen extends StatelessWidget {
                                     ),
                             ),
                           ),
-                          Positioned(
-                            top: 16,
-                            left: 16,
-                            child: CircleAvatar(
-                              backgroundColor: Colors.black54,
+                      Positioned(
+                        top: 16,
+                        left: 16,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black54,
                               child: IconButton(
                                 icon:
                                     const Icon(Icons.close, color: Colors.white),
@@ -2819,6 +2936,23 @@ class _VenueDetailScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, right: 12),
+                child: _FavoriteBadgeButton(
+                  isFavorite: _isFavorite,
+                  onTap: () {
+                    _toggleFavorite();
+                    Feedback.forTap(context);
+                  },
+                  backgroundColor: Colors.black.withValues(alpha: 0.6),
+                ),
+              ),
             ),
           ),
         ],
@@ -3081,7 +3215,7 @@ class _BookingDialogState extends State<_BookingDialog> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${_formatPriceLabel(widget.pricePerSession)} · ${widget.venueName}',
+            '${_formatPriceLabel(widget.pricePerSession)} � ${widget.venueName}',
             style: GoogleFonts.plusJakartaSans(
               color: Colors.white70,
               fontSize: 13,
@@ -3567,6 +3701,12 @@ String _formatReadableDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
   return '$day $month ${date.year}';
 }
+
+
+
+
+
+
 
 
 

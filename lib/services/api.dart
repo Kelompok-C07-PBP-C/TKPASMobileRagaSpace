@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'base_url_resolver.dart';
@@ -81,11 +82,73 @@ class Api {
     return decoded;
   }
 
+  Future<Map<String, dynamic>> fetchAccount(int userId) async {
+    final uri = _u('account/?user_id=$userId');
+    final res = await http.get(uri);
+    final decoded = _decode(res);
+    final data = _unwrapData(decoded);
+    return data;
+  }
+
+  Future<Map<String, dynamic>> updateAccount({
+    required int userId,
+    required String username,
+    required String email,
+    required String firstName,
+    required String lastName,
+    File? avatarFile,
+  }) async {
+    final request = http.MultipartRequest('POST', _u('account/update/'));
+    request.fields.addAll({
+      'user_id': userId.toString(),
+      'username': username,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+    });
+    if (avatarFile != null) {
+      request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));
+    }
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    final decoded = _decode(response);
+    final data = _unwrapData(decoded);
+    _updateSession(data);
+    return data;
+  }
+
+  Future<void> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final res = await http.post(
+      _u('account/password/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      }),
+    );
+    _decode(res);
+  }
+
   Map<String, dynamic> _decode(http.Response res) {
     final body = (res.body.isEmpty) ? '{}' : res.body;
     final decoded = jsonDecode(body) as Map<String, dynamic>;
     if (res.statusCode >= 400) {
       throw ApiError(decoded['detail']?.toString() ?? 'Request failed');
+    }
+    return decoded;
+  }
+
+  Map<String, dynamic> _unwrapData(Map<String, dynamic> decoded) {
+    final data = decoded['data'];
+    if (data is Map<String, dynamic>) {
+      return data;
     }
     return decoded;
   }

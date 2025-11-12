@@ -124,7 +124,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000', 'http://127.0.0.1:8000'
 ]
 
-LOGIN_URL = '/dj-admin/login/'
+LOGIN_URL = '/admin/login/'
 LOGOUT_REDIRECT_URL = '/admin/'
 
 # Default primary key field type

@@ -1,6 +1,6 @@
 part of 'home_screen.dart';
 
-class _WishlistScreen extends StatelessWidget {
+class _WishlistScreen extends StatefulWidget {
   const _WishlistScreen({
     required this.items,
     required this.onRemove,
@@ -10,6 +10,26 @@ class _WishlistScreen extends StatelessWidget {
   final List<_VenueCardData> items;
   final ValueChanged<_VenueCardData> onRemove;
   final ValueChanged<_VenueCardData> onSelect;
+
+  @override
+  State<_WishlistScreen> createState() => _WishlistScreenState();
+}
+
+class _WishlistScreenState extends State<_WishlistScreen> {
+  late List<_VenueCardData> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<_VenueCardData>.from(widget.items);
+  }
+
+  void _removeItem(_VenueCardData venue) {
+    widget.onRemove(venue);
+    setState(() {
+      _items.removeWhere((item) => item.storageKey == venue.storageKey);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +70,7 @@ class _WishlistScreen extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: items.isEmpty
+                  child: _items.isEmpty
                       ? Center(
                           child: Text(
                             'Belum ada venue yang disimpan.',
@@ -63,7 +83,7 @@ class _WishlistScreen extends StatelessWidget {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                           itemBuilder: (context, index) {
-                            final venue = items[index];
+                            final venue = _items[index];
                             return Dismissible(
                               key: ValueKey(venue.storageKey),
                               direction: DismissDirection.endToStart,
@@ -77,18 +97,18 @@ class _WishlistScreen extends StatelessWidget {
                                 child: const Icon(Icons.delete,
                                     color: Colors.white),
                               ),
-                              onDismissed: (_) => onRemove(venue),
+                              onDismissed: (_) => _removeItem(venue),
                               child: _VenueCard(
                                 data: venue,
-                                onTap: () => onSelect(venue),
+                                onTap: () => widget.onSelect(venue),
                                 isFavorite: true,
-                                onToggleFavorite: () => onRemove(venue),
+                                onToggleFavorite: () => _removeItem(venue),
                               ),
                             );
                           },
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 16),
-                          itemCount: items.length,
+                          itemCount: _items.length,
                         ),
                 ),
               ],

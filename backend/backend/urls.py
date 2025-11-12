@@ -23,8 +23,9 @@ from app import views as app_views
 
 urlpatterns = [
     # Custom admin panel (brokuFalih UI)
-    path('admin/', app_views.admin_panel, name='html-admin-panel'),
+    path('admin/login/', app_views.admin_login_view, name='html-admin-login'),
     path('admin/logout/', app_views.admin_logout_view, name='html-admin-logout'),
+    path('admin/', app_views.admin_panel, name='html-admin-panel'),
 
     # Keep Django's built-in admin under a different path
     path('dj-admin/', admin.site.urls),

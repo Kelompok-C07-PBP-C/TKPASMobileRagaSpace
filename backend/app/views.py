@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
@@ -13,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import BookingForm, VenueForm
-from .models import Venue, Booking, BookingDate
+from .models import Venue, Booking, BookingDate, Profile
 
 
 
@@ -117,15 +118,36 @@ def logout_view(request: HttpRequest):
     return JsonResponse({"detail": "logged out"})
 
 
-def me_view(request: HttpRequest):
-    if not request.user.is_authenticated:
-        return JsonResponse({"authenticated": False})
-    user = request.user
-    return JsonResponse({
-        "authenticated": True,
+def _get_or_create_profile(user):
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        profile, _ = Profile.objects.get_or_create(user=user)
+    return profile
+
+
+def _serialize_user_account(user, request: HttpRequest | None = None):
+    profile = _get_or_create_profile(user)
+    avatar_url = ""
+    if profile.avatar:
+        avatar_url = profile.avatar.url
+        if request:
+            avatar_url = request.build_absolute_uri(avatar_url)
+    return {
         "id": user.id,
         "username": user.username,
         "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "avatar_url": avatar_url,
+    }
+
+
+def me_view(request: HttpRequest):
+    if not request.user.is_authenticated:
+        return JsonResponse({"authenticated": False})
+    return JsonResponse({
+        "authenticated": True,
+        **_serialize_user_account(request.user, request=request),
     })
 
 
@@ -179,6 +201,7 @@ def venues_list_view(request: HttpRequest):
                 "id": venue.id,
                 "title": venue.title,
                 "type": venue.type,
+                "description": venue.description,
                 "location": venue.location,
                 "city": city,
                 "price": venue.price,
@@ -187,6 +210,81 @@ def venues_list_view(request: HttpRequest):
             }
         )
     return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def account_detail_view(request: HttpRequest):
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+    try:
+        user_id = int(request.GET.get("user_id", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "user_id is required"}, status=400)
+    user = get_object_or_404(User, pk=user_id)
+    return JsonResponse({"success": True, "data": _serialize_user_account(user, request=request)})
+
+
+@csrf_exempt
+def account_update_view(request: HttpRequest):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+    try:
+        user_id = int(request.POST.get("user_id", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "user_id is required"}, status=400)
+    user = get_object_or_404(User, pk=user_id)
+
+    username = (request.POST.get("username") or "").strip()
+    email = (request.POST.get("email") or "").strip()
+    first_name = (request.POST.get("first_name") or "").strip()
+    last_name = (request.POST.get("last_name") or "").strip()
+
+    if not username:
+        return JsonResponse({"detail": "Username cannot be empty"}, status=400)
+    if User.objects.exclude(pk=user.pk).filter(username=username).exists():
+        return JsonResponse({"detail": "Username already taken"}, status=409)
+    if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
+        return JsonResponse({"detail": "Email already taken"}, status=409)
+
+    user.username = username
+    user.email = email
+    user.first_name = first_name
+    user.last_name = last_name
+    user.save()
+
+    profile = _get_or_create_profile(user)
+    avatar = request.FILES.get("avatar")
+    if avatar:
+        profile.avatar = avatar
+        profile.save()
+
+    return JsonResponse({"success": True, "data": _serialize_user_account(user, request=request)})
+
+
+@csrf_exempt
+def account_password_view(request: HttpRequest):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+    payload = _json_request(request)
+    try:
+        user_id = int(payload.get("user_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "user_id is required"}, status=400)
+    current_password = payload.get("current_password") or ""
+    new_password = payload.get("new_password") or ""
+    confirm_password = payload.get("confirm_password") or ""
+    if not current_password or not new_password or not confirm_password:
+        return JsonResponse({"detail": "All password fields are required"}, status=400)
+    if new_password != confirm_password:
+        return JsonResponse({"detail": "New passwords do not match"}, status=400)
+
+    user = get_object_or_404(User, pk=user_id)
+    if not user.check_password(current_password):
+        return JsonResponse({"detail": "Current password is incorrect"}, status=400)
+
+    user.set_password(new_password)
+    user.save()
+    return JsonResponse({"success": True})
 
 
 @csrf_exempt
@@ -546,6 +644,31 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
         "sales": {"labels": sales_labels, "data": sales_totals},
         "popularity": {"labels": popularity_labels, "data": popularity_totals},
     }
+
+
+@ensure_csrf_cookie
+def admin_login_view(request: HttpRequest):
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect(request.GET.get("next") or "/admin/")
+
+    form = AuthenticationForm(request, data=request.POST or None)
+    error_message = None
+
+    if request.method == "POST":
+        if form.is_valid():
+            user = form.get_user()
+            if not user.is_staff:
+                error_message = "Akun ini tidak memiliki akses ke Control Center."
+            else:
+                login(request, user)
+                next_url = request.POST.get("next") or request.GET.get("next") or "/admin/"
+                return redirect(next_url)
+        else:
+            error_message = "Username atau password salah."
+
+    next_url = request.GET.get("next") or request.POST.get("next") or "/admin/"
+    context = {"form": form, "error": error_message, "next": next_url}
+    return render(request, "app/admin_login.html", context)
 
 
 @login_required
