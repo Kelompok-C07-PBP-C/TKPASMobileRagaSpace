@@ -95,6 +95,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static final String _apiBaseUrl = _resolveApiBaseUrl();
+  static final String _apiHostBase =
+      _apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
   static const List<_CategoryChipData> _categories = [
     _CategoryChipData(label: 'Tennis', icon: Icons.sports_tennis),
     _CategoryChipData(label: 'Badminton', icon: Icons.sports),
@@ -170,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<_VenueCardData> _wishlist = [];
   Set<String> _wishlistKeys = {};
   SharedPreferences? _prefs;
+  String? _avatarUrl;
   static const List<_TestimonialData> _testimonials = [
     _TestimonialData(
       name: 'RPM Dimaz',
@@ -228,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _scrollController = ScrollController()..addListener(_handleScroll);
     _fetchTopVenues();
     _loadWishlist();
+    _loadProfileSummary();
   }
 
   void _startHighlightAutoScroll() {
@@ -468,10 +472,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(24),
             child: CircleAvatar(
               radius: 16,
-              backgroundImage: const NetworkImage(
-                'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=60',
-              ),
+              backgroundImage:
+                  _avatarUrl != null && _avatarUrl!.isNotEmpty ? NetworkImage(_avatarUrl!) : null,
               backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                  ? const Icon(Icons.person, color: Colors.white)
+                  : null,
             ),
           ),
         ],
@@ -1149,9 +1155,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _openAccountSettings() {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
-    );
+    ).then((_) {
+      _loadProfileSummary();
+    });
   }
 
   Future<void> _performLogout() async {
@@ -1404,6 +1413,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _wishlist = cleaned;
       _wishlistKeys = cleaned.map((e) => e.storageKey).toSet();
     });
+  }
+
+  Future<void> _loadProfileSummary() async {
+    final userId = Api.currentUserId;
+    if (userId == null) return;
+    try {
+      final data = await Api().fetchAccount(userId);
+      final avatar = (data['avatar_url'] ?? '').toString();
+      if (!mounted) return;
+      if (_avatarUrl != avatar) {
+        setState(() => _avatarUrl = avatar);
+      }
+    } catch (_) {
+      // ignore failure; keep placeholder avatar
+    }
   }
 
   Future<Set<int>?> _fetchAllVenueIds() async {
@@ -3391,6 +3415,13 @@ class _ReviewDraft {
   final String comment;
 }
 
+String _resolveMediaUrlGlobal(String url) {
+  if (url.isEmpty) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  final normalized = url.startsWith('/') ? url : '/$url';
+  return '${_HomeScreenState._apiHostBase}$normalized';
+}
+
 class _DetailActionBar extends StatelessWidget {
   const _DetailActionBar({
     required this.priceLabel,
@@ -3983,6 +4014,7 @@ class _BookingSummary {
     required this.venueLocation,
     required this.venueDescription,
     required this.venueImageUrl,
+    required this.venueImageAbsoluteUrl,
     required this.venuePrice,
     required this.startDate,
     required this.endDate,
@@ -3999,6 +4031,9 @@ class _BookingSummary {
     DateTime parseDate(String? value) =>
         DateTime.tryParse(value ?? '') ?? DateTime.now();
     final venue = (json['venue'] as Map<String, dynamic>?) ?? const {};
+    final rawImageUrl =
+        (venue['image_absolute_url'] ?? venue['image_url'] ?? '').toString();
+    final resolvedImageUrl = _resolveMediaUrlGlobal(rawImageUrl);
     return _BookingSummary(
       id: (json['id'] as num?)?.toInt() ?? 0,
       venueId: (venue['id'] as num?)?.toInt() ?? 0,
@@ -4006,7 +4041,8 @@ class _BookingSummary {
       venueType: (venue['type'] ?? '').toString(),
       venueLocation: (venue['location'] ?? '').toString(),
       venueDescription: (venue['description'] ?? '').toString(),
-      venueImageUrl: (venue['image_url'] ?? '').toString(),
+      venueImageUrl: resolvedImageUrl,
+      venueImageAbsoluteUrl: resolvedImageUrl,
       venuePrice: (venue['price'] as num?)?.toInt() ?? 0,
       startDate: parseDate(json['start_date']?.toString()),
       endDate: parseDate(json['end_date']?.toString()),
@@ -4038,6 +4074,7 @@ class _BookingSummary {
       venueLocation: 'Jakarta, Indonesia',
       venueDescription: 'Booking simulasi untuk $venueName.',
       venueImageUrl: '',
+      venueImageAbsoluteUrl: '',
       venuePrice: venuePrice,
       startDate: startDate,
       endDate: endDate,
@@ -4058,6 +4095,7 @@ class _BookingSummary {
   final String venueLocation;
   final String venueDescription;
   final String venueImageUrl;
+  final String venueImageAbsoluteUrl;
   final int venuePrice;
   final DateTime startDate;
   final DateTime endDate;
@@ -4106,13 +4144,3 @@ String _formatReadableDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
   return '$day $month ${date.year}';
 }
-
-
-
-
-
-
-
-
-
-

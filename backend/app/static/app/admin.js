@@ -1749,6 +1749,14 @@
       titleCell.textContent = getVenueTitleValue(venue) || '—';
       row.appendChild(titleCell);
 
+      const descriptionCell = document.createElement('td');
+      const descriptionText =
+        typeof venue.description === 'string' && venue.description.trim()
+          ? venue.description.trim()
+          : '—';
+      descriptionCell.textContent = descriptionText;
+      row.appendChild(descriptionCell);
+
       const typeCell = document.createElement('td');
       typeCell.textContent = venue.type || '—';
       row.appendChild(typeCell);

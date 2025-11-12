@@ -35,6 +35,17 @@ def _parse_date(value: str | None):
         return None
 
 
+def _absolute_media_url(request: HttpRequest, url: str | None) -> str:
+    if not url:
+        return ""
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    try:
+        return request.build_absolute_uri(url)
+    except Exception:
+        return url
+
+
 def _resolve_request_user_id(request: HttpRequest, payload: dict | None = None) -> int | None:
     if request.user.is_authenticated and request.user.id:
         return request.user.id
@@ -50,13 +61,14 @@ def _resolve_request_user_id(request: HttpRequest, payload: dict | None = None) 
         return None
 
 
-def _serialize_booking(booking: Booking):
+def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
     start = booking.date.start_date
     end = booking.date.end_date
     sessions = (end - start).days + 1
     image_url = booking.venue.image_url
     if not image_url and booking.venue.image:
         image_url = booking.venue.image.url
+    absolute_image_url = _absolute_media_url(request, image_url) if request else image_url
     return {
         "id": booking.id,
         "venue": {
@@ -67,6 +79,7 @@ def _serialize_booking(booking: Booking):
             "location": booking.venue.location,
             "description": booking.venue.description,
             "image_url": image_url,
+            "image_absolute_url": absolute_image_url,
             "facilities": booking.venue.facilities,
         },
         "start_date": start.isoformat(),
@@ -197,6 +210,13 @@ def top_venues_view(request: HttpRequest):
     data = []
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
+        image_url = venue.image_url
+        if not image_url and venue.image:
+            try:
+                image_url = venue.image.url
+            except (ValueError, AttributeError):
+                image_url = ""
+        image_url = _absolute_media_url(request, image_url)
         data.append(
             {
                 "id": venue.id,
@@ -206,7 +226,7 @@ def top_venues_view(request: HttpRequest):
                 "price": venue.price,
                 "description": venue.description,
                 "facilities": venue.facilities,
-                "image_url": venue.image_url,
+                "image_url": image_url,
                 "avg_rating": round(float(avg_rating), 2),
                 "rating_count": venue.rating_count,
             }
@@ -224,6 +244,7 @@ def venues_list_view(request: HttpRequest):
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+        image_url = _absolute_media_url(request, image_url)
         city = venue.location.split(",")[0].strip() if venue.location else ""
         data.append(
             {
@@ -337,7 +358,7 @@ def booking_create_view(request: HttpRequest):
         else:
             return JsonResponse([], safe=False)
 
-        data = [_serialize_booking(booking) for booking in bookings]
+        data = [_serialize_booking(booking, request=request) for booking in bookings]
         return JsonResponse(data, safe=False)
     if request.method != "POST":
         return JsonResponse({"detail": "Method not allowed"}, status=405)
@@ -408,7 +429,7 @@ def booking_create_view(request: HttpRequest):
         notes=notes,
         has_been_paid=has_been_paid,
     )
-    return JsonResponse(_serialize_booking(booking), status=201)
+    return JsonResponse(_serialize_booking(booking, request=request), status=201)
 
 
 @csrf_exempt
@@ -418,7 +439,7 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
             booking = Booking.objects.select_related("venue", "date").get(pk=booking_id)
         except Booking.DoesNotExist:
             return JsonResponse({"detail": "Booking not found"}, status=404)
-        return JsonResponse(_serialize_booking(booking))
+        return JsonResponse(_serialize_booking(booking, request=request))
     if request.method == "DELETE":
         try:
             booking = Booking.objects.select_related("venue", "date").get(pk=booking_id)
@@ -575,6 +596,15 @@ def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
         facilities = [segment.strip() for segment in raw_facilities.split(",") if segment.strip()]
     else:
         facilities = []
+    average_rating = getattr(venue, "average_rating", None)
+    rating_count = getattr(venue, "rating_count", None)
+    if average_rating is None or rating_count is None:
+        aggregates = venue.comments.aggregate(
+            average_rating=Avg("rating"),
+            rating_count=Count("rating"),
+        )
+        average_rating = aggregates.get("average_rating")
+        rating_count = aggregates.get("rating_count")
     return {
         "id": venue.id,
         "title": venue.title,
@@ -586,8 +616,8 @@ def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
         "image_url": image_url,
         "created_at": venue.created_at.isoformat(),
         "updated_at": venue.updated_at.isoformat(),
-        "average_rating": float(venue.average_rating) if venue.average_rating is not None else None,
-        "rating_count": int(venue.rating_count or 0),
+        "average_rating": float(average_rating) if average_rating is not None else None,
+        "rating_count": int(rating_count or 0),
     }
 
 
