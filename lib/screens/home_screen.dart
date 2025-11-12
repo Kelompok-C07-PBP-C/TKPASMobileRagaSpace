@@ -2593,6 +2593,10 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   late _VenueCardData data;
   late String apiBaseUrl;
   late bool _isFavorite;
+  List<_VenueReview> _reviews = const [];
+  bool _loadingReviews = false;
+  String? _reviewsError;
+  bool _submittingReview = false;
 
   @override
   void initState() {
@@ -2600,6 +2604,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     data = widget.data;
     apiBaseUrl = widget.apiBaseUrl;
     _isFavorite = widget.isFavorite;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchReviews();
+    });
   }
 
   Future<void> _toggleFavorite() async {
@@ -2929,6 +2936,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                               onTapBook: () => _openBookingDialog(context),
                             ),
                             const SizedBox(height: 40),
+                            _buildReviewsSection(),
+                            const SizedBox(height: 40),
                           ],
                         ),
                       ),
@@ -2959,6 +2968,323 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       ),
     );
   }
+
+  Future<void> _openReviewComposer({_VenueReview? review}) async {
+    final result = await _showReviewDialog(existing: review);
+    if (result == null || data.id == null) return;
+    setState(() => _submittingReview = true);
+    try {
+      final uri = review == null
+          ? Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/')
+          : Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/');
+      final body = <String, dynamic>{
+        'rating': result.rating,
+        'comment': result.comment,
+      };
+      final userId = Api.currentUserId;
+      final username = Api.currentUsername;
+      if (userId != null) body['user_id'] = userId;
+      if (username != null && username.isNotEmpty) body['username'] = username;
+      final response = review == null
+          ? await http
+              .post(
+                uri,
+                headers: const {'Content-Type': 'application/json'},
+                body: jsonEncode(body),
+              )
+              .timeout(const Duration(seconds: 8))
+          : await http
+              .put(
+                uri,
+                headers: const {'Content-Type': 'application/json'},
+                body: jsonEncode(body),
+              )
+              .timeout(const Duration(seconds: 8));
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+      final updated = response.statusCode == 200 || response.statusCode == 201
+          ? jsonDecode(response.body) as Map<String, dynamic>?
+          : null;
+      if (isSuccess) {
+        await _fetchReviews();
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tidak bisa menyimpan ulasan: $err')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submittingReview = false);
+      }
+    }
+  }
+
+  Future<void> _deleteReview(_VenueReview review) async {
+    if (data.id == null) return;
+    final confirmed = await _confirmDeleteReview(review: review);
+    if (!confirmed) return;
+    try {
+      var uri = Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/');
+      final userId = Api.currentUserId;
+      if (userId != null) {
+        uri = uri.replace(
+          queryParameters: {
+            ...uri.queryParameters,
+            'user_id': '$userId',
+          },
+        );
+      }
+      final res = await http.delete(uri).timeout(const Duration(seconds: 8));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        setState(() {
+          _reviews = _reviews.where((r) => r.id != review.id).toList();
+        });
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tidak bisa menghapus ulasan: $err')),
+      );
+    }
+  }
+
+  Future<bool> _confirmDeleteReview({_VenueReview? review}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B152C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          review == null ? 'Hapus ulasan?' : 'Hapus ulasan ${review.author}?',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Tindakan ini tidak dapat dibatalkan.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<_ReviewDraft?> _showReviewDialog({_VenueReview? existing}) {
+    final controller = TextEditingController(text: existing?.comment ?? '');
+    int rating = existing?.rating ?? 5;
+    return showDialog<_ReviewDraft>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B152C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          existing == null ? 'Tulis ulasan' : 'Edit ulasan',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Rating', style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 8),
+                  _buildStarSelector(
+                    currentRating: rating,
+                    onChanged: (value) => setState(() => rating = value),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Komentar', style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.08),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              Navigator.of(ctx).pop(_ReviewDraft(rating: rating, comment: text));
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1FA2FF),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStarSelector({
+    required int currentRating,
+    required ValueChanged<int> onChanged,
+    double size = 30,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        final active = index < currentRating;
+        return IconButton(
+          iconSize: size,
+          padding: EdgeInsets.zero,
+          onPressed: () => onChanged(index + 1),
+          icon: Icon(
+            active ? Icons.star_rounded : Icons.star_border_rounded,
+            color: active ? Colors.amber : Colors.white24,
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildReviewsSection() {
+    final canReview = Api.currentUserId != null;
+    final venueId = data.id;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Ulasan Pengguna',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: (!canReview || venueId == null || _submittingReview)
+                  ? null
+                  : () => _openReviewComposer(),
+              icon: const Icon(Icons.rate_review, size: 18),
+              label: const Text('Tulis ulasan'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_loadingReviews)
+          const Center(child: CircularProgressIndicator())
+        else if (_reviewsError != null)
+          Text(
+            _reviewsError!,
+            style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+          )
+        else if (_reviews.isEmpty)
+          Text(
+            'Belum ada ulasan untuk venue ini.',
+            style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+          )
+        else
+          Column(
+            children: _reviews
+                .map(
+                  (review) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _ReviewCard(
+                      review: review,
+                      onEdit: review.isMine ? () => _openReviewComposer(review: review) : null,
+                      onDelete: review.isMine ? () => _deleteReview(review) : null,
+                      starBuilder: _buildStarRow,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStarRow(int rating, {double size = 18}) {
+    return Row(
+      children: List.generate(5, (index) {
+        final active = index < rating;
+        return Icon(
+          active ? Icons.star_rounded : Icons.star_border_rounded,
+          color: active ? Colors.amber : Colors.white24,
+          size: size,
+        );
+      }),
+    );
+  }
+
+  Future<void> _fetchReviews() async {
+    final venueId = data.id;
+    if (venueId == null) return;
+    setState(() {
+      _loadingReviews = true;
+      _reviewsError = null;
+    });
+    try {
+      final uri = Uri.parse('$apiBaseUrl/api/venues/$venueId/reviews/');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) {
+        throw Exception('Failed to load reviews');
+      }
+      final payload = jsonDecode(res.body) as List<dynamic>;
+      final username = Api.currentUsername;
+      final userId = Api.currentUserId;
+      final parsed = payload
+          .map((raw) => _VenueReview.fromMap(
+                raw as Map<String, dynamic>,
+                currentUsername: username,
+                currentUserId: userId,
+              ))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _reviews = parsed;
+        _loadingReviews = false;
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _reviewsError = 'Tidak bisa memuat ulasan saat ini.';
+        _loadingReviews = false;
+      });
+    }
+  }
 }
 
 class _DetailChip extends StatelessWidget {
@@ -2984,6 +3310,85 @@ class _DetailChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({
+    required this.review,
+    required this.starBuilder,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  final _VenueReview review;
+  final Widget Function(int rating, {double size}) starBuilder;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      overlayColor: Colors.white.withValues(alpha: 0.05),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.author,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatReadableDate(review.date),
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.white70, size: 18),
+                  onPressed: onEdit,
+                ),
+              if (onDelete != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 18),
+                  onPressed: onDelete,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          starBuilder(review.rating, size: 18),
+          const SizedBox(height: 10),
+          Text(
+            review.comment,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white.withValues(alpha: 0.85),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewDraft {
+  const _ReviewDraft({required this.rating, required this.comment});
+  final int rating;
+  final String comment;
 }
 
 class _DetailActionBar extends StatelessWidget {

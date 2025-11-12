@@ -11,10 +11,10 @@ from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from .forms import BookingForm, VenueForm
-from .models import Venue, Booking, BookingDate, Profile
+from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue
 
 
 
@@ -31,6 +31,21 @@ def _parse_date(value: str | None):
         return None
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _resolve_request_user_id(request: HttpRequest, payload: dict | None = None) -> int | None:
+    if request.user.is_authenticated and request.user.id:
+        return request.user.id
+    payload = payload or {}
+    candidate = payload.get("user_id")
+    if candidate is None:
+        candidate = request.GET.get("user_id")
+    if candidate is None:
+        return None
+    try:
+        return int(candidate)
     except (ValueError, TypeError):
         return None
 
@@ -70,6 +85,20 @@ def _serialize_booking(booking: Booking):
 DEFAULT_PAGE_SIZE = 6
 MAX_PAGE_SIZE = 50
 DEMO_USERNAME_PREFIX = "demo."
+
+
+def _serialize_comment(comment: Comment) -> dict[str, object]:
+    first_link = comment.venue_links.first()
+    venue_id = first_link.venue_id if first_link else None
+    return {
+        "id": comment.id,
+        "venue_id": venue_id,
+        "rating": comment.rating,
+        "comment": comment.comment,
+        "date": comment.date.isoformat(),
+        "author": comment.user.get_username() if comment.user else "Anonim",
+        "author_id": comment.user_id,
+    }
 
 
 @csrf_exempt
@@ -400,6 +429,84 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
         booking.delete()
         return JsonResponse({"detail": "deleted"})
     return JsonResponse({"detail": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def venue_reviews_view(request: HttpRequest, venue_id: int):
+    venue = get_object_or_404(Venue, pk=venue_id)
+    if request.method == "GET":
+        comments = (
+            Comment.objects.filter(venue_links__venue=venue)
+            .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
+            .select_related("user")
+            .order_by("-date", "-id")
+        )
+        data = [_serialize_comment(comment) for comment in comments]
+        return JsonResponse(data, safe=False)
+
+    payload = _json_request(request)
+    try:
+        rating = int(payload.get("rating") or 0)
+    except (ValueError, TypeError):
+        rating = 0
+    comment_text = (payload.get("comment") or "").strip()
+    user = request.user if request.user.is_authenticated else None
+    if user is None:
+        user_id = _resolve_request_user_id(request, payload)
+        username_hint = (payload.get("username") or "").strip()
+        UserModel = get_user_model()
+        if user_id:
+            try:
+                user = UserModel.objects.get(pk=user_id)
+            except UserModel.DoesNotExist:
+                user = None
+        if user is None and username_hint:
+            try:
+                user = UserModel.objects.get(username__iexact=username_hint)
+            except UserModel.DoesNotExist:
+                user = None
+
+    if not 1 <= rating <= 5:
+        return JsonResponse({"detail": "Rating harus antara 1 sampai 5."}, status=400)
+    if not comment_text:
+        return JsonResponse({"detail": "Tulis ulasan terlebih dahulu."}, status=400)
+
+    comment = Comment.objects.create(user=user, rating=rating, comment=comment_text)
+    CommentVenue.objects.create(comment=comment, venue=venue)
+    return JsonResponse(_serialize_comment(comment), status=201)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "PATCH", "DELETE"])
+def venue_review_detail_view(request: HttpRequest, venue_id: int, review_id: int):
+    venue = get_object_or_404(Venue, pk=venue_id)
+    comment = get_object_or_404(
+        Comment.objects.select_related("user").filter(id=review_id, venue_links__venue=venue)
+    )
+    payload = _json_request(request) if request.body else {}
+    requester_id = _resolve_request_user_id(request, payload)
+
+    if comment.user_id and requester_id != comment.user_id:
+        return JsonResponse({"detail": "Tidak memiliki akses terhadap ulasan ini."}, status=403)
+
+    if request.method in ("PUT", "PATCH"):
+        try:
+            rating = int(payload.get("rating") or comment.rating)
+        except (ValueError, TypeError):
+            rating = comment.rating
+        comment_text = (payload.get("comment") or comment.comment).strip()
+        if not 1 <= rating <= 5:
+            return JsonResponse({"detail": "Rating harus antara 1 sampai 5."}, status=400)
+        if not comment_text:
+            return JsonResponse({"detail": "Tulis ulasan terlebih dahulu."}, status=400)
+        comment.rating = rating
+        comment.comment = comment_text
+        comment.save(update_fields=["rating", "comment"])
+        return JsonResponse(_serialize_comment(comment))
+
+    comment.delete()
+    return JsonResponse({"detail": "deleted"})
 
 
 def _user_is_staff(user) -> bool:

@@ -92,6 +92,8 @@ class Comment(models.Model):
       settings.AUTH_USER_MODEL,
       related_name="comments",
       on_delete=models.CASCADE,
+      null=True,
+      blank=True,
   )
   rating = models.PositiveSmallIntegerField(
       validators=[MinValueValidator(1), MaxValueValidator(5)]
@@ -108,7 +110,8 @@ class Comment(models.Model):
       ordering = ["-date", "-id"]
 
   def __str__(self) -> str:
-      return f"Comment by {self.user}"
+      user = self.user.get_username() if self.user else "Anonim"
+      return f"Comment by {user}"
 
 
 class CommentVenue(models.Model):

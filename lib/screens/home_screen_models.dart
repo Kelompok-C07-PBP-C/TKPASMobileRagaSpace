@@ -96,6 +96,65 @@ class _VenueCardData {
       '${name.toLowerCase()}|${location.toLowerCase()}|$category';
 }
 
+class _VenueReview {
+  const _VenueReview({
+    required this.id,
+    required this.venueId,
+    required this.author,
+    required this.comment,
+    required this.rating,
+    required this.date,
+    required this.isMine,
+  });
+
+  final int id;
+  final int? venueId;
+  final String author;
+  final String comment;
+  final int rating;
+  final DateTime date;
+  final bool isMine;
+
+  factory _VenueReview.fromMap(
+    Map<String, dynamic> map, {
+    String? currentUsername,
+    int? currentUserId,
+  }) {
+    final author = (map['author'] ?? '').toString();
+    final username = currentUsername?.toLowerCase();
+    final normalizedAuthor = author.toLowerCase();
+    final isMineByName = username != null && username.isNotEmpty && normalizedAuthor == username;
+    final authorId =
+        map['author_id'] is int ? map['author_id'] as int : int.tryParse('${map['author_id']}');
+    final isMine = (authorId != null && currentUserId != null && authorId == currentUserId) || isMineByName;
+    return _VenueReview(
+      id: map['id'] is int ? map['id'] as int : int.tryParse('${map['id']}') ?? 0,
+      venueId: map['venue_id'] is int
+          ? map['venue_id'] as int
+          : int.tryParse('${map['venue_id']}'),
+      author: author.isNotEmpty ? author : 'Anonim',
+      comment: (map['comment'] ?? '').toString(),
+      rating: int.tryParse(map['rating']?.toString() ?? '') ?? 0,
+      date: DateTime.tryParse((map['date'] ?? '').toString()) ?? DateTime.now(),
+      isMine: isMine || (map['is_mine'] == true),
+    );
+  }
+
+  _VenueReview copyWith({
+    String? comment,
+    int? rating,
+  }) =>
+      _VenueReview(
+        id: id,
+        venueId: venueId,
+        author: author,
+        comment: comment ?? this.comment,
+        rating: rating ?? this.rating,
+        date: date,
+        isMine: isMine,
+      );
+}
+
 class _CatalogProduct {
   const _CatalogProduct({
     required this.title,
