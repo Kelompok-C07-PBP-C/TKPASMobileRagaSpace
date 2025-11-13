@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:io' show Platform;
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:marco/services/api.dart';
+import 'package:marco/services/base_url_resolver.dart';
 import 'package:marco/widgets/aurora_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -79,14 +78,6 @@ Widget _buildNetworkImage(String url, {BoxFit fit = BoxFit.cover}) {
   );
 }
 
-String _resolveApiBaseUrl() {
-  const envOverride = String.fromEnvironment('API_BASE_URL');
-  if (envOverride.isNotEmpty) return envOverride;
-  if (kIsWeb) return 'http://localhost:8000';
-  if (Platform.isAndroid) return 'http://10.0.2.2:8000';
-  return 'http://127.0.0.1:8000';
-}
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -94,7 +85,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  static final String _apiBaseUrl = _resolveApiBaseUrl();
+  static final String _apiBaseUrl = resolveBaseApiHost();
   static final String _apiHostBase =
       _apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
   static const List<_CategoryChipData> _categories = [
@@ -3025,9 +3016,6 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
               )
               .timeout(const Duration(seconds: 8));
       final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
-      final updated = response.statusCode == 200 || response.statusCode == 201
-          ? jsonDecode(response.body) as Map<String, dynamic>?
-          : null;
       if (isSuccess) {
         await _fetchReviews();
       } else {

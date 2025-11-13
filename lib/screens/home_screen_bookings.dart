@@ -22,7 +22,7 @@ class _BookingsScreen extends StatefulWidget {
 class _BookingsScreenState extends State<_BookingsScreen>
     with SingleTickerProviderStateMixin {
   int? _cancellingId;
-  final String _apiBaseUrl = _resolveApiBaseUrl();
+  static final String _apiBaseUrl = _HomeScreenState._apiBaseUrl;
   late final AnimationController _auroraController;
   List<_BookingSummary> _bookings = [];
   bool _loading = true;
