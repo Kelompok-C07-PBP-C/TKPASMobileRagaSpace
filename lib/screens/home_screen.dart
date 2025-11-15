@@ -208,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _highlightController = PageController(viewportFraction: 0.9);
     _categoryMarqueeController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 14))
+        AnimationController(vsync: this, duration: const Duration(seconds: 22))
           ..repeat();
     _startHighlightAutoScroll();
     _startTestimonialAutoScroll();
@@ -502,11 +502,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(40),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF07152A), Color(0xFF0C2541)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: const Color(0xFF081224),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
@@ -556,6 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       data: rows[i],
                       animation: _categoryMarqueeController,
                       phase: i * 0.35,
+                      reverse: i.isOdd,
                     ),
                   ),
                 ),
@@ -1148,6 +1145,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(vertical: 8),
           overlayColor: const Color(0xF0141E2F),
           borderColor: Colors.white.withValues(alpha: 0.18),
+          useGradient: false,
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1181,6 +1179,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.redAccent,
                       fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'Sign out',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   onTap: () {
@@ -1713,6 +1726,7 @@ class _GlassPanel extends StatelessWidget {
     this.overlayColor = const Color(0x3310213A),
     this.borderColor,
     this.boxShadow,
+    this.useGradient = true,
   });
 
   final Widget child;
@@ -1721,12 +1735,15 @@ class _GlassPanel extends StatelessWidget {
   final Color overlayColor;
   final Color? borderColor;
   final List<BoxShadow>? boxShadow;
+  final bool useGradient;
 
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
-      gradient: AuroraPalette.glassGradient(overlayColor),
+      gradient:
+          useGradient ? AuroraPalette.glassGradient(overlayColor) : null,
+      color: useGradient ? null : overlayColor,
       border: Border.all(
         color: borderColor ?? Colors.white.withValues(alpha: 0.12),
       ),
@@ -2490,14 +2507,16 @@ class _CategoryMarqueeRow extends StatelessWidget {
     required this.data,
     required this.animation,
     this.phase = 0,
+    this.reverse = false,
   });
 
   final List<_CategoryChipData> data;
   final Animation<double> animation;
   final double phase;
+  final bool reverse;
 
-  static const double _itemWidth = 150;
-  static const double _spacing = 12;
+  static const double _itemWidth = 110;
+  static const double _spacing = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -2518,24 +2537,45 @@ class _CategoryMarqueeRow extends StatelessWidget {
       return const SizedBox();
     }
     final sequence = _buildSequence();
-    return ClipRect(
-      child: AnimatedBuilder(
-        animation: animation,
-        builder: (context, _) {
-          final progress = ((animation.value + phase) % 1.0);
-          final offset = progress * (baseWidth + _spacing);
-          return Transform.translate(
-            offset: Offset(-offset, 0),
-            child: Row(
-              children: [
-                ...sequence,
-                const SizedBox(width: _spacing),
-                ...sequence,
-              ],
-            ),
-          );
-        },
+    final travel = baseWidth + _spacing;
+    final tape = SizedBox(
+      width: travel * 2,
+      child: Row(
+        children: [
+          ...sequence,
+          const SizedBox(width: _spacing),
+          ...sequence,
+        ],
       ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : travel;
+        return SizedBox(
+          width: viewportWidth,
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) {
+                final progress = ((animation.value + phase) % 1.0);
+                final shift = progress * travel;
+                final dx = reverse ? shift - travel : -shift;
+                return OverflowBox(
+                  minWidth: travel * 2,
+                  maxWidth: travel * 2,
+                  alignment: Alignment.centerLeft,
+                  child: Transform.translate(
+                    offset: Offset(dx, 0),
+                    child: tape,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 

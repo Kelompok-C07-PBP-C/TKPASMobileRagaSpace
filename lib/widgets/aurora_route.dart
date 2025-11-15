@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
   AuroraWarpRoute(this.child)
       : super(
-          transitionDuration: const Duration(milliseconds: 200),
-          reverseTransitionDuration: const Duration(milliseconds: 150),
+          transitionDuration: const Duration(milliseconds: 160),
+          reverseTransitionDuration: const Duration(milliseconds: 130),
           pageBuilder: (_, __, ___) => child,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final curve = CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
+              curve: Curves.easeOutQuad,
+              reverseCurve: Curves.easeInQuad,
             );
             final offsetTween = Tween<Offset>(
-              begin: const Offset(0, 0.08),
+              begin: const Offset(0, 0.03),
               end: Offset.zero,
             );
             return FadeTransition(
@@ -33,16 +33,16 @@ class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
 class ZoomInRoute<T> extends PageRouteBuilder<T> {
   ZoomInRoute(this.child)
       : super(
-          transitionDuration: const Duration(milliseconds: 200),
-          reverseTransitionDuration: const Duration(milliseconds: 150),
+          transitionDuration: const Duration(milliseconds: 180),
+          reverseTransitionDuration: const Duration(milliseconds: 140),
           pageBuilder: (_, __, ___) => child,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final curve = CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
+              curve: Curves.easeOutQuad,
+              reverseCurve: Curves.easeInQuad,
             );
-            final scale = Tween<double>(begin: 0.95, end: 1).animate(curve);
+            final scale = Tween<double>(begin: 0.98, end: 1).animate(curve);
             return FadeTransition(
               opacity: curve,
               child: ScaleTransition(scale: scale, child: child),
