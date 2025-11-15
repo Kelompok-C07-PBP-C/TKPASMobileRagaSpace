@@ -13,6 +13,7 @@ urlpatterns = [
     path('account/update/', views.account_update_view, name='api-account-update'),
     path('account/password/', views.account_password_view, name='api-account-password'),
     path('venues/top/', views.top_venues_view, name='api-top-venues'),
+    path('wishlist/', views.wishlist_view, name='api-wishlist'),
     path('bookings/', views.booking_create_view, name='api-booking-create'),
     path('bookings/<int:booking_id>/', views.booking_detail_view, name='api-booking-detail'),
     path('venues/<int:venue_id>/reviews/', views.venue_reviews_view, name='api-venue-reviews'),

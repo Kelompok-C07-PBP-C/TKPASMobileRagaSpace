@@ -136,6 +136,46 @@ class Api {
     _decode(res);
   }
 
+  Future<List<Map<String, dynamic>>> fetchWishlist({required int userId}) async {
+    final uri = _u('wishlist/?user_id=$userId');
+    final res = await http.get(uri);
+    final decoded = _decode(res);
+    final data = decoded['data'];
+    if (data is List) {
+      return data.whereType<Map<String, dynamic>>().toList();
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
+  Future<Map<String, dynamic>> addWishlistItem({
+    required int userId,
+    required int venueId,
+  }) async {
+    final res = await http.post(
+      _u('wishlist/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': userId, 'venue_id': venueId}),
+    );
+    final decoded = _decode(res);
+    final data = decoded['data'];
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return decoded;
+  }
+
+  Future<void> removeWishlistItem({
+    required int userId,
+    required int venueId,
+  }) async {
+    final res = await http.delete(
+      _u('wishlist/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': userId, 'venue_id': venueId}),
+    );
+    _decode(res);
+  }
+
   Map<String, dynamic> _decode(http.Response res) {
     final body = (res.body.isEmpty) ? '{}' : res.body;
     final decoded = jsonDecode(body) as Map<String, dynamic>;

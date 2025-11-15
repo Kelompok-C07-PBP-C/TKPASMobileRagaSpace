@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/api.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/gradient_button.dart';
@@ -69,7 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: Stack(
             children: [
-              const Positioned(bottom: -100, left: -12, right: -12, child: EdgeWave(flip: true)),
               LayoutBuilder(
                 builder: (context, constraints) {
                   return Align(
@@ -102,6 +102,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildCard(ThemeData theme) {
     final scheme = theme.colorScheme;
+    final decorationTheme = theme.inputDecorationTheme.copyWith(
+      fillColor: Colors.white.withValues(alpha: 0.12),
+      labelStyle: GoogleFonts.plusJakartaSans(
+        color: Colors.white70,
+        fontWeight: FontWeight.w500,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.8)),
+      ),
+      prefixIconColor: Colors.white,
+      suffixIconColor: Colors.white,
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(38),
       child: Container(
@@ -109,109 +126,123 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [
-              Color(0xCC1F2F51),
-              Color(0x9911323C),
-              Color(0x8029AE83),
+              Color(0xF016264D),
+              Color(0xE0123A63),
+              Color(0xC0116B76),
             ],
-            stops: [0.0, 0.55, 1.0],
+            stops: [0.0, 0.5, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(38),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1BCBB2).withValues(alpha: 0.35),
+              color: const Color(0xFF1BD7A1).withValues(alpha: 0.45),
               blurRadius: 40,
               spreadRadius: 2,
               offset: const Offset(0, 26),
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _RegisterHeader(scheme: scheme, theme: theme),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _userCtrl,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Username',
-                      prefixIcon: Icon(Icons.person_outline_rounded),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    textInputAction: TextInputAction.next,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email (optional)',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passCtrl,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+        child: IntrinsicHeight(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RegisterHeader(scheme: scheme, theme: theme),
+              const SizedBox(height: 24),
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _userCtrl,
+                        textInputAction: TextInputAction.next,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                          filled: true,
+                        ).applyDefaults(decorationTheme),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
                       ),
-                    ),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _confirmCtrl,
-                    obscureText: _obscureConfirm,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      prefixIcon: const Icon(Icons.verified_user_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailCtrl,
+                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Email (optional)',
+                          prefixIcon: Icon(Icons.email_outlined),
+                          filled: true,
+                        ).applyDefaults(decorationTheme),
                       ),
-                    ),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Confirm password' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: (_error == null)
-                        ? const SizedBox.shrink()
-                        : Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              _error!,
-                              key: const ValueKey('reg-error'),
-                              style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error, fontWeight: FontWeight.w600),
-                            ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passCtrl,
+                        obscureText: _obscure,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          filled: true,
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            onPressed: () => setState(() => _obscure = !_obscure),
                           ),
+                        ).applyDefaults(decorationTheme),
+                        validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmCtrl,
+                        obscureText: _obscureConfirm,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password',
+                          prefixIcon: const Icon(Icons.verified_user_outlined),
+                          filled: true,
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                          ),
+                        ).applyDefaults(decorationTheme),
+                        validator: (v) => (v == null || v.isEmpty) ? 'Confirm password' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: (_error == null)
+                            ? const SizedBox.shrink()
+                            : Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _error!,
+                                  key: const ValueKey('reg-error'),
+                                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 20),
+                      GradientButton(label: 'Sign Up', onPressed: _loading ? null : _register, loading: _loading),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  GradientButton(label: 'Sign Up', onPressed: _loading ? null : _register, loading: _loading),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 18),
-            Center(
-              child: TextButton(
-                onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                child: const Text('Already have an account? Sign In'),
+              const SizedBox(height: 18),
+              Center(
+                child: TextButton(
+                  onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white.withValues(alpha: 0.8),
+                  ),
+                  child: const Text('Already have an account? Sign In'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -228,12 +259,9 @@ class _RegisterHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [scheme.primary.withValues(alpha: 0.2), scheme.secondary.withValues(alpha: 0.45)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
       ),
       child: Row(
         children: [
@@ -241,7 +269,7 @@ class _RegisterHeader extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white,
               boxShadow: [
                 BoxShadow(color: scheme.primary.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 12)),
               ],
@@ -256,13 +284,13 @@ class _RegisterHeader extends StatelessWidget {
                 Text('Register',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: scheme.onPrimaryContainer.withValues(alpha: 0.9),
+                      color: Colors.white,
                     )),
                 const SizedBox(height: 6),
                 Text(
                   'Create an account to unlock all features.',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.6),
+                    color: Colors.white.withValues(alpha: 0.75),
                     height: 1.5,
                   ),
                 ),

@@ -8,7 +8,7 @@ class _WishlistScreen extends StatefulWidget {
   });
 
   final List<_VenueCardData> items;
-  final ValueChanged<_VenueCardData> onRemove;
+  final Future<void> Function(_VenueCardData) onRemove;
   final ValueChanged<_VenueCardData> onSelect;
 
   @override
@@ -24,8 +24,8 @@ class _WishlistScreenState extends State<_WishlistScreen> {
     _items = List<_VenueCardData>.from(widget.items);
   }
 
-  void _removeItem(_VenueCardData venue) {
-    widget.onRemove(venue);
+  Future<void> _removeItem(_VenueCardData venue) async {
+    await widget.onRemove(venue);
     setState(() {
       _items.removeWhere((item) => item.storageKey == venue.storageKey);
     });

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Venue, Booking, BookingDate, Comment
+from .models import Venue, Booking, BookingDate, Comment, WishlistEntry
 
 
 @admin.register(Venue)
@@ -33,3 +33,10 @@ class CommentAdmin(admin.ModelAdmin):
     list_display = ("user", "rating", "date")
     list_filter = ("rating", "date")
     search_fields = ("user__username", "comment")
+
+
+@admin.register(WishlistEntry)
+class WishlistEntryAdmin(admin.ModelAdmin):
+    list_display = ("user", "venue", "created_at")
+    search_fields = ("user__username", "venue__title")
+    list_filter = ("created_at",)

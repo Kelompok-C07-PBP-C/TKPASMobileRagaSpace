@@ -79,25 +79,25 @@ class _HeroSlideshowState extends State<HeroSlideshow> {
 
 final List<_SlideData> _slides = [
   _SlideData(
-    title: 'Security First',
-    subtitle: 'Multi-layer protection keeping your account safe.',
-    icon: Icons.shield_rounded,
-    colors: [const Color(0xFF5D9CFF), const Color(0xFF1C6CD5)],
-    accent: const Color(0xFF0E295B),
+    title: 'Book Turf Instantly',
+    subtitle: 'Reserve premium football fields in seconds, no phone calls needed.',
+    icon: Icons.sports_soccer_rounded,
+    colors: [const Color(0xFF4AD1FF), const Color(0xFF2480FF)],
+    accent: const Color(0xFF1B335F),
   ),
   _SlideData(
-    title: 'Stay Connected',
-    subtitle: 'Sync progress across every device effortlessly.',
-    icon: Icons.devices_other_rounded,
-    colors: [const Color(0xFF77E0F4), const Color(0xFF55A6F9)],
-    accent: const Color(0xFF0E3C7A),
+    title: 'Live Slot Tracking',
+    subtitle: 'See live availability, so your squad never shows up to a busy pitch.',
+    icon: Icons.schedule_rounded,
+    colors: [const Color(0xFF5FFFBE), const Color(0xFF31C3FF)],
+    accent: const Color(0xFF13413E),
   ),
   _SlideData(
-    title: 'Lightning Fast',
-    subtitle: 'Sign up in seconds and explore instantly.',
-    icon: Icons.flash_on_rounded,
-    colors: [const Color(0xFFFFB1C1), const Color(0xFF7F8CFF)],
-    accent: const Color(0xFF552A7F),
+    title: 'Club-Level Facilities',
+    subtitle: 'Discover venues with pro lighting, lockers, and officiating services.',
+    icon: Icons.emoji_events_rounded,
+    colors: [const Color(0xFFFF769C), const Color(0xFF7C74FF)],
+    accent: const Color(0xFF4A1C4D),
   ),
 ];
 

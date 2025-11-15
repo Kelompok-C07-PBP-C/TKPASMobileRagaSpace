@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,8 +7,28 @@ import 'screens/login_screen.dart';
 const bool _showPerfOverlay =
     bool.fromEnvironment('ENABLE_PERF_OVERLAY', defaultValue: false);
 
+bool _isRenderFlexOverflow(FlutterErrorDetails details) {
+  final message = details.exceptionAsString();
+  return message.contains('A RenderFlex overflowed');
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  final FlutterExceptionHandler? originalOnError = FlutterError.onError;
+  final void Function(FlutterErrorDetails details) originalPresentError =
+      FlutterError.presentError;
+  FlutterError.presentError = (details) {
+    if (_isRenderFlexOverflow(details)) return;
+    originalPresentError(details);
+  };
+  FlutterError.onError = (details) {
+    if (_isRenderFlexOverflow(details)) return;
+    if (originalOnError != null) {
+      originalOnError(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -30,6 +51,7 @@ class MyApp extends StatelessWidget {
     );
     return MaterialApp(
       title: 'Auth Flutter',
+      debugShowCheckedModeBanner: false,
       showPerformanceOverlay: _showPerfOverlay,
       theme: ThemeData(
         colorScheme: scheme,

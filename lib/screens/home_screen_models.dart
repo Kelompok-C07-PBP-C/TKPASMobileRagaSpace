@@ -92,8 +92,34 @@ class _VenueCardData {
             : int.tryParse(map['id']?.toString() ?? ''),
       );
 
-  String get storageKey =>
-      '${name.toLowerCase()}|${location.toLowerCase()}|$category';
+  factory _VenueCardData.fromWishlistPayload(Map<String, dynamic> payload) {
+    final venue = (payload['venue'] as Map<String, dynamic>?) ?? payload;
+    final rawImage = (venue['image_absolute_url'] ?? venue['image_url'] ?? '').toString();
+    double parseRating(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value == null) return 0;
+      return double.tryParse(value.toString()) ?? 0;
+    }
+    return _VenueCardData(
+      category: (venue['type'] ?? venue['category'] ?? '').toString(),
+      name: (venue['title'] ?? venue['name'] ?? '').toString(),
+      location: (venue['location'] ?? '').toString(),
+      description: (venue['description'] ?? '').toString(),
+      price: (venue['price'] as num?)?.toInt() ?? 0,
+      rating: parseRating(
+        venue['average_rating'] ?? venue['avg_rating'] ?? venue['rating'],
+      ),
+      imageUrl: _resolveMediaUrlGlobal(rawImage),
+      id: venue['id'] is int ? venue['id'] as int : int.tryParse('${venue['id']}'),
+    );
+  }
+
+  String get storageKey {
+    if (id != null) return 'id:$id';
+    final normalizedName = name.toLowerCase();
+    final normalizedLocation = location.toLowerCase();
+    return '$normalizedName|$normalizedLocation|$category';
+  }
 }
 
 class _VenueReview {

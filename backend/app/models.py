@@ -126,6 +126,28 @@ class CommentVenue(models.Model):
       unique_together = ("comment", "venue")
 
 
+class WishlistEntry(models.Model):
+  user = models.ForeignKey(
+      settings.AUTH_USER_MODEL,
+      related_name="wishlist_entries",
+      on_delete=models.CASCADE,
+  )
+  venue = models.ForeignKey(
+      Venue,
+      related_name="wishlisted_entries",
+      on_delete=models.CASCADE,
+  )
+  created_at = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+      ordering = ["-created_at"]
+      unique_together = ("user", "venue")
+
+  def __str__(self) -> str:
+      username = self.user.get_username() if self.user else "Unknown user"
+      return f"WishlistEntry({username} -> {self.venue})"
+
+
 class Profile(models.Model):
   user = models.OneToOneField(
       settings.AUTH_USER_MODEL, related_name="profile", on_delete=models.CASCADE

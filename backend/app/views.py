@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from .forms import BookingForm, VenueForm
-from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue
+from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue, WishlistEntry
 
 
 
@@ -92,6 +92,38 @@ def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
         "notes": booking.notes,
         "created_at": booking.created_at.isoformat(),
         "updated_at": booking.updated_at.isoformat(),
+    }
+
+
+def _serialize_wishlist_entry(entry: WishlistEntry, *, request: HttpRequest | None = None):
+    venue = entry.venue
+    image_url = venue.image_url
+    if not image_url and venue.image:
+        try:
+            image_url = venue.image.url
+        except (ValueError, AttributeError):
+            image_url = ""
+    absolute_image_url = _absolute_media_url(request, image_url)
+    avg_rating = getattr(entry, "avg_rating", None)
+    rating_value = float(avg_rating) if avg_rating is not None else None
+    city = venue.location.split(",")[0].strip() if venue.location else ""
+    return {
+        "id": entry.id,
+        "user_id": entry.user_id,
+        "venue_id": entry.venue_id,
+        "created_at": entry.created_at.isoformat(),
+        "venue": {
+            "id": venue.id,
+            "title": venue.title,
+            "type": venue.type,
+            "description": venue.description,
+            "location": venue.location,
+            "city": city,
+            "price": venue.price,
+            "image_url": image_url,
+            "image_absolute_url": absolute_image_url,
+            "average_rating": rating_value,
+        },
     }
 
 
@@ -450,6 +482,65 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
         booking.delete()
         return JsonResponse({"detail": "deleted"})
     return JsonResponse({"detail": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "DELETE"])
+def wishlist_view(request: HttpRequest):
+    payload = {} if request.method == "GET" else _json_request(request)
+    user_id = _resolve_request_user_id(request, payload)
+    if not user_id:
+        return JsonResponse({"detail": "user_id is required"}, status=400)
+
+    UserModel = get_user_model()
+    try:
+        user = UserModel.objects.get(pk=user_id)
+    except UserModel.DoesNotExist:
+        return JsonResponse({"detail": "User not found"}, status=404)
+
+    def _extract_venue_id() -> int | None:
+        value = payload.get("venue_id")
+        if value is None:
+            value = request.GET.get("venue_id")
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+
+    if request.method == "GET":
+        entries = (
+            WishlistEntry.objects.filter(user=user)
+            .select_related("venue")
+            .annotate(avg_rating=Avg("venue__comments__rating"))
+            .order_by("-created_at")
+        )
+        data = [_serialize_wishlist_entry(entry, request=request) for entry in entries]
+        return JsonResponse({"success": True, "data": data})
+
+    venue_id = _extract_venue_id()
+    if not venue_id:
+        return JsonResponse({"detail": "venue_id is required"}, status=400)
+
+    if request.method == "POST":
+        venue = get_object_or_404(Venue, pk=venue_id)
+        entry, created = WishlistEntry.objects.get_or_create(user=user, venue=venue)
+        entry = (
+            WishlistEntry.objects.filter(pk=entry.pk)
+            .select_related("venue")
+            .annotate(avg_rating=Avg("venue__comments__rating"))
+            .first()
+            or entry
+        )
+        data = _serialize_wishlist_entry(entry, request=request)
+        status_code = 201 if created else 200
+        return JsonResponse({"success": True, "data": data, "created": created}, status=status_code)
+
+    deleted, _ = WishlistEntry.objects.filter(user=user, venue_id=venue_id).delete()
+    if deleted == 0:
+        return JsonResponse({"detail": "Wishlist entry not found"}, status=404)
+    return JsonResponse({"success": True, "detail": "deleted"})
 
 
 @csrf_exempt

@@ -29,7 +29,7 @@ const _imageFallbackGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
-const _wishlistStorageKey = 'wishlist_venues';
+const _wishlistStorageBaseKey = 'wishlist_venues';
 const List<String> _filterCities = [
   'All cities',
   'Jakarta',
@@ -156,6 +156,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<_VenueCardData> _wishlist = [];
   Set<String> _wishlistKeys = {};
   SharedPreferences? _prefs;
+  String _resolveWishlistStorageKey() {
+    final userId = Api.currentUserId;
+    if (userId != null) return '$_wishlistStorageBaseKey:$userId';
+    return '$_wishlistStorageBaseKey:guest';
+  }
   String? _avatarUrl;
   static const List<_TestimonialData> _testimonials = [
     _TestimonialData(
@@ -464,13 +469,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const Spacer(),
-          IconButton(
-            tooltip: 'Notifications',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: Colors.white),
-          ),
-          InkWell(
+         InkWell(
             onTap: _showProfileMenu,
             borderRadius: BorderRadius.circular(24),
             child: CircleAvatar(
@@ -1082,6 +1081,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _openWishlist() async {
     if (_navIndex == 2) return;
+    await _syncWishlistFromServer(localSeed: _wishlist, silent: true);
+    if (!mounted) return;
     if (_wishlist.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Belum ada venue di wishlist.')),
@@ -1431,18 +1432,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadWishlist() async {
+    final seed = await _restoreWishlistFromStorage();
+    if (!mounted) return;
+    unawaited(_syncWishlistFromServer(localSeed: seed));
+  }
+
+  Future<List<_VenueCardData>> _restoreWishlistFromStorage() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final stored = _prefs!.getStringList(_wishlistStorageKey) ?? [];
-    final parsed = stored
-        .map((item) => _VenueCardData.fromMap(jsonDecode(item)))
-        .toList();
+    final storageKey = _resolveWishlistStorageKey();
+    final stored = _prefs!.getStringList(storageKey) ?? [];
+    final parsed = <_VenueCardData>[];
+    var needsPersist = false;
+    for (final item in stored) {
+      try {
+        parsed.add(_VenueCardData.fromMap(jsonDecode(item)));
+      } catch (_) {
+        needsPersist = true;
+      }
+    }
     var cleaned = parsed.where((item) => item.id != null).toList();
-    bool needsPersist = cleaned.length != parsed.length;
+    needsPersist = needsPersist || cleaned.length != parsed.length;
     try {
       final existingIds = await _fetchAllVenueIds();
       if (existingIds != null && existingIds.isNotEmpty) {
         final filtered =
-            cleaned.where((item) => existingIds.contains(item.id)).toList();
+            cleaned.where((item) => item.id != null && existingIds.contains(item.id)).toList();
         if (filtered.length != cleaned.length) {
           cleaned = filtered;
           needsPersist = true;
@@ -1453,12 +1467,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (needsPersist) {
       final encoded = cleaned.map((e) => jsonEncode(e.toMap())).toList();
-      await _prefs!.setStringList(_wishlistStorageKey, encoded);
+      await _prefs!.setStringList(storageKey, encoded);
     }
-    setState(() {
-      _wishlist = cleaned;
-      _wishlistKeys = cleaned.map((e) => e.storageKey).toSet();
-    });
+    if (mounted) {
+      setState(() {
+        _wishlist = cleaned;
+        _wishlistKeys = cleaned.map((e) => e.storageKey).toSet();
+      });
+    }
+    return cleaned;
   }
 
   Future<void> _loadProfileSummary() async {
@@ -1497,28 +1514,125 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _persistWishlist() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final encoded = _wishlist.map((e) => jsonEncode(e.toMap())).toList();
-    await _prefs!.setStringList(_wishlistStorageKey, encoded);
+    final storageKey = _resolveWishlistStorageKey();
+    final seen = <String>{};
+    final encoded = <String>[];
+    for (final item in _wishlist) {
+      final key = item.storageKey;
+      if (seen.add(key)) {
+        encoded.add(jsonEncode(item.toMap()));
+      }
+    }
+    await _prefs!.setStringList(storageKey, encoded);
+  }
+
+  Future<void> _syncWishlistFromServer({
+    List<_VenueCardData>? localSeed,
+    bool silent = true,
+  }) async {
+    final userId = Api.currentUserId;
+    if (userId == null) return;
+    try {
+      final api = Api();
+      final payloads = await api.fetchWishlist(userId: userId);
+      final syncedItems = <_VenueCardData>[];
+      final syncedKeys = <String>{};
+      for (final entry in payloads) {
+        try {
+          final data = _VenueCardData.fromWishlistPayload(entry);
+          final key = data.storageKey;
+          if (key.isEmpty || syncedKeys.contains(key)) continue;
+          syncedItems.add(data);
+          syncedKeys.add(key);
+        } catch (_) {
+          continue;
+        }
+      }
+      final seed = List<_VenueCardData>.from(localSeed ?? _wishlist);
+      for (final item in seed) {
+        if (item.id == null) continue;
+        final key = item.storageKey;
+        if (syncedKeys.contains(key)) continue;
+        try {
+          final fresh =
+              await api.addWishlistItem(userId: userId, venueId: item.id!);
+          final syncedData = _VenueCardData.fromWishlistPayload(fresh);
+          final syncedKey = syncedData.storageKey;
+          if (syncedKey.isNotEmpty && !syncedKeys.contains(syncedKey)) {
+            syncedItems.add(syncedData);
+            syncedKeys.add(syncedKey);
+          }
+        } catch (_) {
+          // ignore failed uploads; they'll retry on next sync
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _wishlist = syncedItems;
+        _wishlistKeys = syncedKeys;
+      });
+      await _persistWishlist();
+    } catch (err) {
+      if (!silent && mounted) {
+        _showWishlistError(err);
+      }
+    }
   }
 
   Future<void> _toggleWishlist(_VenueCardData data) async {
     final key = data.storageKey;
+    final adding = !_wishlistKeys.contains(key);
+    final previousList = List<_VenueCardData>.from(_wishlist);
+    final previousKeys = Set<String>.from(_wishlistKeys);
     setState(() {
-      if (_wishlistKeys.contains(key)) {
-        _wishlist.removeWhere((item) => item.storageKey == key);
-        _wishlistKeys.remove(key);
-      } else {
+      _wishlist.removeWhere((item) => item.storageKey == key);
+      if (adding) {
         _wishlist.add(data);
         _wishlistKeys.add(key);
+      } else {
+        _wishlistKeys.remove(key);
       }
     });
-    await _persistWishlist();
+    try {
+      final userId = Api.currentUserId;
+      if (userId != null && data.id != null) {
+        if (adding) {
+          final payload =
+              await Api().addWishlistItem(userId: userId, venueId: data.id!);
+          final synced = _VenueCardData.fromWishlistPayload(payload);
+          if (mounted) {
+            setState(() {
+              _wishlist.removeWhere((item) => item.storageKey == key);
+              _wishlist.add(synced);
+              _wishlistKeys.add(key);
+            });
+          }
+        } else {
+          await Api().removeWishlistItem(userId: userId, venueId: data.id!);
+        }
+      }
+      await _persistWishlist();
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _wishlist = previousList;
+        _wishlistKeys = previousKeys;
+      });
+      _showWishlistError(err);
+    }
   }
 
   Future<bool> _toggleWishlistAndReturn(_VenueCardData data) async {
-    final wasFavorite = _wishlistKeys.contains(data.storageKey);
     await _toggleWishlist(data);
-    return !wasFavorite;
+    return _wishlistKeys.contains(data.storageKey);
+  }
+
+  void _showWishlistError(Object error) {
+    if (!mounted) return;
+    final message = error is ApiError
+        ? error.message
+        : 'Gagal memperbarui wishlist. Coba lagi.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildPromoSpotlight() {
@@ -2788,6 +2902,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
             child: DecoratedBox(
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
+          ),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.18),
           ),
           const Positioned.fill(
             child: _StaticAuroraBackdrop(style: _AuroraBackdropStyle.detail),

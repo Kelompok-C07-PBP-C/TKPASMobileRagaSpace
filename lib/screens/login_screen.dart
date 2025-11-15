@@ -128,12 +128,22 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildCard(ThemeData theme) {
     final decorationTheme = theme.inputDecorationTheme.copyWith(
-          fillColor: Colors.white.withValues(alpha: 0.12),
-          labelStyle: GoogleFonts.plusJakartaSans(
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
-        );
+      fillColor: Colors.white.withValues(alpha: 0.12),
+      labelStyle: GoogleFonts.plusJakartaSans(
+        color: Colors.white70,
+        fontWeight: FontWeight.w500,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.8)),
+      ),
+      prefixIconColor: Colors.white,
+      suffixIconColor: Colors.white,
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(38),
       child: Container(
