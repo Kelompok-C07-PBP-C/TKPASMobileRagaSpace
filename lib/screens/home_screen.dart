@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -117,23 +117,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _PromoCardData(
       title: 'Cara Booking Kilat',
       description:
-          'Cari venue favoritmu, pilih jadwal yang kosong, lalu konfirmasi pembayaran dalam hitungan detik.',
+          'Cari lapangan sepak bola, futsal, basket, atau badminton favoritmu, pilih jadwal kosong, lalu konfirmasi pembayaran dalam hitungan detik.',
       bullets: [
-        'Filter tipe olahraga, kota, dan harga.',
-        'Lihat slot realtime & pilih jadwal.',
-        'Checkout aman�invoice otomatis dikirim.',
+        'Filter tipe olahraga, kota, harga, dan tipe permukaan rumput.',
+        'Lihat slot realtime untuk sesi latihan, sparring, atau turnamen.',
+        'Checkout aman—invoice otomatis dikirim ke tim dan pengelola.',
       ],
       gradient: [Color(0xFF4F46E5), Color(0xFF9337FF)],
       icon: Icons.flash_on_rounded,
     ),
     _PromoCardData(
-      title: 'Tips Maksimalkan Analytics',
+      title: 'Raih Jam Latihan Terbaik',
       description:
-          'Pantau okupansi, temukan jam sepi, dan luncurkan promo kilat langsung dari dashboard.',
+          'Cari slot murah, atur jadwal tim, dan manfaatkan promo komunitas langsung dari aplikasi tanpa harus menghubungi admin venue.',
       bullets: [
-        'Notifikasi tren mingguan dikirim via email.',
-        'Grafik realtime untuk tiap venue.',
-        'Buat promo & broadcast dalam 1 klik.',
+        'Aktifkan notifikasi supaya dapat info slot kosong & promo flash.',
+        'Pantau jadwal rutin tim dan langsung ajak pemain cadangan.',
+        'Booking bareng komunitas lain untuk bagi biaya lapangan.',
       ],
       gradient: [Color(0xFF00C6FF), Color(0xFF0072FF)],
       icon: Icons.auto_graph_rounded,
@@ -2746,6 +2746,10 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   bool _loadingReviews = false;
   String? _reviewsError;
   bool _submittingReview = false;
+  bool _availabilityLoaded = false;
+  bool _availabilityLoading = false;
+  Completer<void>? _availabilityCompleter;
+  Set<int> _blockedDayKeyCache = <int>{};
 
   @override
   void initState() {
@@ -2753,6 +2757,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     data = widget.data;
     apiBaseUrl = widget.apiBaseUrl;
     _isFavorite = widget.isFavorite;
+    _loadBookedRanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchReviews();
     });
@@ -2764,9 +2769,61 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     setState(() => _isFavorite = result);
   }
 
+  Future<void> _loadBookedRanges() async {
+    if (_availabilityLoaded) return;
+    if (_availabilityLoading) {
+      await _availabilityCompleter?.future;
+      return;
+    }
+    final venueId = data.id;
+    if (venueId == null) return;
+    _availabilityLoading = true;
+    final completer = Completer<void>();
+    _availabilityCompleter = completer;
+    var success = false;
+    try {
+      final uri = Uri.parse('$apiBaseUrl/api/venues/$venueId/availability/');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return;
+      final decoded = jsonDecode(response.body);
+      final payload = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
+      final ranges = <_BookedDateRange>[];
+      if (payload is List) {
+        for (final item in payload) {
+          if (item is Map<String, dynamic>) {
+            final range = _BookedDateRange.tryParse(item);
+            if (range != null) ranges.add(range);
+          }
+        }
+      }
+      final keys = ranges
+          .expand((range) => range.days())
+          .map(_dayKeyFromDate)
+          .toSet();
+      if (mounted) {
+        setState(() {
+          _blockedDayKeyCache = keys;
+        });
+      } else {
+        _blockedDayKeyCache = keys;
+      }
+      success = true;
+    } catch (_) {
+      // ignore errors; booking dialog will rely on backend validation
+    } finally {
+      _availabilityLoading = false;
+      _availabilityCompleter = null;
+      _availabilityLoaded = success;
+      if (!completer.isCompleted) completer.complete();
+    }
+  }
+
   Future<void> _openBookingDialog(BuildContext context) async {
+    await _loadBookedRanges();
+    if (!context.mounted) return;
     final summary = await _showBookingDialog(context);
     if (summary == null || !context.mounted) return;
+    _appendBookedRange(summary.startDate, summary.endDate);
     await _showConfirmationDialog(context, summary);
   }
 
@@ -2781,6 +2838,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
         child: _BookingDialog(
           pricePerSession: data.price,
           venueName: data.name,
+          disabledDayKeys: _blockedDayKeys(),
           onSubmit: (start, end, phone) =>
               _submitBookingRequest(start, end, phone),
         ),
@@ -2805,6 +2863,31 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
         );
       },
     );
+  }
+
+  Set<int> _blockedDayKeys() => _blockedDayKeyCache;
+
+  void _appendBookedRange(DateTime start, DateTime end) {
+    DateTime normalize(DateTime value) =>
+        DateTime(value.year, value.month, value.day);
+    var normalizedStart = normalize(start);
+    var normalizedEnd = normalize(end);
+    if (normalizedEnd.isBefore(normalizedStart)) {
+      final temp = normalizedStart;
+      normalizedStart = normalizedEnd;
+      normalizedEnd = temp;
+    }
+    final newKeys = <int>{};
+    var cursor = normalizedStart;
+    while (!cursor.isAfter(normalizedEnd)) {
+      newKeys.add(_dayKeyFromDate(cursor));
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    if (newKeys.isEmpty) return;
+    setState(() {
+      _blockedDayKeyCache = {..._blockedDayKeyCache, ...newKeys};
+      _availabilityLoaded = true;
+    });
   }
 
   Future<void> _showConfirmationDialog(
@@ -3650,10 +3733,12 @@ class _BookingDialog extends StatefulWidget {
     required this.pricePerSession,
     required this.venueName,
     required this.onSubmit,
+    required this.disabledDayKeys,
   });
 
   final int pricePerSession;
   final String venueName;
+  final Set<int> disabledDayKeys;
   final Future<_BookingSummary> Function(
     DateTime startDate,
     DateTime endDate,
@@ -3672,6 +3757,27 @@ class _BookingDialogState extends State<_BookingDialog> {
   DateTime? _endDate;
   String? _error;
   bool _submitting = false;
+
+  DateTime _normalizeDate(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  bool _isDateDisabled(DateTime date) =>
+      widget.disabledDayKeys.contains(_dayKeyFromDate(date));
+
+  bool _rangeOverlapsDisabled(DateTime start, DateTime end) {
+    var cursor = _normalizeDate(start);
+    final last = _normalizeDate(end);
+    while (!cursor.isAfter(last)) {
+      if (_isDateDisabled(cursor)) return true;
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return false;
+  }
+
+  void _showBlockedSnack(String message) {
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   void dispose() {
@@ -3692,6 +3798,7 @@ class _BookingDialogState extends State<_BookingDialog> {
       initialDate: initial,
       firstDate: firstDate,
       lastDate: now.add(const Duration(days: 365)),
+      selectableDayPredicate: (day) => !_isDateDisabled(day),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -3706,18 +3813,51 @@ class _BookingDialogState extends State<_BookingDialog> {
       },
     );
     if (picked == null) return;
-    setState(() {
-      if (isStart) {
-        _startDate = picked;
-        _startCtrl.text = _formatReadableDate(picked);
-        if (_endDate != null && _endDate!.isBefore(picked)) {
-          _endDate = picked;
-          _endCtrl.text = _formatReadableDate(picked);
-        }
-      } else {
-        _endDate = picked;
-        _endCtrl.text = _formatReadableDate(picked);
+    final normalized = _normalizeDate(picked);
+    if (_isDateDisabled(normalized)) {
+      _showBlockedSnack('Tanggal ini sudah dibooking. Pilih tanggal lain.');
+      return;
+    }
+    if (isStart) {
+      DateTime? newEnd = _endDate;
+      if (newEnd != null && newEnd.isBefore(normalized)) {
+        newEnd = normalized;
       }
+      final overlaps =
+          newEnd != null && _rangeOverlapsDisabled(normalized, newEnd);
+      setState(() {
+        _startDate = normalized;
+        _startCtrl.text = _formatReadableDate(normalized);
+        if (overlaps) {
+          _endDate = null;
+          _endCtrl.clear();
+        } else {
+          _endDate = newEnd;
+          if (newEnd != null) {
+            _endCtrl.text = _formatReadableDate(newEnd);
+          }
+        }
+        _error = null;
+      });
+      if (overlaps) {
+        _showBlockedSnack(
+            'Tanggal akhir sebelumnya bertabrakan. Pilih ulang tanggal selesai.');
+      }
+      return;
+    }
+    if (_startDate != null && normalized.isBefore(_startDate!)) {
+      _showBlockedSnack('Tanggal selesai tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+    if (_startDate != null &&
+        _rangeOverlapsDisabled(_startDate!, normalized)) {
+      _showBlockedSnack(
+          'Rentang tanggal tersebut sudah dibooking. Pilih rentang lain.');
+      return;
+    }
+    setState(() {
+      _endDate = normalized;
+      _endCtrl.text = _formatReadableDate(normalized);
       _error = null;
     });
   }
@@ -3733,6 +3873,13 @@ class _BookingDialogState extends State<_BookingDialog> {
     }
     if (_endDate!.isBefore(_startDate!)) {
       setState(() => _error = 'Tanggal selesai tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+    if (_rangeOverlapsDisabled(_startDate!, _endDate!)) {
+      setState(
+        () => _error =
+            'Rentang tanggal bertabrakan dengan booking lain. Pilih rentang berbeda.',
+      );
       return;
     }
     FocusScope.of(context).unfocus();
@@ -3761,7 +3908,8 @@ class _BookingDialogState extends State<_BookingDialog> {
     return _GlassPanel(
       radius: 36,
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
-      overlayColor: Colors.white.withValues(alpha: 0.05),
+      overlayColor: const Color(0xFF0F2037),
+      useGradient: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3776,7 +3924,7 @@ class _BookingDialogState extends State<_BookingDialog> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${_formatPriceLabel(widget.pricePerSession)} � ${widget.venueName}',
+            '${_formatPriceLabel(widget.pricePerSession)} ï¿½ ${widget.venueName}',
             style: GoogleFonts.plusJakartaSans(
               color: Colors.white70,
               fontSize: 13,
@@ -3982,7 +4130,8 @@ class _BookingConfirmationCard extends StatelessWidget {
     return _GlassPanel(
       radius: 36,
       padding: const EdgeInsets.fromLTRB(28, 32, 28, 30),
-      overlayColor: Colors.white.withValues(alpha: 0.05),
+      overlayColor: const Color(0xFF0F2037),
+      useGradient: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -4130,6 +4279,63 @@ class _ConfirmationRow extends StatelessWidget {
   }
 }
 
+class _BookedDateRange {
+  const _BookedDateRange({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+
+  static DateTime _normalize(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  static _BookedDateRange? tryParse(Map<String, dynamic> map) {
+    DateTime? parse(String key) {
+      final raw = map[key];
+      if (raw == null) return null;
+      return DateTime.tryParse(raw.toString());
+    }
+
+    final startRaw = parse('start_date');
+    final endRaw = parse('end_date');
+    if (startRaw == null || endRaw == null) return null;
+    var normalizedStart = _normalize(startRaw);
+    var normalizedEnd = _normalize(endRaw);
+    if (normalizedEnd.isBefore(normalizedStart)) {
+      final temp = normalizedStart;
+      normalizedStart = normalizedEnd;
+      normalizedEnd = temp;
+    }
+    return _BookedDateRange(start: normalizedStart, end: normalizedEnd);
+  }
+
+  bool contains(DateTime date) {
+    final normalized = _normalize(date);
+    return !normalized.isBefore(start) && !normalized.isAfter(end);
+  }
+
+  bool overlaps(DateTime startDate, DateTime endDate) {
+    var normalizedStart = _normalize(startDate);
+    var normalizedEnd = _normalize(endDate);
+    if (normalizedEnd.isBefore(normalizedStart)) {
+      final temp = normalizedStart;
+      normalizedStart = normalizedEnd;
+      normalizedEnd = temp;
+    }
+    return !(normalizedEnd.isBefore(start) || normalizedStart.isAfter(end));
+  }
+
+  Iterable<DateTime> days() sync* {
+    var cursor = start;
+    while (!cursor.isAfter(end)) {
+      yield cursor;
+      cursor = cursor.add(const Duration(days: 1));
+    }
+  }
+}
+
+int _dayKeyFromDate(DateTime date) =>
+    date.year * 10000 + date.month * 100 + date.day;
+
 class _BookingSummary {
   const _BookingSummary({
     required this.id,
@@ -4269,3 +4475,4 @@ String _formatReadableDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
   return '$day $month ${date.year}';
 }
+

@@ -10,6 +10,7 @@ from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
@@ -482,6 +483,34 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
         booking.delete()
         return JsonResponse({"detail": "deleted"})
     return JsonResponse({"detail": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+@require_GET
+def venue_availability_view(request: HttpRequest, venue_id: int):
+    today = timezone.localdate()
+    include_history = request.GET.get("include_history") in ("1", "true", "True")
+    bookings = (
+        Booking.objects.filter(venue_id=venue_id)
+        .select_related("date")
+        .order_by("date__start_date")
+    )
+    if not include_history:
+        bookings = bookings.filter(date__end_date__gte=today)
+
+    data: list[dict[str, object]] = []
+    for booking in bookings:
+        if not booking.date_id:
+            continue
+        data.append(
+            {
+                "id": booking.id,
+                "start_date": booking.date.start_date.isoformat(),
+                "end_date": booking.date.end_date.isoformat(),
+                "has_been_paid": booking.has_been_paid,
+            }
+        )
+    return JsonResponse({"success": True, "data": data})
 
 
 @csrf_exempt
