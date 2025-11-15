@@ -1954,11 +1954,13 @@ class _TestimonialCard extends StatelessWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.data});
+  const _CategoryChip({required this.data, this.width});
   final _CategoryChipData data;
+  final double? width;
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: width,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
@@ -1977,24 +1979,40 @@ class _CategoryChip extends StatelessWidget {
         ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(data.icon, color: Colors.white, size: 18),
           const SizedBox(width: 8),
-          Expanded(
+          Flexible(
             child: Text(
               data.label,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              style: _categoryChipTextStyle(),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+TextStyle _categoryChipTextStyle() => GoogleFonts.plusJakartaSans(
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+    );
+
+double _calculateChipWidth(String label) {
+  final painter = TextPainter(
+    text: TextSpan(text: label, style: _categoryChipTextStyle()),
+    maxLines: 1,
+    textDirection: TextDirection.ltr,
+  )..layout();
+  const double horizontalPadding = 18 * 2;
+  const double iconWidth = 18;
+  const double iconGap = 8;
+  return painter.width + horizontalPadding + iconWidth + iconGap;
 }
 
 enum _AuroraBackdropStyle { standard, detail }
@@ -2515,28 +2533,31 @@ class _CategoryMarqueeRow extends StatelessWidget {
   final double phase;
   final bool reverse;
 
-  static const double _itemWidth = 110;
   static const double _spacing = 10;
 
   @override
   Widget build(BuildContext context) {
+    final widths =
+        data.map((category) => _calculateChipWidth(category.label)).toList();
     if (data.length <= 2) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (var i = 0; i < data.length; i++) ...[
-            SizedBox(width: _itemWidth, child: _CategoryChip(data: data[i])),
+            _CategoryChip(data: data[i], width: widths[i]),
             if (i != data.length - 1) const SizedBox(width: _spacing),
           ],
         ],
       );
     }
-    final baseWidth =
-        data.length * _itemWidth + (data.length - 1) * _spacing;
-    if (baseWidth <= 0) {
-      return const SizedBox();
-    }
-    final sequence = _buildSequence();
+    final baseWidth = widths.fold<double>(
+          0,
+          (sum, width) => sum + width,
+        ) +
+        (data.length - 1) * _spacing;
+    if (baseWidth <= 0) return const SizedBox();
+
+    final sequence = _buildSequence(widths);
     final travel = baseWidth + _spacing;
     final tape = SizedBox(
       width: travel * 2,
@@ -2548,11 +2569,12 @@ class _CategoryMarqueeRow extends StatelessWidget {
         ],
       ),
     );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth
-            : travel;
+            : baseWidth;
         return SizedBox(
           width: viewportWidth,
           child: ClipRect(
@@ -2562,14 +2584,9 @@ class _CategoryMarqueeRow extends StatelessWidget {
                 final progress = ((animation.value + phase) % 1.0);
                 final shift = progress * travel;
                 final dx = reverse ? shift - travel : -shift;
-                return OverflowBox(
-                  minWidth: travel * 2,
-                  maxWidth: travel * 2,
-                  alignment: Alignment.centerLeft,
-                  child: Transform.translate(
-                    offset: Offset(dx, 0),
-                    child: tape,
-                  ),
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: tape,
                 );
               },
             ),
@@ -2579,13 +2596,10 @@ class _CategoryMarqueeRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSequence() {
+  List<Widget> _buildSequence(List<double> widths) {
     final children = <Widget>[];
     for (var i = 0; i < data.length; i++) {
-      children.add(SizedBox(
-        width: _itemWidth,
-        child: _CategoryChip(data: data[i]),
-      ));
+      children.add(_CategoryChip(data: data[i], width: widths[i]));
       if (i != data.length - 1) {
         children.add(const SizedBox(width: _spacing));
       }

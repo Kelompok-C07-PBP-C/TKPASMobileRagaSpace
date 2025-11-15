@@ -194,7 +194,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               decoration: BoxDecoration(gradient: AuroraPalette.sky),
             ),
           ),
-          const Positioned.fill(child: TwinkleOverlay(opacity: 0.14)),
           const Positioned.fill(
             child: AuroraBackdrop(
               variant: AuroraBackdropVariant.dense,
@@ -215,6 +214,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               ),
             ),
           ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.16)),
           SafeArea(
             child: _loading
                 ? const Center(
