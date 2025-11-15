@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api.dart';
@@ -14,8 +13,6 @@ const _loginBackground = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
 );
-const _cardColor = Color(0xFF0F1B2F);
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -130,152 +127,146 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildCard(ThemeData theme) {
+    final decorationTheme = theme.inputDecorationTheme.copyWith(
+          fillColor: Colors.white.withValues(alpha: 0.12),
+          labelStyle: GoogleFonts.plusJakartaSans(
+            color: Colors.white70,
+            fontWeight: FontWeight.w500,
+          ),
+        );
     return ClipRRect(
       borderRadius: BorderRadius.circular(38),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          decoration: BoxDecoration(
-            color: _cardColor.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(38),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 35,
-                offset: const Offset(0, 24),
-              ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xF016264D),
+              Color(0xE0123A63),
+              Color(0xC0116B76),
             ],
+            stops: [0.0, 0.5, 1.0],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const HeroSlideshow(),
-              const SizedBox(height: 28),
-              Text(
-                'Login',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+          borderRadius: BorderRadius.circular(38),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1BD7A1).withValues(alpha: 0.45),
+              blurRadius: 42,
+              spreadRadius: 4,
+              offset: const Offset(0, 28),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const HeroSlideshow(),
+            const SizedBox(height: 28),
+            Text(
+              'Login',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Welcome back! Please sign in to continue.',
-                style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  height: 1.5,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Welcome back! Please sign in to continue.',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white.withValues(alpha: 0.72),
+                height: 1.5,
               ),
-              const SizedBox(height: 22),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      style: TextStyle(color: Colors.white),
-                      controller: _userCtrl,
-                      textInputAction: TextInputAction.next,
-                      decoration:
-                          const InputDecoration(
-                            labelText: 'Username',
-                            prefixIcon: Icon(Icons.person_outline_rounded),
-                            filled: true,
-                          ).applyDefaults(
-                            Theme.of(context).inputDecorationTheme.copyWith(
-                              fillColor: Colors.white.withValues(alpha: 0.05),
-                              labelStyle: GoogleFonts.plusJakartaSans(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
+            ),
+            const SizedBox(height: 22),
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    style: const TextStyle(color: Colors.white),
+                    controller: _userCtrl,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                      filled: true,
+                    ).applyDefaults(decorationTheme),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter username' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    style: const TextStyle(color: Colors.white),
+                    controller: _passCtrl,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                      filled: true,
+                    ).applyDefaults(decorationTheme),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Enter password' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildRememberRow(theme),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: (_error == null)
+                        ? const SizedBox.shrink()
+                        : Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _error!,
+                              key: const ValueKey('error'),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.error,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Enter username'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      style: TextStyle(color: Colors.white),
-                      controller: _passCtrl,
-                      obscureText: _obscure,
-                      decoration:
-                          InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscure
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
-                            ),
-                            filled: true,
-                          ).applyDefaults(
-                            Theme.of(context).inputDecorationTheme.copyWith(
-                              fillColor: Colors.white.withValues(alpha: 0.05),
-                              labelStyle: GoogleFonts.plusJakartaSans(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Enter password' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildRememberRow(theme),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: (_error == null)
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _error!,
-                                key: const ValueKey('error'),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: 18),
-                    GradientButton(
-                      label: 'Sign In',
-                      onPressed: _loading ? null : _login,
-                      loading: _loading,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 18),
+                  GradientButton(
+                    label: 'Sign In',
+                    onPressed: _loading ? null : _login,
+                    loading: _loading,
+                  ),
+                ],
               ),
-              const SizedBox(height: 22),
-              Center(
-                child: TextButton(
-                  onPressed: _loading
-                      ? null
-                      : () => Navigator.of(context).push(
+            ),
+            const SizedBox(height: 22),
+            Center(
+              child: TextButton(
+                onPressed: _loading
+                    ? null
+                    : () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const RegisterScreen(),
                           ),
                         ),
-                  child: const Text(
-                    "Don't have an account? Sign Up",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                child: const Text(
+                  "Don't have an account? Sign Up",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -285,8 +276,9 @@ class _LoginScreenState extends State<LoginScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [

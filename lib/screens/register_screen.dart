@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../widgets/auth_background.dart';
@@ -105,107 +104,114 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final scheme = theme.colorScheme;
     return ClipRRect(
       borderRadius: BorderRadius.circular(38),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.82),
-            borderRadius: BorderRadius.circular(38),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 26,
-                offset: const Offset(0, 24),
-              ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xCC1F2F51),
+              Color(0x9911323C),
+              Color(0x8029AE83),
             ],
+            stops: [0.0, 0.55, 1.0],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _RegisterHeader(scheme: scheme, theme: theme),
-              const SizedBox(height: 24),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _userCtrl,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Username',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
+          borderRadius: BorderRadius.circular(38),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1BCBB2).withValues(alpha: 0.35),
+              blurRadius: 40,
+              spreadRadius: 2,
+              offset: const Offset(0, 26),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _RegisterHeader(scheme: scheme, theme: theme),
+            const SizedBox(height: 24),
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _userCtrl,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailCtrl,
-                      textInputAction: TextInputAction.next,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email (optional)',
-                        prefixIcon: Icon(Icons.email_outlined),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailCtrl,
+                    textInputAction: TextInputAction.next,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email (optional)',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passCtrl,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passCtrl,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmCtrl,
+                    obscureText: _obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: const Icon(Icons.verified_user_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                       ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmCtrl,
-                      obscureText: _obscureConfirm,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.verified_user_outlined),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                        ),
-                      ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Confirm password' : null,
-                    ),
-                    const SizedBox(height: 14),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: (_error == null)
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _error!,
-                                key: const ValueKey('reg-error'),
-                                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error, fontWeight: FontWeight.w600),
-                              ),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Confirm password' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: (_error == null)
+                        ? const SizedBox.shrink()
+                        : Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _error!,
+                              key: const ValueKey('reg-error'),
+                              style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error, fontWeight: FontWeight.w600),
                             ),
-                    ),
-                    const SizedBox(height: 20),
-                    GradientButton(label: 'Sign Up', onPressed: _loading ? null : _register, loading: _loading),
-                  ],
-                ),
+                          ),
+                  ),
+                  const SizedBox(height: 20),
+                  GradientButton(label: 'Sign Up', onPressed: _loading ? null : _register, loading: _loading),
+                ],
               ),
-              const SizedBox(height: 18),
-              Center(
-                child: TextButton(
-                  onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Already have an account? Sign In'),
-                ),
+            ),
+            const SizedBox(height: 18),
+            Center(
+              child: TextButton(
+                onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                child: const Text('Already have an account? Sign In'),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

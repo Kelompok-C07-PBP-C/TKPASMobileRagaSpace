@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:marco/theme/aurora_palette.dart';
+import 'package:marco/widgets/aurora_backdrop.dart';
+import 'package:marco/widgets/twinkle_overlay.dart';
 
 import '../services/api.dart';
 import '../widgets/gradient_button.dart';
@@ -177,11 +178,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const gradient = LinearGradient(
-      colors: [Color(0xFF0A1226), Color(0xFF0D1B32), Color(0xFF12325A), Color(0xFF1F4D7A)],
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-    );
     return Scaffold(
       appBar: AppBar(
         title: Text('Account settings', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700)),
@@ -195,16 +191,28 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         children: [
           const Positioned.fill(
             child: DecoratedBox(
-              decoration: BoxDecoration(gradient: gradient),
+              decoration: BoxDecoration(gradient: AuroraPalette.sky),
+            ),
+          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.14)),
+          const Positioned.fill(
+            child: AuroraBackdrop(
+              variant: AuroraBackdropVariant.dense,
+              opacity: 0.65,
             ),
           ),
           Positioned.fill(
-            child: Stack(
-              children: [
-                _decorOrb(alignment: Alignment(-0.6, -0.4), size: 220, color: const Color(0x4437E1A4)),
-                _decorOrb(alignment: Alignment(0.8, -0.1), size: 180, color: const Color(0x3348B0F7)),
-                _decorOrb(alignment: Alignment(0.2, 0.8), size: 260, color: const Color(0x332CD5FF)),
-              ],
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.25),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
             ),
           ),
           SafeArea(
@@ -259,54 +267,89 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Widget _buildForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _buildAvatar()),
-          const SizedBox(height: 16),
-          _buildTextField(_usernameCtrl, label: 'Username'),
-          const SizedBox(height: 16),
-          _buildTextField(_emailCtrl, label: 'Email', keyboardType: TextInputType.emailAddress),
-          const SizedBox(height: 16),
-          _buildTextField(_firstNameCtrl, label: 'First name'),
-          const SizedBox(height: 16),
-          _buildTextField(_lastNameCtrl, label: 'Last name'),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: GradientButton(label: 'Save changes', onPressed: _savingProfile ? null : _saveProfile, loading: _savingProfile, colors: const [Color(0xFF1FA2FF), Color(0xFF2CD5FF)]),),
-          const SizedBox(height: 32),
-          Text(
-            'Change password',
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(36),
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xCC0E1728),
+              Color(0xCC15263F),
+              Color(0xCC0F3846),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 35,
+              offset: const Offset(0, 24),
             ),
-          ),
-          const SizedBox(height: 10),
-          _buildTextField(
-            _currentPassCtrl,
-            label: 'Current password',
-            obscureText: true,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            _newPassCtrl,
-            label: 'New password',
-            obscureText: true,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            _confirmPassCtrl,
-            label: 'Confirm new password',
-            obscureText: true,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: GradientButton(label: 'Update password', onPressed: _changingPassword ? null : _changePassword, loading: _changingPassword, colors: const [Color(0xFFFF7E79), Color(0xFFFF3D7E)]),),
-        ],
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: _buildAvatar()),
+            const SizedBox(height: 24),
+            _buildTextField(_usernameCtrl, label: 'Username'),
+            const SizedBox(height: 16),
+            _buildTextField(_emailCtrl, label: 'Email', keyboardType: TextInputType.emailAddress),
+            const SizedBox(height: 16),
+            _buildTextField(_firstNameCtrl, label: 'First name'),
+            const SizedBox(height: 16),
+            _buildTextField(_lastNameCtrl, label: 'Last name'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: GradientButton(
+                label: 'Save changes',
+                onPressed: _savingProfile ? null : _saveProfile,
+                loading: _savingProfile,
+                colors: const [Color(0xFF45B1FF), Color(0xFF4BE2C7)],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Change password',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildTextField(
+              _currentPassCtrl,
+              label: 'Current password',
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              _newPassCtrl,
+              label: 'New password',
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              _confirmPassCtrl,
+              label: 'Confirm new password',
+              obscureText: true,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: GradientButton(
+                label: 'Update password',
+                onPressed: _changingPassword ? null : _changePassword,
+                loading: _changingPassword,
+                colors: const [Color(0xFFFF7E79), Color(0xFFFF3D7E)],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -384,25 +427,16 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         labelText: label,
         labelStyle: GoogleFonts.plusJakartaSans(color: Colors.white70),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.07),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: Colors.white.withValues(alpha: 0.09),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
         ),
-      ),
-    );
-  }
-  static Widget _decorOrb({required Alignment alignment, required double size, required Color color}) {
-    return Align(
-      alignment: alignment,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: [color, color.withOpacity(0.04)]),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.45)),
         ),
       ),
     );

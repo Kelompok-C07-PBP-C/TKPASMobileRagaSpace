@@ -19,11 +19,9 @@ class _BookingsScreen extends StatefulWidget {
   State<_BookingsScreen> createState() => _BookingsScreenState();
 }
 
-class _BookingsScreenState extends State<_BookingsScreen>
-    with SingleTickerProviderStateMixin {
+class _BookingsScreenState extends State<_BookingsScreen> {
   int? _cancellingId;
   static final String _apiBaseUrl = _HomeScreenState._apiBaseUrl;
-  late final AnimationController _auroraController;
   List<_BookingSummary> _bookings = [];
   bool _loading = true;
   String? _error;
@@ -32,16 +30,11 @@ class _BookingsScreenState extends State<_BookingsScreen>
   @override
   void initState() {
     super.initState();
-    _auroraController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    )..repeat();
     _refreshBookings();
   }
 
   @override
   void dispose() {
-    _auroraController.dispose();
     super.dispose();
   }
 
@@ -130,13 +123,10 @@ class _BookingsScreenState extends State<_BookingsScreen>
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _auroraController,
-              builder: (_, __) =>
-                  _AuroraBackdrops(phase: _auroraController.value),
-            ),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.22),
           ),
+          const Positioned.fill(child: _StaticAuroraBackdrop()),
           SafeArea(
             child: Column(
               children: [

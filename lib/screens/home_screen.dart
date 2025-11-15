@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:marco/services/api.dart';
 import 'package:marco/services/base_url_resolver.dart';
+import 'package:marco/theme/aurora_palette.dart';
+import 'package:marco/widgets/aurora_backdrop.dart';
 import 'package:marco/widgets/aurora_route.dart';
+import 'package:marco/widgets/twinkle_overlay.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'account_settings_screen.dart';
@@ -19,16 +21,7 @@ part 'home_screen_wishlist.dart';
 part 'home_screen_bookings.dart';
 part 'home_screen_widgets.dart';
 
-const _backgroundGradient = LinearGradient(
-  colors: [
-    Color(0xFF0A1226), // base navy from reference
-    Color(0xFF0D1B32),
-    Color(0xFF12325A),
-    Color(0xFF1F4D7A),
-  ],
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-);
+const _backgroundGradient = AuroraPalette.sky;
 const _ctaBlue = Color(0xFF1FA2FF);
 const _ctaTeal = Color(0xFF2CD5FF);
 const _imageFallbackGradient = LinearGradient(
@@ -198,27 +191,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
     ),
   ];
-  final PageController _testimonialController = PageController(
-    viewportFraction: 0.9,
-  );
   late final PageController _highlightController;
   Timer? _highlightTimer;
   Timer? _testimonialTimer;
-  late final AnimationController _backgroundController;
   late final ScrollController _scrollController;
   int _navIndex = 0;
   int _testimonialPage = 0;
- bool _stickyNavVisible = false;
+  bool _stickyNavVisible = false;
+  bool _highlightAutoplayEnabled = true;
+  final UniqueKey _highlightVisibilityKey = UniqueKey();
+  bool _testimonialAutoplayEnabled = true;
+  final UniqueKey _testimonialVisibilityKey = UniqueKey();
+  late final AnimationController _categoryMarqueeController;
   @override
   void initState() {
     super.initState();
-    _highlightController = PageController(viewportFraction: 0.82);
+    _highlightController = PageController(viewportFraction: 0.9);
+    _categoryMarqueeController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 14))
+          ..repeat();
     _startHighlightAutoScroll();
     _startTestimonialAutoScroll();
-    _backgroundController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    )..repeat();
     _scrollController = ScrollController()..addListener(_handleScroll);
     _fetchTopVenues();
     _loadWishlist();
@@ -227,7 +220,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _startHighlightAutoScroll() {
     _highlightTimer?.cancel();
-    if (_highlightPageCount <= 1) return;
+    if (_highlightPageCount <= 1) {
+      _highlightAutoplayEnabled = false;
+      return;
+    }
+    _highlightAutoplayEnabled = true;
     _highlightTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!_highlightController.hasClients) return;
       final current = _highlightController.page?.round() ??
@@ -241,13 +238,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  void _pauseHighlightAutoScroll() {
+    if (!_highlightAutoplayEnabled) return;
+    _highlightAutoplayEnabled = false;
+    _highlightTimer?.cancel();
+    _highlightTimer = null;
+  }
+
   void _startTestimonialAutoScroll() {
     _testimonialTimer?.cancel();
-    if (_testimonials.length <= 1) return;
+    if (_testimonials.length <= 1) {
+      _testimonialAutoplayEnabled = false;
+      return;
+    }
+    _testimonialAutoplayEnabled = true;
     _testimonialTimer = Timer.periodic(const Duration(seconds: 7), (_) {
+      if (!mounted) return;
       final next = (_testimonialPage + 1) % _testimonials.length;
-      _goToTestimonial(next);
+      setState(() => _testimonialPage = next);
     });
+  }
+
+  void _pauseTestimonialAutoScroll() {
+    if (!_testimonialAutoplayEnabled) return;
+    _testimonialAutoplayEnabled = false;
+    _testimonialTimer?.cancel();
+    _testimonialTimer = null;
   }
 
   void _handleScroll() {
@@ -265,8 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _highlightTimer?.cancel();
     _testimonialTimer?.cancel();
     _highlightController.dispose();
-    _testimonialController.dispose();
-    _backgroundController.dispose();
+    _categoryMarqueeController.dispose();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     super.dispose();
@@ -277,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       extendBody: true,
       backgroundColor: Colors.transparent,
-       body: Stack(
+      body: Stack(
         clipBehavior: Clip.none,
         children: [
           const Positioned.fill(
@@ -285,13 +300,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _backgroundController,
-              builder: (_, __) =>
-                  _AuroraBackdrops(phase: _backgroundController.value),
-            ),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.22),
           ),
+          const Positioned.fill(child: _StaticAuroraBackdrop()),
           SafeArea(
             child: SingleChildScrollView(
               controller: _scrollController,
@@ -540,16 +552,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
                   child: SizedBox(
                     height: 64,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      itemBuilder: (context, index) => SizedBox(
-                        width: 150,
-                        child: _CategoryChip(data: rows[i][index]),
-                      ),
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemCount: rows[i].length,
+                    child: _CategoryMarqueeRow(
+                      data: rows[i],
+                      animation: _categoryMarqueeController,
+                      phase: i * 0.35,
                     ),
                   ),
                 ),
@@ -610,7 +616,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Wrap(
               spacing: spacing,
               runSpacing: 18,
-              alignment: WrapAlignment.start,
+              alignment:
+                  singleColumn ? WrapAlignment.center : WrapAlignment.start,
               children: [
                 for (final filter in filters)
                   SizedBox(width: itemWidth, child: filter),
@@ -677,38 +684,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               initialCategory: _selectedCategory,
               initialPrice: _selectedPrice,
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.search_rounded, color: Colors.white),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Search venues',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final bool compact = constraints.maxWidth < 280;
+                final double horizontalPadding =
+                    constraints.maxWidth < 240 ? 20 : 32;
+                return Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      const Icon(Icons.search_rounded, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Search venues',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: compact ? 8 : 12),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.22),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -728,33 +749,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: _imageFallbackGradient),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Cari venue terbaik untuk sesi berikutnya.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+                DecoratedBox(
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/hero_gradient.png'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.35),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Filter kota, kategori, dan anggaranmu di satu tempat.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          color: Colors.white.withValues(alpha: 0.82),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
+                const SizedBox.shrink(),
               ],
             ),
           ),
@@ -762,17 +777,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Positioned(
           left: 0,
           right: 0,
-          bottom: 0,
-          child: IgnorePointer(child: Container(height: 200)),
-        ),
-        Positioned(
-          left: 24,
-          right: 24,
           bottom: 15,
-          child: _FadeSlideIn(
-            delay: const Duration(milliseconds: 300),
-            offset: const Offset(0, 0.15),
-            child: _buildSearchCard(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _FadeSlideIn(
+              delay: const Duration(milliseconds: 300),
+              offset: const Offset(0, 0.15),
+              child: Align(
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: _buildSearchCard(),
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -780,40 +798,66 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHighlightsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(48),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 35,
-            offset: const Offset(0, 22),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        height: 320,
-        child: PageView.builder(
-          controller: _highlightController,
-          padEnds: false,
-          physics: const BouncingScrollPhysics(),
-          clipBehavior: Clip.none,
-          itemCount: _highlightPageCount,
-          itemBuilder: (context, index) {
-            final child = index == _highlightCards.length
-                ? const _ExploreVenuesCard()
-                : _HighlightInfoCard(data: _highlightCards[index]);
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              child: child,
-            );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxWidth = constraints.maxWidth;
+        final double targetWidth =
+            (maxWidth >= 420 ? 340.0 : (maxWidth - 40)).clamp(220.0, maxWidth);
+        return VisibilityDetector(
+          key: _highlightVisibilityKey,
+          onVisibilityChanged: (info) {
+            final shouldRun = info.visibleFraction > 0.3;
+            if (shouldRun && !_highlightAutoplayEnabled) {
+              _startHighlightAutoScroll();
+            } else if (!shouldRun && _highlightAutoplayEnabled) {
+              _pauseHighlightAutoScroll();
+            }
           },
-        ),
-      ),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(48),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 28,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              height: 300,
+              child: PageView.builder(
+                controller: _highlightController,
+                padEnds: false,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                itemCount: _highlightPageCount,
+                itemBuilder: (context, index) {
+                  final child = index == _highlightCards.length
+                      ? const _ExploreVenuesCard()
+                      : _HighlightInfoCard(data: _highlightCards[index]);
+                  return Align(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints.tightFor(width: targetWidth),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -852,32 +896,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           constraints.maxWidth,
           stacked,
         );
-        return Column(
-          children: [
-            SizedBox(
-              height: cardHeight,
-              child: PageView.builder(
-                controller: _testimonialController,
-                physics: const BouncingScrollPhysics(),
-                clipBehavior: Clip.hardEdge,
-                itemCount: _testimonials.length,
-                onPageChanged: (index) {
-                  setState(() => _testimonialPage = index);
-                },
-                itemBuilder: (context, index) {
-                  return Padding(
+        return VisibilityDetector(
+          key: _testimonialVisibilityKey,
+          onVisibilityChanged: (info) {
+            final shouldRun = info.visibleFraction > 0.3;
+            if (shouldRun && !_testimonialAutoplayEnabled) {
+              _startTestimonialAutoScroll();
+            } else if (!shouldRun && _testimonialAutoplayEnabled) {
+              _pauseTestimonialAutoScroll();
+            }
+          },
+          child: Column(
+            children: [
+              SizedBox(
+                height: cardHeight,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 450),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: Padding(
+                    key: ValueKey('${_testimonialPage}_$stacked'),
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: _TestimonialCard(
-                      data: _testimonials[index],
+                      data: _testimonials[_testimonialPage],
                       stacked: stacked,
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 18),
-            _buildTestimonialControls(),
-          ],
+              const SizedBox(height: 18),
+              _buildTestimonialControls(),
+            ],
+          ),
         );
       },
     );
@@ -999,14 +1049,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _nextTestimonial() {
     final next = (_testimonialPage + 1) % _testimonials.length;
-    _goToTestimonial(next);
+    setState(() => _testimonialPage = next);
   }
 
   void _previousTestimonial() {
     final prev = _testimonialPage == 0
         ? _testimonials.length - 1
         : _testimonialPage - 1;
-    _goToTestimonial(prev);
+    setState(() => _testimonialPage = prev);
   }
 
   Future<void> _openCatalog({
@@ -1096,7 +1146,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: _GlassPanel(
           radius: 24,
           padding: const EdgeInsets.symmetric(vertical: 8),
-          overlayColor: Colors.white.withValues(alpha: 0.08),
+          overlayColor: const Color(0xF0141E2F),
+          borderColor: Colors.white.withValues(alpha: 0.18),
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1222,15 +1273,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       price: product.price,
       rating: product.rating,
       imageUrl: product.imageUrl,
-    );
-  }
-
-  void _goToTestimonial(int index) {
-    if (!_testimonialController.hasClients || _testimonials.length <= 1) return;
-    _testimonialController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 360),
-      curve: Curves.easeOutCubic,
     );
   }
 
@@ -1682,30 +1724,25 @@ class _GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    final decoration = BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            color: overlayColor,
-            border: Border.all(
-              color: borderColor ?? Colors.white.withValues(alpha: 0.08),
-            ),
-            boxShadow: boxShadow ??
-                [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 30,
-                    offset: const Offset(0, 20),
-                  ),
-                ],
-          ),
-          child: child,
-        ),
+      gradient: AuroraPalette.glassGradient(overlayColor),
+      border: Border.all(
+        color: borderColor ?? Colors.white.withValues(alpha: 0.12),
       ),
+      boxShadow: boxShadow ??
+          [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 30,
+              offset: const Offset(0, 20),
+            ),
+          ],
+    );
+    return Container(
+      padding: padding,
+      decoration: decoration,
+      child: child,
     );
   }
 }
@@ -1943,266 +1980,192 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-class _AuroraBackdrops extends StatelessWidget {
-  const _AuroraBackdrops({required this.phase});
-  final double phase;
-  @override
-  Widget build(BuildContext context) {
-    final wave = math.sin(phase * 2 * math.pi);
-    final swell = math.cos(phase * 2 * math.pi);
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          _Halo(
-            alignment: Alignment(-1.05 + wave * 0.18, -0.85 + swell * 0.07),
-            size: 420 + swell * 38,
-            colors: const [Color(0x3333478E), Color(0x00070D1C)],
-            shadowColor: const Color(0x2233478E),
-            blur: 140,
-            spread: 14,
-          ),
-          _Halo(
-            alignment: Alignment(0.95 + swell * 0.22, -0.78 + wave * 0.05),
-            size: 360 + wave * 40,
-            colors: const [Color(0x44FF8EC7), Color(0x00070D1C)],
-            shadowColor: const Color(0x22FF8EC7),
-            blur: 150,
-            spread: 16,
-          ),
-          _Halo(
-            alignment: Alignment(-0.35 + wave * 0.15, 0.1 + swell * 0.1),
-            size: 300 + swell * 40,
-            colors: const [Color(0x22475B94), Color(0x00070D1C)],
-            shadowColor: const Color(0x22475B94),
-            blur: 140,
-            spread: 12,
-          ),
-          _Halo(
-            alignment: Alignment(0.35 + swell * 0.18, -0.05 + wave * 0.08),
-            size: 280 + wave * 35,
-            colors: const [Color(0x22355FB5), Color(0x00070D1C)],
-            shadowColor: const Color(0x1A46E4C1),
-            blur: 140,
-            spread: 12,
-          ),
-          _Halo(
-            alignment: Alignment(0.05 + wave * 0.12, 0.7 + swell * 0.08),
-            size: 520 + wave * 56,
-            colors: const [Color(0x22304D8E), Color(0x00070D1C)],
-            shadowColor: const Color(0x1A304D8E),
-            blur: 200,
-            spread: 14,
-          ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _AuroraCurtainPainter(phase: phase),
-            ),
-          ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _NebulaParticlePainter(phase: phase),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: const [
-                    Color(0x1517314F),
-                    Colors.transparent,
-                    Color(0x0F0A1C36),
-                  ],
-                  stops: const [0.0, 0.45, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+enum _AuroraBackdropStyle { standard, detail }
 
-class _Halo extends StatelessWidget {
-  const _Halo({
-    required this.alignment,
-    required this.size,
-    required this.colors,
-    required this.shadowColor,
-    required this.blur,
-    required this.spread,
+class _StaticAuroraBackdrop extends StatelessWidget {
+  const _StaticAuroraBackdrop({
+    this.style = _AuroraBackdropStyle.standard,
   });
-  final Alignment alignment;
-  final double size;
-  final List<Color> colors;
-  final Color shadowColor;
-  final double blur;
-  final double spread;
+
+  final _AuroraBackdropStyle style;
+
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: alignment,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: colors, stops: const [0.0, 1.0]),
-          boxShadow: [
-            BoxShadow(
-              color: shadowColor,
-              blurRadius: blur,
-              spreadRadius: spread,
-            ),
-          ],
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _StaticAuroraPainter(style),
         ),
       ),
     );
   }
 }
 
-class _AuroraCurtainPainter extends CustomPainter {
-  const _AuroraCurtainPainter({required this.phase});
+class _StaticAuroraPainter extends CustomPainter {
+  const _StaticAuroraPainter(this.style);
 
-  final double phase;
+  final _AuroraBackdropStyle style;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final wave = math.sin(phase * 2 * math.pi);
-    final swell = math.cos(phase * 2 * math.pi);
-    const specs = [
-      _CurtainSpec(
-        verticalFactor: 0.18,
-        height: 240,
-        horizontalShift: -180,
-        waveShift: 26,
-        swellShift: 40,
-        blur: 80,
-        colors: [Color(0x3338D0FF), Color(0x00112A40)],
-      ),
-      _CurtainSpec(
-        verticalFactor: 0.42,
-        height: 260,
-        horizontalShift: -80,
-        waveShift: 20,
-        swellShift: -30,
-        blur: 70,
-        colors: [Color(0x3323FFC3), Color(0x000C1F2F)],
-      ),
-      _CurtainSpec(
-        verticalFactor: 0.68,
-        height: 220,
-        horizontalShift: -140,
-        waveShift: 16,
-        swellShift: 55,
-        blur: 85,
-        colors: [Color(0x332AD7FF), Color(0x00081423)],
-      ),
-    ];
-
-    for (final spec in specs) {
-      final baseY = size.height * spec.verticalFactor +
-          wave * spec.waveShift +
-          swell * (spec.waveShift * 0.2);
-      final left = spec.horizontalShift + swell * spec.swellShift;
-      final rect = Rect.fromLTWH(left, baseY, size.width + 280, spec.height);
-      final crest = wave * 40;
-      final trough = swell * 30;
-      final path = Path()
-        ..moveTo(rect.left, rect.top + 20)
-        ..cubicTo(
-          rect.left + rect.width * 0.25,
-          rect.top - 50 - crest,
-          rect.left + rect.width * 0.6,
-          rect.top + 60 + trough,
-          rect.right,
-          rect.top + 12,
-        )
-        ..lineTo(rect.right, rect.bottom - 16)
-        ..cubicTo(
-          rect.left + rect.width * 0.65,
-          rect.bottom + 50 + crest * 0.6,
-          rect.left + rect.width * 0.2,
-          rect.bottom - 30 - trough,
-          rect.left,
-          rect.bottom + 14,
-        )
-        ..close();
-
-      final paint = Paint()
-        ..shader = LinearGradient(
-          colors: spec.colors,
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ).createShader(rect)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, spec.blur)
-        ..blendMode = BlendMode.plus;
-      canvas.drawPath(path, paint);
+    final ribbons = _buildRibbons(style);
+    for (final ribbon in ribbons) {
+      _paintRibbon(canvas, size, ribbon);
     }
+    _paintStarfield(canvas, size);
+    _paintHorizonGlow(canvas, size);
   }
 
   @override
-  bool shouldRepaint(covariant _AuroraCurtainPainter oldDelegate) {
-    return oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _StaticAuroraPainter oldDelegate) {
+    return oldDelegate.style != style;
   }
 }
 
-class _CurtainSpec {
-  const _CurtainSpec({
-    required this.verticalFactor,
-    required this.height,
-    required this.horizontalShift,
-    required this.waveShift,
-    required this.swellShift,
-    required this.blur,
+class _AuroraRibbon {
+  const _AuroraRibbon({
+    required this.start,
+    required this.end,
+    required this.control1,
+    required this.control2,
+    required this.thickness,
     required this.colors,
+    this.blur = 90,
   });
 
-  final double verticalFactor;
-  final double height;
-  final double horizontalShift;
-  final double waveShift;
-  final double swellShift;
-  final double blur;
+  final Offset start;
+  final Offset end;
+  final Offset control1;
+  final Offset control2;
+  final double thickness;
   final List<Color> colors;
+  final double blur;
 }
 
-class _NebulaParticlePainter extends CustomPainter {
-  _NebulaParticlePainter({required this.phase});
+List<_AuroraRibbon> _buildRibbons(_AuroraBackdropStyle style) {
+  final bright = style == _AuroraBackdropStyle.detail
+      ? const [Color(0xFF5EECFF), Color(0x8826FFC8)]
+      : const [Color(0xFF60F3FF), Color(0x6624FFD5)];
+  final mid = style == _AuroraBackdropStyle.detail
+      ? const [Color(0xFF3BC3FF), Color(0x5523A8FF)]
+      : const [Color(0xFF40C5FF), Color(0x553497FF)];
+  final soft = style == _AuroraBackdropStyle.detail
+      ? const [Color(0xFF2DF1C1), Color(0x3324A0FF)]
+      : const [Color(0xFF2DF1C1), Color(0x332486FF)];
+  return [
+    _AuroraRibbon(
+      start: const Offset(-0.1, 0.2),
+      end: const Offset(0.35, 0.95),
+      control1: const Offset(0.1, 0.1),
+      control2: const Offset(0.15, 0.65),
+      thickness: 0.09,
+      colors: bright,
+    ),
+    _AuroraRibbon(
+      start: const Offset(0.1, 0.05),
+      end: const Offset(0.7, 0.9),
+      control1: const Offset(0.25, 0.0),
+      control2: const Offset(0.5, 0.7),
+      thickness: 0.08,
+      colors: mid,
+      blur: 110,
+    ),
+    _AuroraRibbon(
+      start: const Offset(0.6, 0.08),
+      end: const Offset(1.05, 0.85),
+      control1: const Offset(0.75, 0.12),
+      control2: const Offset(0.9, 0.65),
+      thickness: 0.07,
+      colors: soft,
+    ),
+  ];
+}
 
-  final double phase;
+void _paintRibbon(Canvas canvas, Size size, _AuroraRibbon ribbon) {
+  final start = Offset(ribbon.start.dx * size.width,
+      ribbon.start.dy.clamp(0.0, 1.0) * size.height);
+  final end = Offset(ribbon.end.dx * size.width,
+      ribbon.end.dy.clamp(0.0, 1.0) * size.height);
+  final c1 = Offset(ribbon.control1.dx * size.width,
+      ribbon.control1.dy.clamp(0.0, 1.0) * size.height);
+  final c2 = Offset(ribbon.control2.dx * size.width,
+      ribbon.control2.dy.clamp(0.0, 1.0) * size.height);
+  final thickness = ribbon.thickness * size.width;
+  final path = Path()
+    ..moveTo(start.dx - thickness, start.dy)
+    ..cubicTo(
+      c1.dx - thickness * 0.6,
+      c1.dy,
+      c2.dx - thickness * 0.4,
+      c2.dy,
+      end.dx - thickness * 0.2,
+      end.dy,
+    )
+    ..lineTo(end.dx + thickness, end.dy)
+    ..cubicTo(
+      c2.dx + thickness * 0.4,
+      c2.dy,
+      c1.dx + thickness * 0.6,
+      c1.dy,
+      start.dx + thickness,
+      start.dy,
+    )
+    ..close();
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    final seeds = [
-      const Offset(0.15, 0.2),
-      const Offset(0.35, 0.7),
-      const Offset(0.65, 0.4),
-      const Offset(0.85, 0.75),
-      const Offset(0.55, 0.15),
-    ];
-    for (var i = 0; i < seeds.length; i++) {
-      final pulsate = 0.5 + 0.5 * math.sin((phase + i * 0.2) * math.pi * 2);
-      final radius = 30 + 18 * pulsate;
-      final center = Offset(
-        seeds[i].dx * size.width,
-        seeds[i].dy * size.height,
-      );
-      paint.color = Colors.white.withValues(alpha: 0.07 + pulsate * 0.04);
-      canvas.drawCircle(center, radius, paint);
-    }
-  }
+  final shader = LinearGradient(
+    colors: ribbon.colors,
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  ).createShader(Rect.fromPoints(start, end));
 
-  @override
-  bool shouldRepaint(covariant _NebulaParticlePainter oldDelegate) {
-    return oldDelegate.phase != phase;
+  final paint = Paint()
+    ..shader = shader
+    ..maskFilter = MaskFilter.blur(BlurStyle.normal, ribbon.blur);
+  canvas.drawPath(path, paint);
+}
+
+void _paintStarfield(Canvas canvas, Size size) {
+  final starPaint = Paint()..style = PaintingStyle.fill;
+  final stars = <Offset>[
+    const Offset(0.1, 0.12),
+    const Offset(0.18, 0.28),
+    const Offset(0.32, 0.08),
+    const Offset(0.48, 0.2),
+    const Offset(0.58, 0.05),
+    const Offset(0.7, 0.18),
+    const Offset(0.82, 0.12),
+    const Offset(0.9, 0.3),
+  ];
+  for (var i = 0; i < stars.length; i++) {
+    final star = stars[i];
+    final radius = size.shortestSide * (0.002 + (i % 3) * 0.001);
+    starPaint.color = Colors.white.withValues(alpha: 0.15 + (i % 3) * 0.1);
+    canvas.drawCircle(
+      Offset(star.dx * size.width, star.dy * size.height),
+      radius,
+      starPaint,
+    );
   }
 }
+
+void _paintHorizonGlow(Canvas canvas, Size size) {
+  final rect = Rect.fromLTWH(0, size.height * 0.4, size.width, size.height);
+  final gradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: const [
+      Color(0x002AF0FF),
+      Color(0x1429E7FF),
+      Color(0x2625B4FF),
+      Color(0x0F0B1C30),
+      Color(0x00010208),
+    ],
+    stops: const [0.0, 0.35, 0.65, 0.85, 1.0],
+  );
+  final paint = Paint()..shader = gradient.createShader(rect);
+  canvas.drawRect(rect, paint);
+}
+
 
 class _NavItemData {
   const _NavItemData({required this.icon, required this.label});
@@ -2373,52 +2336,40 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF030816), Color(0xFF0C1F3E), Color(0xFF1B2F6B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AuroraPalette.sky,
               ),
             ),
           ),
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _haloController,
-              builder: (context, _) {
-                final wave = math.sin(_haloController.value * 2 * math.pi);
-                final swell = math.cos(_haloController.value * 2 * math.pi);
-                return Stack(
-                  children: [
-                    _halo(
-                      alignment: Alignment(-0.6 + wave * 0.2, -0.4 + swell * 0.15),
-                      radius: 400 + wave * 60,
-                      color: const Color(0x6648E0FF),
-                    ),
-                    _halo(
-                      alignment: Alignment(0.7 + swell * 0.15, 0.5 + wave * 0.18),
-                      radius: 480 + swell * 70,
-                      color: const Color(0x449C4CFF),
-                    ),
-                  ],
-                );
-              },
-            ),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.2),
           ),
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _haloController,
               builder: (context, _) {
-                final wave = math.sin(_haloController.value * 2 * math.pi);
-                final sigma = 38 + wave * 18;
-                return BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: sigma,
-                    sigmaY: sigma * 0.85,
-                  ),
-                  child: const SizedBox(),
+                return AuroraBackdrop(
+                  phase: _haloController.value,
+                  variant: AuroraBackdropVariant.dense,
+                  opacity: 0.85,
                 );
               },
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
             ),
           ),
           Center(child: _buildLoader()),
@@ -2438,13 +2389,20 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0x66132F55),
+                Color(0x33305B7D),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0x993A8CFF).withValues(alpha: 0.4),
-                blurRadius: 60,
-                spreadRadius: 6,
+                color: const Color(0xFF2FB5FF).withValues(alpha: 0.35),
+                blurRadius: 65,
+                spreadRadius: 8,
               ),
             ],
           ),
@@ -2525,68 +2483,76 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
       },
     );
   }
-
-  Widget _halo({
-    required Alignment alignment,
-    required double radius,
-    required Color color,
-  }) {
-    return Align(
-      alignment: alignment,
-      child: Container(
-        width: radius,
-        height: radius,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0.01)],
-          ),
-        ),
-      ),
-    );
-  }
 }
-class _DetailAuroraBackdrops extends StatelessWidget {
-  const _DetailAuroraBackdrops({required this.phase});
+
+class _CategoryMarqueeRow extends StatelessWidget {
+  const _CategoryMarqueeRow({
+    required this.data,
+    required this.animation,
+    this.phase = 0,
+  });
+
+  final List<_CategoryChipData> data;
+  final Animation<double> animation;
   final double phase;
+
+  static const double _itemWidth = 150;
+  static const double _spacing = 12;
 
   @override
   Widget build(BuildContext context) {
-    final wave = math.sin(phase * 2 * math.pi);
-    final swell = math.cos(phase * 2 * math.pi);
-    return IgnorePointer(
-      child: Stack(
+    if (data.length <= 2) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _Halo(
-            alignment: Alignment(-0.6 + wave * 0.1, -0.8 + swell * 0.05),
-            size: 280 + swell * 30,
-            colors: [const Color(0x5533478E), Colors.transparent],
-            shadowColor: const Color(0x3333478E),
-            blur: 160,
-            spread: 12,
-          ),
-          _Halo(
-            alignment: Alignment(0.7 + swell * 0.12, -0.6 + wave * 0.05),
-            size: 240 + wave * 40,
-            colors: [const Color(0x55304D8E), Colors.transparent],
-            shadowColor: const Color(0x33304D8E),
-            blur: 140,
-            spread: 10,
-          ),
-          _Halo(
-            alignment: Alignment(0.0 + wave * 0.12, 0.55 + swell * 0.08),
-            size: 360 + wave * 50,
-            colors: [const Color(0x553B5E9C), Colors.transparent],
-            shadowColor: const Color(0x333B5E9C),
-            blur: 200,
-            spread: 14,
-          ),
+          for (var i = 0; i < data.length; i++) ...[
+            SizedBox(width: _itemWidth, child: _CategoryChip(data: data[i])),
+            if (i != data.length - 1) const SizedBox(width: _spacing),
+          ],
         ],
+      );
+    }
+    final baseWidth =
+        data.length * _itemWidth + (data.length - 1) * _spacing;
+    if (baseWidth <= 0) {
+      return const SizedBox();
+    }
+    final sequence = _buildSequence();
+    return ClipRect(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, _) {
+          final progress = ((animation.value + phase) % 1.0);
+          final offset = progress * (baseWidth + _spacing);
+          return Transform.translate(
+            offset: Offset(-offset, 0),
+            child: Row(
+              children: [
+                ...sequence,
+                const SizedBox(width: _spacing),
+                ...sequence,
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-}
 
+  List<Widget> _buildSequence() {
+    final children = <Widget>[];
+    for (var i = 0; i < data.length; i++) {
+      children.add(SizedBox(
+        width: _itemWidth,
+        child: _CategoryChip(data: data[i]),
+      ));
+      if (i != data.length - 1) {
+        children.add(const SizedBox(width: _spacing));
+      }
+    }
+    return children;
+  }
+}
 class _VenueDetailScreen extends StatefulWidget {
   const _VenueDetailScreen({
     required this.data,
@@ -2769,8 +2735,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          Positioned.fill(
-            child: _DetailAuroraBackdrops(phase: 0.35),
+          const Positioned.fill(
+            child: _StaticAuroraBackdrop(style: _AuroraBackdropStyle.detail),
           ),
           SafeArea(
             child: CustomScrollView(

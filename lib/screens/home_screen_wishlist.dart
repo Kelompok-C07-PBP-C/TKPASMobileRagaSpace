@@ -41,6 +41,7 @@ class _WishlistScreenState extends State<_WishlistScreen> {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.22)),
           SafeArea(
             child: Column(
               children: [

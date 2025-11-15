@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:marco/theme/aurora_palette.dart';
+import 'package:marco/widgets/aurora_backdrop.dart';
+import 'package:marco/widgets/twinkle_overlay.dart';
 import '../widgets/aurora_route.dart';
 import 'home_screen.dart';
 
@@ -55,52 +56,40 @@ class _LoadingScreenState extends State<LoadingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF030816), Color(0xFF0C1F3E), Color(0xFF1B2F6B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AuroraPalette.sky,
               ),
             ),
           ),
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _haloController,
-              builder: (context, child) {
-                final wave = math.sin(_haloController.value * 2 * math.pi);
-                final swell = math.cos(_haloController.value * 2 * math.pi);
-                return Stack(
-                  children: [
-                    _halo(
-                      alignment: Alignment(-0.6 + wave * 0.2, -0.4 + swell * 0.15),
-                      radius: 400 + wave * 60,
-                      color: const Color(0x6648E0FF),
-                    ),
-                    _halo(
-                      alignment: Alignment(0.7 + swell * 0.15, 0.5 + wave * 0.18),
-                      radius: 480 + swell * 70,
-                      color: const Color(0x449C4CFF),
-                    ),
-                  ],
-                );
-              },
-            ),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.2),
           ),
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _haloController,
               builder: (context, _) {
-                final wave = math.sin(_haloController.value * 2 * math.pi);
-                final sigma = 38 + wave * 18;
-                return BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: sigma,
-                    sigmaY: sigma * 0.85,
-                  ),
-                  child: const SizedBox(),
+                return AuroraBackdrop(
+                  phase: _haloController.value,
+                  variant: AuroraBackdropVariant.dense,
+                  opacity: 0.85,
                 );
               },
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.4),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
             ),
           ),
           Center(
@@ -122,13 +111,20 @@ class _LoadingScreenState extends State<LoadingScreen>
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0x66122B4C),
+                Color(0x33328D76),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0x993A8CFF).withValues(alpha: 0.4),
-                blurRadius: 60,
-                spreadRadius: 6,
+                color: const Color(0xFF31FFD2).withValues(alpha: 0.35),
+                blurRadius: 65,
+                spreadRadius: 8,
               ),
             ],
           ),
@@ -210,23 +206,4 @@ class _LoadingScreenState extends State<LoadingScreen>
     );
   }
 
-  Widget _halo({
-    required Alignment alignment,
-    required double radius,
-    required Color color,
-  }) {
-    return Align(
-      alignment: alignment,
-      child: Container(
-        width: radius,
-        height: radius,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0.01)],
-          ),
-        ),
-      ),
-    );
-  }
 }

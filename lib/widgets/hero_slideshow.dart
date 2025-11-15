@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class HeroSlideshow extends StatefulWidget {
@@ -147,9 +146,24 @@ class _HeroCard extends StatelessWidget {
                 ),
               ),
             ),
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(color: Colors.white.withValues(alpha: 0.05)),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.18),
+                      Colors.white.withValues(alpha: 0.04),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    width: 1.2,
+                  ),
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(26, 28, 26, 24),

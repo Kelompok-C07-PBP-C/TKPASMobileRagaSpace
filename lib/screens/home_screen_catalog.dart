@@ -21,15 +21,13 @@ class _ProductCatalogScreen extends StatefulWidget {
   State<_ProductCatalogScreen> createState() => _ProductCatalogScreenState();
 }
 
-class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
-    with SingleTickerProviderStateMixin {
+class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
   late String _city;
   late String _category;
   late String _price;
   List<_CatalogProduct> _products = const <_CatalogProduct>[];
   bool _loading = true;
   String? _error;
-  late final AnimationController _auroraController;
   late Set<String> _favoriteKeys;
 
   @override
@@ -39,16 +37,11 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
     _category = widget.initialCategory;
     _price = widget.initialPrice;
     _favoriteKeys = Set<String>.from(widget.initialWishlistKeys);
-    _auroraController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    )..repeat();
     _fetchProducts();
   }
 
   @override
   void dispose() {
-    _auroraController.dispose();
     super.dispose();
   }
 
@@ -64,13 +57,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen>
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _auroraController,
-              builder: (_, __) =>
-                  _AuroraBackdrops(phase: _auroraController.value),
-            ),
-          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.22)),
+          const Positioned.fill(child: _StaticAuroraBackdrop()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
