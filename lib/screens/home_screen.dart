@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -79,8 +79,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static final String _apiBaseUrl = resolveBaseApiHost();
-  static final String _apiHostBase =
-      _apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+  static final String _apiHostBase = _apiBaseUrl.replaceFirst(
+    RegExp(r'/api/?$'),
+    '',
+  );
   static const List<_CategoryChipData> _categories = [
     _CategoryChipData(label: 'Tennis', icon: Icons.sports_tennis),
     _CategoryChipData(label: 'Badminton', icon: Icons.sports),
@@ -148,11 +150,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _selectedCategory = _filterCategories.first;
   String _selectedPrice = _filterPrices.first;
   List<_VenueCardData> get _filteredVenues => _filterVenues(
-        _venues,
-        city: _selectedCity,
-        category: _selectedCategory,
-        price: _selectedPrice,
-      );
+    _venues,
+    city: _selectedCity,
+    category: _selectedCategory,
+    price: _selectedPrice,
+  );
   List<_VenueCardData> _wishlist = [];
   Set<String> _wishlistKeys = {};
   SharedPreferences? _prefs;
@@ -161,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (userId != null) return '$_wishlistStorageBaseKey:$userId';
     return '$_wishlistStorageBaseKey:guest';
   }
+
   String? _avatarUrl;
   static const List<_TestimonialData> _testimonials = [
     _TestimonialData(
@@ -212,9 +215,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _highlightController = PageController(viewportFraction: 0.9);
-    _categoryMarqueeController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 22))
-          ..repeat();
+    _categoryMarqueeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 22),
+    )..repeat();
     _startHighlightAutoScroll();
     _startTestimonialAutoScroll();
     _scrollController = ScrollController()..addListener(_handleScroll);
@@ -232,7 +236,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _highlightAutoplayEnabled = true;
     _highlightTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!_highlightController.hasClients) return;
-      final current = _highlightController.page?.round() ??
+      final current =
+          _highlightController.page?.round() ??
           _highlightController.initialPage;
       final next = (current + 1) % _highlightPageCount;
       _highlightController.animateToPage(
@@ -305,9 +310,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          const Positioned.fill(
-            child: TwinkleOverlay(opacity: 0.22),
-          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.22)),
           const Positioned.fill(child: _StaticAuroraBackdrop()),
           SafeArea(
             child: SingleChildScrollView(
@@ -326,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 90),
                   _FadeSlideIn(
                     delay: const Duration(milliseconds: 250),
-                      child: _buildHeroBanner(),
+                    child: _buildHeroBanner(),
                   ),
                   const SizedBox(height: 30),
                   _FadeSlideIn(
@@ -418,9 +421,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final bar = Container(
       decoration: const BoxDecoration(
         color: Color(0xFF0B152C),
-        border: Border(
-          bottom: BorderSide(color: Color(0x221FA2FF), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0x221FA2FF), width: 1)),
       ),
       padding: EdgeInsets.fromLTRB(
         fullBleed ? 20 : 0,
@@ -443,7 +444,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: const Icon(Icons.sports_martial_arts, color: Colors.white),
+                child: const Icon(
+                  Icons.sports_martial_arts,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 12),
               Column(
@@ -469,13 +473,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const Spacer(),
-         InkWell(
+          InkWell(
             onTap: _showProfileMenu,
             borderRadius: BorderRadius.circular(24),
             child: CircleAvatar(
               radius: 16,
-              backgroundImage:
-                  _avatarUrl != null && _avatarUrl!.isNotEmpty ? NetworkImage(_avatarUrl!) : null,
+              backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                  ? NetworkImage(_avatarUrl!)
+                  : null,
               backgroundColor: Colors.white.withValues(alpha: 0.2),
               child: (_avatarUrl == null || _avatarUrl!.isEmpty)
                   ? const Icon(Icons.person, color: Colors.white)
@@ -519,9 +524,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             final int itemsPerRow = extraWide ? 5 : 4;
             final double chipWidth =
                 ((width - 16 * (itemsPerRow - 1)) / itemsPerRow).clamp(
-              140.0,
-              220.0,
-            );
+                  140.0,
+                  220.0,
+                );
             return Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -612,8 +617,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Wrap(
               spacing: spacing,
               runSpacing: 18,
-              alignment:
-                  singleColumn ? WrapAlignment.center : WrapAlignment.start,
+              alignment: singleColumn
+                  ? WrapAlignment.center
+                  : WrapAlignment.start,
               children: [
                 for (final filter in filters)
                   SizedBox(width: itemWidth, child: filter),
@@ -624,7 +630,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ],
             ),
           ];
-          final bool showEmptyHint = !_loadingVenues &&
+          final bool showEmptyHint =
+              !_loadingVenues &&
               _venuesError == null &&
               _filteredVenues.isEmpty &&
               _venues.isNotEmpty;
@@ -683,11 +690,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final bool compact = constraints.maxWidth < 280;
-                final double horizontalPadding =
-                    constraints.maxWidth < 240 ? 20 : 32;
+                final double horizontalPadding = constraints.maxWidth < 240
+                    ? 20
+                    : 32;
                 return Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.max,
@@ -797,8 +804,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double maxWidth = constraints.maxWidth;
-        final double targetWidth =
-            (maxWidth >= 420 ? 340.0 : (maxWidth - 40)).clamp(220.0, maxWidth);
+        final double targetWidth = (maxWidth >= 420 ? 340.0 : (maxWidth - 40))
+            .clamp(220.0, maxWidth);
         return VisibilityDetector(
           key: _highlightVisibilityKey,
           onVisibilityChanged: (info) {
@@ -1152,7 +1159,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.settings_rounded, color: Colors.white),
+                  leading: const Icon(
+                    Icons.settings_rounded,
+                    color: Colors.white,
+                  ),
                   title: Text(
                     'Account settings',
                     style: GoogleFonts.plusJakartaSans(
@@ -1174,7 +1184,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 const Divider(height: 0, color: Color(0x33FFFFFF)),
                 ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    color: Colors.redAccent,
+                  ),
                   title: Text(
                     'Log out',
                     style: GoogleFonts.plusJakartaSans(
@@ -1183,11 +1196,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.redAccent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Text(
                       'Sign out',
@@ -1212,11 +1230,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _openAccountSettings() {
     Navigator.of(context)
-        .push(
-      MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
-    ).then((_) {
-      _loadProfileSummary();
-    });
+        .push(MaterialPageRoute(builder: (_) => const AccountSettingsScreen()))
+        .then((_) {
+          _loadProfileSummary();
+        });
   }
 
   Future<void> _performLogout() async {
@@ -1244,10 +1261,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     final payload = jsonDecode(response.body) as List<dynamic>;
     return payload
-        .map(
-          (raw) =>
-              _BookingSummary.fromJson(raw as Map<String, dynamic>),
-        )
+        .map((raw) => _BookingSummary.fromJson(raw as Map<String, dynamic>))
         .toList();
   }
 
@@ -1260,14 +1274,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         : 'Lokasi belum tersedia';
     return _VenueCardData(
       id: booking.venueId == 0 ? null : booking.venueId,
-      category:
-          booking.venueType.isNotEmpty ? booking.venueType : 'Venue',
+      category: booking.venueType.isNotEmpty ? booking.venueType : 'Venue',
       name: booking.venueName,
       location: location,
       description: description,
       price: booking.venuePrice,
       rating: 0,
       imageUrl: booking.venueImageUrl,
+      addons: booking.venueAddons,
     );
   }
 
@@ -1287,6 +1301,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       price: product.price,
       rating: product.rating,
       imageUrl: product.imageUrl,
+      addons: product.addons,
     );
   }
 
@@ -1340,8 +1355,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1FA2FF),
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -1362,8 +1379,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: _VenueCard(
               data: filteredVenues[i],
               onTap: () => _openVenueDetail(filteredVenues[i]),
-              isFavorite:
-                  _wishlistKeys.contains(filteredVenues[i].storageKey),
+              isFavorite: _wishlistKeys.contains(filteredVenues[i].storageKey),
               onToggleFavorite: () => _toggleWishlist(filteredVenues[i]),
             ),
           ),
@@ -1387,25 +1403,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         throw Exception('Failed to load venues');
       }
       final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-      final venues = data
-          .map(
-            (raw) {
-              final dynamic idValue = (raw as Map<String, dynamic>)['id'];
-              final parsedId =
-                  idValue is int ? idValue : int.tryParse('$idValue');
-              return _VenueCardData(
-                id: parsedId,
-                category: (raw['type'] ?? '').toString(),
-                name: (raw['title'] ?? '').toString(),
-                location: (raw['location'] ?? '').toString(),
-                description: (raw['description'] ?? '').toString(),
-                price: int.tryParse(raw['price'].toString()) ?? 0,
-                rating: (raw['avg_rating'] ?? 0).toDouble(),
-                imageUrl: (raw['image_url'] ?? '').toString(),
-              );
-            },
-          )
-          .toList();
+      final venues = data.map((raw) {
+        final dynamic idValue = (raw as Map<String, dynamic>)['id'];
+        final parsedId = idValue is int ? idValue : int.tryParse('$idValue');
+        return _VenueCardData(
+          id: parsedId,
+          category: (raw['type'] ?? '').toString(),
+          name: (raw['title'] ?? '').toString(),
+          location: (raw['location'] ?? '').toString(),
+          description: (raw['description'] ?? '').toString(),
+          price: int.tryParse(raw['price'].toString()) ?? 0,
+          rating: (raw['avg_rating'] ?? 0).toDouble(),
+          imageUrl: (raw['image_url'] ?? '').toString(),
+          addons: _VenueCardData._parseAddons(raw['addons']),
+        );
+      }).toList();
       if (!mounted) return;
       setState(() {
         _venues = venues;
@@ -1455,8 +1467,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       final existingIds = await _fetchAllVenueIds();
       if (existingIds != null && existingIds.isNotEmpty) {
-        final filtered =
-            cleaned.where((item) => item.id != null && existingIds.contains(item.id)).toList();
+        final filtered = cleaned
+            .where((item) => item.id != null && existingIds.contains(item.id))
+            .toList();
         if (filtered.length != cleaned.length) {
           cleaned = filtered;
           needsPersist = true;
@@ -1554,8 +1567,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final key = item.storageKey;
         if (syncedKeys.contains(key)) continue;
         try {
-          final fresh =
-              await api.addWishlistItem(userId: userId, venueId: item.id!);
+          final fresh = await api.addWishlistItem(
+            userId: userId,
+            venueId: item.id!,
+          );
           final syncedData = _VenueCardData.fromWishlistPayload(fresh);
           final syncedKey = syncedData.storageKey;
           if (syncedKey.isNotEmpty && !syncedKeys.contains(syncedKey)) {
@@ -1597,8 +1612,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final userId = Api.currentUserId;
       if (userId != null && data.id != null) {
         if (adding) {
-          final payload =
-              await Api().addWishlistItem(userId: userId, venueId: data.id!);
+          final payload = await Api().addWishlistItem(
+            userId: userId,
+            venueId: data.id!,
+          );
           final synced = _VenueCardData.fromWishlistPayload(payload);
           if (mounted) {
             setState(() {
@@ -1632,7 +1649,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final message = error is ApiError
         ? error.message
         : 'Gagal memperbarui wishlist. Coba lagi.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildPromoSpotlight() {
@@ -1647,8 +1666,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth > 650;
-            final itemWidth =
-                isWide ? (constraints.maxWidth - 20) / 2 : constraints.maxWidth;
+            final itemWidth = isWide
+                ? (constraints.maxWidth - 20) / 2
+                : constraints.maxWidth;
             return Wrap(
               spacing: 20,
               runSpacing: 20,
@@ -1855,13 +1875,13 @@ class _GlassPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
-      gradient:
-          useGradient ? AuroraPalette.glassGradient(overlayColor) : null,
+      gradient: useGradient ? AuroraPalette.glassGradient(overlayColor) : null,
       color: useGradient ? null : overlayColor,
       border: Border.all(
         color: borderColor ?? Colors.white.withValues(alpha: 0.12),
       ),
-      boxShadow: boxShadow ??
+      boxShadow:
+          boxShadow ??
           [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -1870,11 +1890,7 @@ class _GlassPanel extends StatelessWidget {
             ),
           ],
     );
-    return Container(
-      padding: padding,
-      decoration: decoration,
-      child: child,
-    );
+    return Container(padding: padding, decoration: decoration, child: child);
   }
 }
 
@@ -1961,8 +1977,12 @@ class _ExploreVenuesCard extends StatelessWidget {
   }
 }
 
-List<_VenueCardData> _filterVenues(List<_VenueCardData> venues,
-    {String? city, String? category, String? price}) {
+List<_VenueCardData> _filterVenues(
+  List<_VenueCardData> venues, {
+  String? city,
+  String? category,
+  String? price,
+}) {
   final cityFilter = city ?? _filterCities.first;
   final categoryFilter = category ?? _filterCategories.first;
   final priceFilter = price ?? _filterPrices.first;
@@ -1976,9 +1996,11 @@ List<_VenueCardData> _filterVenues(List<_VenueCardData> venues,
   }
 
   return venues.where((venue) {
-    final cityMatch = cityFilter == _filterCities.first ||
+    final cityMatch =
+        cityFilter == _filterCities.first ||
         venue.location.toLowerCase().contains(cityFilter.toLowerCase());
-    final categoryMatch = categoryFilter == _filterCategories.first ||
+    final categoryMatch =
+        categoryFilter == _filterCategories.first ||
         venue.category.toLowerCase() == categoryFilter.toLowerCase();
     final priceMatch = matchPrice(venue.price);
     return cityMatch && categoryMatch && priceMatch;
@@ -2113,9 +2135,9 @@ class _CategoryChip extends StatelessWidget {
 }
 
 TextStyle _categoryChipTextStyle() => GoogleFonts.plusJakartaSans(
-      fontWeight: FontWeight.w600,
-      color: Colors.white,
-    );
+  fontWeight: FontWeight.w600,
+  color: Colors.white,
+);
 
 double _calculateChipWidth(String label) {
   final painter = TextPainter(
@@ -2132,9 +2154,7 @@ double _calculateChipWidth(String label) {
 enum _AuroraBackdropStyle { standard, detail }
 
 class _StaticAuroraBackdrop extends StatelessWidget {
-  const _StaticAuroraBackdrop({
-    this.style = _AuroraBackdropStyle.standard,
-  });
+  const _StaticAuroraBackdrop({this.style = _AuroraBackdropStyle.standard});
 
   final _AuroraBackdropStyle style;
 
@@ -2142,9 +2162,7 @@ class _StaticAuroraBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: RepaintBoundary(
-        child: CustomPaint(
-          painter: _StaticAuroraPainter(style),
-        ),
+        child: CustomPaint(painter: _StaticAuroraPainter(style)),
       ),
     );
   }
@@ -2231,14 +2249,22 @@ List<_AuroraRibbon> _buildRibbons(_AuroraBackdropStyle style) {
 }
 
 void _paintRibbon(Canvas canvas, Size size, _AuroraRibbon ribbon) {
-  final start = Offset(ribbon.start.dx * size.width,
-      ribbon.start.dy.clamp(0.0, 1.0) * size.height);
-  final end = Offset(ribbon.end.dx * size.width,
-      ribbon.end.dy.clamp(0.0, 1.0) * size.height);
-  final c1 = Offset(ribbon.control1.dx * size.width,
-      ribbon.control1.dy.clamp(0.0, 1.0) * size.height);
-  final c2 = Offset(ribbon.control2.dx * size.width,
-      ribbon.control2.dy.clamp(0.0, 1.0) * size.height);
+  final start = Offset(
+    ribbon.start.dx * size.width,
+    ribbon.start.dy.clamp(0.0, 1.0) * size.height,
+  );
+  final end = Offset(
+    ribbon.end.dx * size.width,
+    ribbon.end.dy.clamp(0.0, 1.0) * size.height,
+  );
+  final c1 = Offset(
+    ribbon.control1.dx * size.width,
+    ribbon.control1.dy.clamp(0.0, 1.0) * size.height,
+  );
+  final c2 = Offset(
+    ribbon.control2.dx * size.width,
+    ribbon.control2.dy.clamp(0.0, 1.0) * size.height,
+  );
   final thickness = ribbon.thickness * size.width;
   final path = Path()
     ..moveTo(start.dx - thickness, start.dy)
@@ -2314,7 +2340,6 @@ void _paintHorizonGlow(Canvas canvas, Size size) {
   final paint = Paint()..shader = gradient.createShader(rect);
   canvas.drawRect(rect, paint);
 }
-
 
 class _NavItemData {
   const _NavItemData({required this.icon, required this.label});
@@ -2445,15 +2470,18 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
   @override
   void initState() {
     super.initState();
-    _orbitController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 6))
-          ..repeat();
-    _pulseController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..repeat(reverse: true);
-    _haloController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 4))
-          ..repeat();
+    _orbitController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _haloController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
     _navigateToDetail();
   }
 
@@ -2487,14 +2515,10 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
         children: [
           const Positioned.fill(
             child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: AuroraPalette.sky,
-              ),
+              decoration: BoxDecoration(gradient: AuroraPalette.sky),
             ),
           ),
-          const Positioned.fill(
-            child: TwinkleOverlay(opacity: 0.2),
-          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.2)),
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _haloController,
@@ -2540,10 +2564,7 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
             borderRadius: BorderRadius.circular(32),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             gradient: const LinearGradient(
-              colors: [
-                Color(0x66132F55),
-                Color(0x33305B7D),
-              ],
+              colors: [Color(0x66132F55), Color(0x33305B7D)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -2651,8 +2672,9 @@ class _CategoryMarqueeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final widths =
-        data.map((category) => _calculateChipWidth(category.label)).toList();
+    final widths = data
+        .map((category) => _calculateChipWidth(category.label))
+        .toList();
     if (data.length <= 2) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -2664,10 +2686,8 @@ class _CategoryMarqueeRow extends StatelessWidget {
         ],
       );
     }
-    final baseWidth = widths.fold<double>(
-          0,
-          (sum, width) => sum + width,
-        ) +
+    final baseWidth =
+        widths.fold<double>(0, (sum, width) => sum + width) +
         (data.length - 1) * _spacing;
     if (baseWidth <= 0) return const SizedBox();
 
@@ -2698,10 +2718,7 @@ class _CategoryMarqueeRow extends StatelessWidget {
                 final progress = ((animation.value + phase) % 1.0);
                 final shift = progress * travel;
                 final dx = reverse ? shift - travel : -shift;
-                return Transform.translate(
-                  offset: Offset(dx, 0),
-                  child: tape,
-                );
+                return Transform.translate(offset: Offset(dx, 0), child: tape);
               },
             ),
           ),
@@ -2721,6 +2738,7 @@ class _CategoryMarqueeRow extends StatelessWidget {
     return children;
   }
 }
+
 class _VenueDetailScreen extends StatefulWidget {
   const _VenueDetailScreen({
     required this.data,
@@ -2750,6 +2768,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   bool _availabilityLoading = false;
   Completer<void>? _availabilityCompleter;
   Set<int> _blockedDayKeyCache = <int>{};
+  final Set<int> _detailSelectedAddonIndexes = <int>{};
 
   @override
   void initState() {
@@ -2769,6 +2788,37 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     setState(() => _isFavorite = result);
   }
 
+  void _toggleDetailAddonSelection(int index, bool isSelected) {
+    if (index < 0 || index >= data.addons.length) {
+      return;
+    }
+    setState(() {
+      if (isSelected) {
+        _detailSelectedAddonIndexes.add(index);
+      } else {
+        _detailSelectedAddonIndexes.remove(index);
+      }
+    });
+  }
+
+  int get _detailSelectedAddonsTotal {
+    if (data.addons.isEmpty || _detailSelectedAddonIndexes.isEmpty) return 0;
+    return _detailSelectedAddonIndexes.fold<int>(0, (sum, index) {
+      if (index < 0 || index >= data.addons.length) return sum;
+      return sum + data.addons[index].price;
+    });
+  }
+
+  List<_VenueAddon> get _detailSelectedAddons {
+    if (data.addons.isEmpty || _detailSelectedAddonIndexes.isEmpty) {
+      return const [];
+    }
+    return _detailSelectedAddonIndexes
+        .where((index) => index >= 0 && index < data.addons.length)
+        .map((index) => data.addons[index])
+        .toList();
+  }
+
   Future<void> _loadBookedRanges() async {
     if (_availabilityLoaded) return;
     if (_availabilityLoading) {
@@ -2786,7 +2836,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       final response = await http.get(uri).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) return;
       final decoded = jsonDecode(response.body);
-      final payload = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
+      final payload = decoded is Map<String, dynamic>
+          ? decoded['data']
+          : decoded;
       final ranges = <_BookedDateRange>[];
       if (payload is List) {
         for (final item in payload) {
@@ -2839,8 +2891,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
           pricePerSession: data.price,
           venueName: data.name,
           disabledDayKeys: _blockedDayKeys(),
-          onSubmit: (start, end, phone) =>
-              _submitBookingRequest(start, end, phone),
+          selectedAddons: _detailSelectedAddons,
+          onSubmit: (start, end, phone, addons) =>
+              _submitBookingRequest(start, end, phone, addons),
         ),
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -2900,9 +2953,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       barrierLabel: 'booking-confirmation',
       barrierColor: Colors.black.withValues(alpha: 0.6),
       transitionDuration: const Duration(milliseconds: 620),
-      pageBuilder: (_, __, ___) => _DialogShell(
-        child: _BookingConfirmationCard(summary: summary),
-      ),
+      pageBuilder: (_, __, ___) =>
+          _DialogShell(child: _BookingConfirmationCard(summary: summary)),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
           parent: animation,
@@ -2929,6 +2981,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     DateTime start,
     DateTime end,
     String phone,
+    List<_VenueAddon> selectedAddons,
   ) async {
     final venueId = data.id;
     if (venueId == null) {
@@ -2938,6 +2991,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
         startDate: start,
         endDate: end,
         phoneNumber: phone,
+        selectedAddons: selectedAddons,
       );
     }
     final uri = Uri.parse('$apiBaseUrl/api/bookings/');
@@ -2951,6 +3005,10 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
         'end_date': end.toIso8601String().split('T').first,
         'phone_number': phone,
         'notes': 'Booking dibuat via aplikasi mobile',
+        if (selectedAddons.isNotEmpty)
+          'selected_addons': selectedAddons
+              .map((addon) => addon.toMap())
+              .toList(),
         if (username != null && username.isNotEmpty) 'username': username,
       }),
     );
@@ -2986,9 +3044,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          const Positioned.fill(
-            child: TwinkleOverlay(opacity: 0.18),
-          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.18)),
           const Positioned.fill(
             child: _StaticAuroraBackdrop(style: _AuroraBackdropStyle.detail),
           ),
@@ -3011,34 +3067,36 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                       fit: BoxFit.cover,
                                       loadingBuilder:
                                           (context, child, progress) {
-                                        if (progress == null) return child;
-                                        return const DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            gradient: _imageFallbackGradient,
-                                          ),
-                                          child: Center(
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation(
-                                                Colors.white,
+                                            if (progress == null) return child;
+                                            return const DecoratedBox(
+                                              decoration: BoxDecoration(
+                                                gradient:
+                                                    _imageFallbackGradient,
+                                              ),
+                                              child: Center(
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation(
+                                                        Colors.white,
+                                                      ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                      errorBuilder: (_, __, ___) =>
+                                          const DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              gradient: _imageFallbackGradient,
+                                            ),
+                                            child: Center(
+                                              child: Icon(
+                                                Icons
+                                                    .image_not_supported_outlined,
+                                                color: Colors.white70,
                                               ),
                                             ),
                                           ),
-                                        );
-                                      },
-                                      errorBuilder: (_, __, ___) =>
-                                          const DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: _imageFallbackGradient,
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ),
                                     )
                                   : const DecoratedBox(
                                       decoration: BoxDecoration(
@@ -3047,17 +3105,20 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                     ),
                             ),
                           ),
-                      Positioned(
-                        top: 16,
-                        left: 16,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.black54,
+                          Positioned(
+                            top: 16,
+                            left: 16,
+                            child: CircleAvatar(
+                              backgroundColor: Colors.black54,
                               child: IconButton(
-                                icon:
-                                    const Icon(Icons.close, color: Colors.white),
-                                onPressed: () => Navigator.of(context).pushReplacement(
-                                  AuroraWarpRoute(const HomeScreen()),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
                                 ),
+                                onPressed: () =>
+                                    Navigator.of(context).pushReplacement(
+                                      AuroraWarpRoute(const HomeScreen()),
+                                    ),
                               ),
                             ),
                           ),
@@ -3089,9 +3150,11 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                Icon(Icons.location_on_outlined,
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    size: 16),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
@@ -3138,8 +3201,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                   Text(
                                     data.description,
                                     style: GoogleFonts.plusJakartaSans(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.85),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
                                       height: 1.5,
                                     ),
                                   ),
@@ -3160,14 +3224,20 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                               spacing: 10,
                               runSpacing: 10,
                               children: amenities
-                                  .map(
-                                    (amenity) => _DetailChip(text: amenity),
-                                  )
+                                  .map((amenity) => _DetailChip(text: amenity))
                                   .toList(),
                             ),
                             const SizedBox(height: 32),
+                            if (data.addons.isNotEmpty) ...[
+                              _AddonSelectionPanel(
+                                addons: data.addons,
+                                selectedIndexes: _detailSelectedAddonIndexes,
+                                onToggle: _toggleDetailAddonSelection,
+                              ),
+                              const SizedBox(height: 28),
+                            ],
                             _DetailActionBar(
-                              priceLabel: _formatPriceLabel(data.price),
+                              pricePerSession: data.price,
                               onTapBook: () => _openBookingDialog(context),
                             ),
                             const SizedBox(height: 40),
@@ -3211,7 +3281,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     try {
       final uri = review == null
           ? Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/')
-          : Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/');
+          : Uri.parse(
+              '$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/',
+            );
       final body = <String, dynamic>{
         'rating': result.rating,
         'comment': result.comment,
@@ -3222,19 +3294,19 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       if (username != null && username.isNotEmpty) body['username'] = username;
       final response = review == null
           ? await http
-              .post(
-                uri,
-                headers: const {'Content-Type': 'application/json'},
-                body: jsonEncode(body),
-              )
-              .timeout(const Duration(seconds: 8))
+                .post(
+                  uri,
+                  headers: const {'Content-Type': 'application/json'},
+                  body: jsonEncode(body),
+                )
+                .timeout(const Duration(seconds: 8))
           : await http
-              .put(
-                uri,
-                headers: const {'Content-Type': 'application/json'},
-                body: jsonEncode(body),
-              )
-              .timeout(const Duration(seconds: 8));
+                .put(
+                  uri,
+                  headers: const {'Content-Type': 'application/json'},
+                  body: jsonEncode(body),
+                )
+                .timeout(const Duration(seconds: 8));
       final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
       if (isSuccess) {
         await _fetchReviews();
@@ -3258,14 +3330,13 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     final confirmed = await _confirmDeleteReview(review: review);
     if (!confirmed) return;
     try {
-      var uri = Uri.parse('$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/');
+      var uri = Uri.parse(
+        '$apiBaseUrl/api/venues/${data.id}/reviews/${review.id}/',
+      );
       final userId = Api.currentUserId;
       if (userId != null) {
         uri = uri.replace(
-          queryParameters: {
-            ...uri.queryParameters,
-            'user_id': '$userId',
-          },
+          queryParameters: {...uri.queryParameters, 'user_id': '$userId'},
         );
       }
       final res = await http.delete(uri).timeout(const Duration(seconds: 8));
@@ -3327,7 +3398,10 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           existing == null ? 'Tulis ulasan' : 'Edit ulasan',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: StatefulBuilder(
           builder: (context, setState) {
@@ -3344,7 +3418,10 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                     onChanged: (value) => setState(() => rating = value),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Komentar', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'Komentar',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: controller,
@@ -3354,7 +3431,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                       fillColor: Colors.white.withValues(alpha: 0.08),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
                       ),
                     ),
                     style: const TextStyle(color: Colors.white),
@@ -3373,7 +3452,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
             onPressed: () {
               final text = controller.text.trim();
               if (text.isEmpty) return;
-              Navigator.of(ctx).pop(_ReviewDraft(rating: rating, comment: text));
+              Navigator.of(
+                ctx,
+              ).pop(_ReviewDraft(rating: rating, comment: text));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1FA2FF),
@@ -3456,8 +3537,12 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: _ReviewCard(
                       review: review,
-                      onEdit: review.isMine ? () => _openReviewComposer(review: review) : null,
-                      onDelete: review.isMine ? () => _deleteReview(review) : null,
+                      onEdit: review.isMine
+                          ? () => _openReviewComposer(review: review)
+                          : null,
+                      onDelete: review.isMine
+                          ? () => _deleteReview(review)
+                          : null,
                       starBuilder: _buildStarRow,
                     ),
                   ),
@@ -3498,11 +3583,13 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       final username = Api.currentUsername;
       final userId = Api.currentUserId;
       final parsed = payload
-          .map((raw) => _VenueReview.fromMap(
-                raw as Map<String, dynamic>,
-                currentUsername: username,
-                currentUserId: userId,
-              ))
+          .map(
+            (raw) => _VenueReview.fromMap(
+              raw as Map<String, dynamic>,
+              currentUsername: username,
+              currentUserId: userId,
+            ),
+          )
           .toList();
       if (!mounted) return;
       setState(() {
@@ -3535,10 +3622,7 @@ class _DetailChip extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: GoogleFonts.plusJakartaSans(
-          color: Colors.white,
-          fontSize: 13,
-        ),
+        style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 13),
       ),
     );
   }
@@ -3596,7 +3680,11 @@ class _ReviewCard extends StatelessWidget {
                 ),
               if (onDelete != null)
                 IconButton(
-                  icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 18),
+                  icon: const Icon(
+                    Icons.delete_forever,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
                   onPressed: onDelete,
                 ),
             ],
@@ -3630,13 +3718,207 @@ String _resolveMediaUrlGlobal(String url) {
   return '${_HomeScreenState._apiHostBase}$normalized';
 }
 
+class _AddonInfoCard extends StatelessWidget {
+  const _AddonInfoCard({required this.addon});
+
+  final _VenueAddon addon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        color: Colors.white.withValues(alpha: 0.03),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  addon.name,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                _formatCurrency(addon.price),
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF8AE8FF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          if (addon.description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              addon.description,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white70,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AddonSelectionPanel extends StatelessWidget {
+  const _AddonSelectionPanel({
+    required this.addons,
+    required this.selectedIndexes,
+    required this.onToggle,
+  });
+
+  final List<_VenueAddon> addons;
+  final Set<int> selectedIndexes;
+  final void Function(int index, bool selected) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    if (addons.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return _GlassPanel(
+      padding: const EdgeInsets.all(20),
+      radius: 24,
+      overlayColor: const Color(0x22102745),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tambah add-ons ke pesananmu',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...addons.asMap().entries.map(
+            (entry) {
+              final index = entry.key;
+              final addon = entry.value;
+              final isSelected = selectedIndexes.contains(index);
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == addons.length - 1 ? 0 : 12,
+                ),
+                child: _AddonCheckboxTile(
+                  addon: addon,
+                  selected: isSelected,
+                  onChanged: (value) => onToggle(index, value),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddonCheckboxTile extends StatelessWidget {
+  const _AddonCheckboxTile({
+    required this.addon,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final _VenueAddon addon;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => onChanged(!selected),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF1FA2FF)
+                : Colors.white.withValues(alpha: 0.18),
+          ),
+          color: Colors.white.withValues(alpha: 0.03),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: selected,
+              onChanged: (value) => onChanged(value ?? false),
+              activeColor: const Color(0xFF1FA2FF),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          addon.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatCurrency(addon.price),
+                        style: GoogleFonts.plusJakartaSans(
+                          color: const Color(0xFF8AE8FF),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (addon.description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        addon.description,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white70,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DetailActionBar extends StatelessWidget {
   const _DetailActionBar({
-    required this.priceLabel,
+    required this.pricePerSession,
     required this.onTapBook,
   });
 
-  final String priceLabel;
+  final int pricePerSession;
   final VoidCallback onTapBook;
 
   @override
@@ -3665,7 +3947,7 @@ class _DetailActionBar extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      priceLabel,
+                      _formatPriceLabel(pricePerSession),
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 18,
@@ -3678,8 +3960,10 @@ class _DetailActionBar extends StatelessWidget {
               const SizedBox(width: 20),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 14,
+                  ),
                   backgroundColor: const Color(0xFF1FA2FF),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -3734,6 +4018,7 @@ class _BookingDialog extends StatefulWidget {
     required this.venueName,
     required this.onSubmit,
     required this.disabledDayKeys,
+    required this.selectedAddons,
   });
 
   final int pricePerSession;
@@ -3743,7 +4028,10 @@ class _BookingDialog extends StatefulWidget {
     DateTime startDate,
     DateTime endDate,
     String phoneNumber,
-  ) onSubmit;
+    List<_VenueAddon> selectedAddons,
+  )
+  onSubmit;
+  final List<_VenueAddon> selectedAddons;
 
   @override
   State<_BookingDialog> createState() => _BookingDialogState();
@@ -3775,8 +4063,28 @@ class _BookingDialogState extends State<_BookingDialog> {
   }
 
   void _showBlockedSnack(String message) {
-    ScaffoldMessenger.maybeOf(context)
-        ?.showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  int _sessionCount() {
+    if (_startDate == null || _endDate == null) return 0;
+    return _endDate!.difference(_startDate!).inDays + 1;
+  }
+
+  int get _selectedAddonsTotalExternal {
+    if (widget.selectedAddons.isEmpty) return 0;
+    return widget.selectedAddons.fold<int>(
+      0,
+      (sum, addon) => sum + addon.price,
+    );
+  }
+
+  int _estimatedSubtotal() {
+    final sessions = _sessionCount();
+    final base = sessions > 0 ? sessions * widget.pricePerSession : 0;
+    return base + _selectedAddonsTotalExternal;
   }
 
   @override
@@ -3841,7 +4149,8 @@ class _BookingDialogState extends State<_BookingDialog> {
       });
       if (overlaps) {
         _showBlockedSnack(
-            'Tanggal akhir sebelumnya bertabrakan. Pilih ulang tanggal selesai.');
+          'Tanggal akhir sebelumnya bertabrakan. Pilih ulang tanggal selesai.',
+        );
       }
       return;
     }
@@ -3849,10 +4158,10 @@ class _BookingDialogState extends State<_BookingDialog> {
       _showBlockedSnack('Tanggal selesai tidak boleh sebelum tanggal mulai.');
       return;
     }
-    if (_startDate != null &&
-        _rangeOverlapsDisabled(_startDate!, normalized)) {
+    if (_startDate != null && _rangeOverlapsDisabled(_startDate!, normalized)) {
       _showBlockedSnack(
-          'Rentang tanggal tersebut sudah dibooking. Pilih rentang lain.');
+        'Rentang tanggal tersebut sudah dibooking. Pilih rentang lain.',
+      );
       return;
     }
     setState(() {
@@ -3867,12 +4176,15 @@ class _BookingDialogState extends State<_BookingDialog> {
     final phone = _phoneCtrl.text.trim();
     if (_startDate == null || _endDate == null || phone.isEmpty) {
       setState(
-        () => _error = 'Mohon pilih tanggal mulai/selesai dan isi nomor telepon.',
+        () =>
+            _error = 'Mohon pilih tanggal mulai/selesai dan isi nomor telepon.',
       );
       return;
     }
     if (_endDate!.isBefore(_startDate!)) {
-      setState(() => _error = 'Tanggal selesai tidak boleh sebelum tanggal mulai.');
+      setState(
+        () => _error = 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+      );
       return;
     }
     if (_rangeOverlapsDisabled(_startDate!, _endDate!)) {
@@ -3888,7 +4200,12 @@ class _BookingDialogState extends State<_BookingDialog> {
       _submitting = true;
     });
     try {
-      final summary = await widget.onSubmit(_startDate!, _endDate!, phone);
+      final summary = await widget.onSubmit(
+        _startDate!,
+        _endDate!,
+        phone,
+        widget.selectedAddons,
+      );
       if (!mounted) return;
       Navigator.of(context).pop(summary);
     } catch (err) {
@@ -3956,11 +4273,7 @@ class _BookingDialogState extends State<_BookingDialog> {
                 );
               }
               return Column(
-                children: [
-                  startField,
-                  const SizedBox(height: 16),
-                  endField,
-                ],
+                children: [startField, const SizedBox(height: 16), endField],
               );
             },
           ),
@@ -3970,9 +4283,7 @@ class _BookingDialogState extends State<_BookingDialog> {
             children: [
               Text(
                 'Nomor telepon',
-                style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white70,
-                ),
+                style: GoogleFonts.plusJakartaSans(color: Colors.white70),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -3981,13 +4292,13 @@ class _BookingDialogState extends State<_BookingDialog> {
                 style: GoogleFonts.plusJakartaSans(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Contoh: 0812 3456 7890',
-                  hintStyle: GoogleFonts.plusJakartaSans(
-                    color: Colors.white54,
-                  ),
+                  hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white54),
                   filled: true,
                   fillColor: Colors.white.withValues(alpha: 0.05),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide(
@@ -4001,6 +4312,13 @@ class _BookingDialogState extends State<_BookingDialog> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 18),
+          _BookingSubtotalBanner(
+            sessions: _sessionCount(),
+            pricePerSession: widget.pricePerSession,
+            addonsTotal: _selectedAddonsTotalExternal,
+            subtotal: _estimatedSubtotal(),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -4033,8 +4351,9 @@ class _BookingDialogState extends State<_BookingDialog> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -4062,6 +4381,73 @@ class _BookingDialogState extends State<_BookingDialog> {
   }
 }
 
+class _BookingSubtotalBanner extends StatelessWidget {
+  const _BookingSubtotalBanner({
+    required this.sessions,
+    required this.pricePerSession,
+    required this.addonsTotal,
+    required this.subtotal,
+  });
+
+  final int sessions;
+  final int pricePerSession;
+  final int addonsTotal;
+  final int subtotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDates = sessions > 0;
+    final baseDescription = hasDates
+        ? '$sessions sesi × ${_formatCurrency(pricePerSession)}'
+        : 'Pilih rentang tanggal untuk menghitung sesi.';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        color: Colors.white.withValues(alpha: 0.03),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Subtotal',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatCurrency(subtotal),
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add-ons: ${_formatCurrency(addonsTotal)}',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            baseDescription,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DateField extends StatelessWidget {
   const _DateField({
     required this.label,
@@ -4081,10 +4467,7 @@ class _DateField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(color: Colors.white70),
-        ),
+        Text(label, style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: onTap,
@@ -4097,15 +4480,17 @@ class _DateField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded,
-                    size: 18, color: Colors.white.withValues(alpha: 0.8)),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     display,
                     style: GoogleFonts.plusJakartaSans(
-                      color:
-                          value.isEmpty ? Colors.white54 : Colors.white,
+                      color: value.isEmpty ? Colors.white54 : Colors.white,
                     ),
                   ),
                 ),
@@ -4158,9 +4543,7 @@ class _BookingConfirmationCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             "You'll be contacted very soon.",
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white70,
-            ),
+            style: GoogleFonts.plusJakartaSans(color: Colors.white70),
           ),
           const SizedBox(height: 6),
           Text(
@@ -4177,10 +4560,7 @@ class _BookingConfirmationCard extends StatelessWidget {
           const SizedBox(height: 8),
           _ConfirmationRow(label: 'Rentang tanggal', value: dateRange),
           const SizedBox(height: 8),
-          _ConfirmationRow(
-            label: 'Total sesi',
-            value: '${summary.sessions}x',
-          ),
+          _ConfirmationRow(label: 'Total sesi', value: '${summary.sessions}x'),
           const SizedBox(height: 8),
           _ConfirmationRow(
             label: 'Status',
@@ -4192,17 +4572,20 @@ class _BookingConfirmationCard extends StatelessWidget {
             value: _formatCurrency(summary.subtotal),
             emphasize: true,
           ),
-          const SizedBox(height: 8),
-          _ConfirmationRow(
-            label: 'Kontak',
-            value: summary.phoneNumber,
-          ),
-          if ((summary.notes ?? '').isNotEmpty) ...[
+          if (summary.selectedAddons.isNotEmpty) ...[
             const SizedBox(height: 8),
             _ConfirmationRow(
-              label: 'Catatan',
-              value: summary.notes!,
+              label: 'Add-ons',
+              value: summary.selectedAddons
+                  .map((addon) => addon.name)
+                  .join(', '),
             ),
+          ],
+          const SizedBox(height: 8),
+          _ConfirmationRow(label: 'Kontak', value: summary.phoneNumber),
+          if ((summary.notes ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _ConfirmationRow(label: 'Catatan', value: summary.notes!),
           ],
           const SizedBox(height: 24),
           SizedBox(
@@ -4218,9 +4601,7 @@ class _BookingConfirmationCard extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Okay',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -4260,9 +4641,7 @@ class _ConfirmationRow extends StatelessWidget {
           width: 140,
           child: Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white70,
-            ),
+            style: GoogleFonts.plusJakartaSans(color: Colors.white70),
           ),
         ),
         const SizedBox(width: 12),
@@ -4355,6 +4734,9 @@ class _BookingSummary {
     required this.hasBeenPaid,
     required this.datePaid,
     required this.createdAt,
+    required this.selectedAddons,
+    required this.addonsTotal,
+    required this.venueAddons,
     this.notes,
   });
 
@@ -4365,6 +4747,16 @@ class _BookingSummary {
     final rawImageUrl =
         (venue['image_absolute_url'] ?? venue['image_url'] ?? '').toString();
     final resolvedImageUrl = _resolveMediaUrlGlobal(rawImageUrl);
+    final selectedAddons = (json['selected_addons'] is List)
+        ? (json['selected_addons'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map(_VenueAddon.fromMap)
+              .toList()
+        : const <_VenueAddon>[];
+    final venueAddons = _VenueCardData._parseAddons(venue['addons']);
+    final addonsTotal =
+        (json['addons_total'] as num?)?.toInt() ??
+        selectedAddons.fold<int>(0, (sum, addon) => sum + addon.price);
     return _BookingSummary(
       id: (json['id'] as num?)?.toInt() ?? 0,
       venueId: (venue['id'] as num?)?.toInt() ?? 0,
@@ -4381,9 +4773,13 @@ class _BookingSummary {
       subtotal: (json['subtotal'] as num?)?.toInt() ?? 0,
       phoneNumber: (json['contact_phone'] ?? '').toString(),
       hasBeenPaid: json['has_been_paid'] == true,
-      datePaid:
-          json['date_paid'] == null ? null : parseDate(json['date_paid']?.toString()),
+      datePaid: json['date_paid'] == null
+          ? null
+          : parseDate(json['date_paid']?.toString()),
       createdAt: parseDate(json['created_at']?.toString()),
+      selectedAddons: selectedAddons,
+      addonsTotal: addonsTotal,
+      venueAddons: venueAddons,
       notes: json['notes']?.toString(),
     );
   }
@@ -4394,6 +4790,7 @@ class _BookingSummary {
     required DateTime startDate,
     required DateTime endDate,
     required String phoneNumber,
+    List<_VenueAddon> selectedAddons = const [],
   }) {
     final sessions = endDate.difference(startDate).inDays + 1;
     final now = DateTime.now();
@@ -4410,11 +4807,16 @@ class _BookingSummary {
       startDate: startDate,
       endDate: endDate,
       sessions: sessions,
-      subtotal: sessions * venuePrice,
+      subtotal:
+          sessions * venuePrice +
+          selectedAddons.fold(0, (sum, addon) => sum + addon.price),
       phoneNumber: phoneNumber,
       hasBeenPaid: false,
       datePaid: null,
       createdAt: now,
+      selectedAddons: selectedAddons,
+      addonsTotal: selectedAddons.fold(0, (sum, addon) => sum + addon.price),
+      venueAddons: const [],
       notes: 'Booking demo tanpa backend',
     );
   }
@@ -4436,6 +4838,9 @@ class _BookingSummary {
   final bool hasBeenPaid;
   final DateTime? datePaid;
   final DateTime createdAt;
+  final List<_VenueAddon> selectedAddons;
+  final int addonsTotal;
+  final List<_VenueAddon> venueAddons;
   final String? notes;
 }
 
@@ -4475,4 +4880,3 @@ String _formatReadableDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
   return '$day $month ${date.year}';
 }
-

@@ -464,6 +464,16 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (booking.selectedAddons.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Add-ons: ${booking.selectedAddons.map((addon) => addon.name).where((name) => name.isNotEmpty).join(', ')}',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,

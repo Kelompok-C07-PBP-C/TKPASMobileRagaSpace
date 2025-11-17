@@ -155,6 +155,9 @@
                     >
                       Facilities
                     </th>
+                    <th scope="col">
+                      Add-ons
+                    </th>
                     <th
                       scope="col"
                       data-sort-section="venues"
@@ -269,6 +272,9 @@
                     >
                       Notes
                     </th>
+                    <th scope="col">
+                      Add-ons
+                    </th>
                     <th
                       scope="col"
                       class="actions-col"
@@ -353,6 +359,29 @@
               <span>Image</span>
               <input type="file" name="image" accept="image/*" />
             </label>
+            <div class="full-width addon-section" data-addons-field>
+              <div class="addon-section__header">
+                <div>
+                  <span>Add-ons</span>
+                  <p>Optional extras that appear as checklists on the booking modal.</p>
+                </div>
+                <button
+                  class="secondary-btn addon-section__add-btn"
+                  type="button"
+                  data-addons-add
+                  onclick="window.__adminAddAddon && window.__adminAddAddon(event)"
+                >
+                  <span aria-hidden="true">+</span>
+                  <span>Add add-on</span>
+                </button>
+              </div>
+              <p class="addon-section__hint">
+                Include upsells such as coaching sessions, drinks packages, or priority services.
+              </p>
+              <div class="addon-section__list" data-addons-list></div>
+              <p class="addon-section__empty" data-addons-empty>No add-ons yet.</p>
+              <input type="hidden" name="addons" data-addons-input value="[]" />
+            </div>
           </div>
           <div data-form="bookings" class="form-grid is-hidden">
             <label class="full-width">
@@ -398,6 +427,38 @@
             <label class="checkbox">
               <input type="checkbox" name="has_been_paid" value="true" />
               <span>Has been paid</span>
+            </label>
+            <div class="full-width addon-section" data-addons-field>
+              <div class="addon-section__header">
+                <div>
+                  <span>Add-ons</span>
+                  <p>Optional extras that appear as checklists on the booking modal.</p>
+                </div>
+                <button
+                  class="secondary-btn addon-section__add-btn"
+                  type="button"
+                  data-addons-add
+                  onclick="window.__adminAddAddon && window.__adminAddAddon(event)"
+                >
+                  <span aria-hidden="true">+</span>
+                  <span>Add add-on</span>
+                </button>
+              </div>
+              <p class="addon-section__hint">
+                Include upsells such as coaching sessions, drinks packages, or priority services.
+              </p>
+              <div class="addon-section__list" data-addons-list></div>
+              <p class="addon-section__empty" data-addons-empty>No add-ons yet.</p>
+              <input type="hidden" name="selected_addons" data-addons-input value="[]" />
+            </div>
+            <label class="full-width">
+              <span>Subtotal</span>
+              <input
+                type="text"
+                data-booking-subtotal
+                name="subtotal_display"
+                disabled
+              />
             </label>
             <label class="full-width">
               <span>Notes</span>

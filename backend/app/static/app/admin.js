@@ -296,10 +296,7 @@
     bookings: null,
   };
 
-  const reduceMotionQuery =
-    typeof window.matchMedia === 'function'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)')
-      : null;
+  const reduceMotionQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   const prefersReducedMotion = reduceMotionQuery ? reduceMotionQuery.matches : false;
   const canAnimate = typeof anime !== 'undefined' && !prefersReducedMotion;
   let modalAnimation = null;
@@ -464,18 +461,9 @@
     };
 
     let page = parseNumber(resolved.page ?? fallbackMeta.page, fallbackMeta.page ?? 1);
-    let pageSize = parseNumber(
-      resolved.page_size ?? resolved.pageSize ?? fallbackMeta.pageSize,
-      fallbackMeta.pageSize ?? DEFAULT_PAGE_SIZE,
-    );
-    let totalPages = parseNumber(
-      resolved.total_pages ?? resolved.totalPages ?? fallbackMeta.totalPages,
-      fallbackMeta.totalPages ?? 1,
-    );
-    let totalItems = parseNumber(
-      resolved.total_items ?? resolved.totalItems ?? fallbackMeta.totalItems,
-      fallbackMeta.totalItems ?? 0,
-    );
+    let pageSize = parseNumber(resolved.page_size ?? resolved.pageSize ?? fallbackMeta.pageSize, fallbackMeta.pageSize ?? DEFAULT_PAGE_SIZE);
+    let totalPages = parseNumber(resolved.total_pages ?? resolved.totalPages ?? fallbackMeta.totalPages, fallbackMeta.totalPages ?? 1);
+    let totalItems = parseNumber(resolved.total_items ?? resolved.totalItems ?? fallbackMeta.totalItems, fallbackMeta.totalItems ?? 0);
 
     if (!Number.isFinite(page) || page < 1) {
       page = 1;
@@ -493,25 +481,17 @@
       page = totalPages;
     }
 
-    const rawHasPrevious =
-      resolved.has_previous ?? resolved.hasPrevious ?? fallbackMeta.hasPrevious ?? fallbackMeta.has_previous;
-    const rawHasNext =
-      resolved.has_next ?? resolved.hasNext ?? fallbackMeta.hasNext ?? fallbackMeta.has_next;
+    const rawHasPrevious = resolved.has_previous ?? resolved.hasPrevious ?? fallbackMeta.hasPrevious ?? fallbackMeta.has_previous;
+    const rawHasNext = resolved.has_next ?? resolved.hasNext ?? fallbackMeta.hasNext ?? fallbackMeta.has_next;
 
     const normalized = {
       page,
       pageSize,
       totalPages,
       totalItems,
-      hasPrevious:
-        typeof rawHasPrevious === 'boolean' ? rawHasPrevious : page > 1 && totalPages > 1,
+      hasPrevious: typeof rawHasPrevious === 'boolean' ? rawHasPrevious : page > 1 && totalPages > 1,
       hasNext: typeof rawHasNext === 'boolean' ? rawHasNext : page < totalPages,
-      query:
-        typeof resolved.query === 'string'
-          ? resolved.query.trim()
-          : typeof fallbackMeta.query === 'string'
-            ? fallbackMeta.query.trim()
-            : '',
+      query: typeof resolved.query === 'string' ? resolved.query.trim() : typeof fallbackMeta.query === 'string' ? fallbackMeta.query.trim() : '',
     };
 
     const ignoredKeys = new Set([
@@ -541,6 +521,560 @@
     });
 
     return normalized;
+  }
+
+  function getAddonElements() {
+    if (!entityForm) {
+      return { field: null, list: null, input: null, empty: null };
+    }
+    const activeSectionKey = entityForm.dataset.section || 'venues';
+    const container =
+      (formSections && formSections[activeSectionKey]) || entityForm;
+    return {
+      field: container.querySelector('[data-addons-field]'),
+      list: container.querySelector('[data-addons-list]'),
+      input: container.querySelector('[data-addons-input]'),
+      empty: container.querySelector('[data-addons-empty]'),
+    };
+  }
+
+  function getAddonsButtonForSection(section) {
+    if (!entityForm) {
+      return null;
+    }
+    const container =
+      (formSections && formSections[section]) || entityForm;
+    if (!container) {
+      return null;
+    }
+    return container.querySelector('[data-addons-add]');
+  }
+
+  function getCurrentVenueId() {
+    if (!entityForm) {
+      return null;
+    }
+    const hiddenInput = entityForm.querySelector('input[name="venue"]');
+    if (hiddenInput && hiddenInput.value) {
+      const parsed = Number.parseInt(hiddenInput.value, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    if (
+      autocompleteControllers.venue
+      && autocompleteControllers.venue.hiddenInput
+      && autocompleteControllers.venue.hiddenInput.value
+    ) {
+      const parsed = Number.parseInt(
+        autocompleteControllers.venue.hiddenInput.value,
+        10,
+      );
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  function getAddonRows() {
+    const { list } = getAddonElements();
+    if (!list) {
+      return [];
+    }
+    return Array.from(list.querySelectorAll('[data-addon-row]'));
+  }
+
+  function updateAddonLabels() {
+    const rows = getAddonRows();
+    rows.forEach((row, index) => {
+      const label = row.querySelector('[data-addon-label]');
+      if (label) {
+        label.textContent = `Addon #${index + 1}`;
+      }
+    });
+  }
+
+  function updateAddonEmptyState() {
+    const { empty } = getAddonElements();
+    if (!empty) {
+      return;
+    }
+    empty.classList.toggle('is-hidden', getAddonRows().length > 0);
+  }
+
+  function createAddonRow(addon = {}) {
+    const row = document.createElement('div');
+    row.className = 'addon-card';
+    row.dataset.addonRow = 'true';
+
+    const isBookingContext =
+      entityForm && entityForm.dataset.section === 'bookings';
+
+    if (isBookingContext) {
+      row.innerHTML = 
+        `<div class="addon-card__header">
+          <p class="addon-card__title" data-addon-label>Addon #1</p>
+          <button class="icon-btn" type="button" data-action="remove-addon" aria-label="Remove add-on">×</button>
+        </div>
+        <div class="addon-card__body">
+          <div class="addon-card__inputs">
+            <label class="addon-card__select">
+              <span>Add-on name</span>
+              <select data-addon-name>
+                <option value="">Choose an add-on</option>
+              </select>
+            </label>
+            <label>
+              <span>Price</span>
+              <input type="number" data-addon-price min="0" placeholder="75000" readonly />
+            </label>
+          </div>
+          <label class="addon-card__description">
+            <span>Description</span>
+            <textarea data-addon-description rows="2" placeholder="Describe what guests receive." readonly></textarea>
+          </label>
+        </div>`
+      ;
+    } else {
+      row.innerHTML = 
+        `<div class="addon-card__header">
+          <p class="addon-card__title" data-addon-label>Addon #1</p>
+          <button class="icon-btn" type="button" data-action="remove-addon" aria-label="Remove add-on">×</button>
+        </div>
+        <div class="addon-card__body">
+          <div class="addon-card__inputs">
+            <label>
+              <span>Add-on name</span>
+              <input type="text" data-addon-name maxlength="255" placeholder="Premium coach session" />
+            </label>
+            <label>
+              <span>Price</span>
+              <input type="number" data-addon-price min="0" placeholder="75000" />
+            </label>
+          </div>
+          <label class="addon-card__description">
+            <span>Description</span>
+            <textarea data-addon-description rows="2" placeholder="Describe what guests receive."></textarea>
+          </label>
+        </div>`
+      ;
+    }
+
+    const nameField = row.querySelector('[data-addon-name]');
+    const priceField = row.querySelector('[data-addon-price]');
+    const descField = row.querySelector('[data-addon-description]');
+
+    if (!isBookingContext && nameField) {
+      nameField.value = addon && typeof addon.name === 'string' ? addon.name : '';
+    }
+    if (!isBookingContext && priceField) {
+      const priceValue = Number.parseInt(
+        addon && addon.price !== undefined ? addon.price : '',
+        10,
+      );
+      priceField.value =
+        Number.isFinite(priceValue) && priceValue >= 0
+          ? String(priceValue)
+          : '';
+    }
+    if (!isBookingContext && descField) {
+      descField.value =
+        addon && typeof addon.description === 'string'
+          ? addon.description
+          : '';
+    }
+
+    return row;
+  }
+
+  function collectAddonFormData() {
+    const payload = [];
+    getAddonRows().forEach((row) => {
+      const nameField = row.querySelector('[data-addon-name]');
+      const priceField = row.querySelector('[data-addon-price]');
+      const descriptionField = row.querySelector('[data-addon-description]');
+      const name = nameField ? nameField.value.trim() : '';
+      if (!name) {
+        return;
+      }
+      const parsedPrice = Number.parseInt(priceField ? priceField.value : '', 10);
+      payload.push({
+        name,
+        price: Number.isFinite(parsedPrice) && parsedPrice >= 0 ? parsedPrice : 0,
+        description: descriptionField ? descriptionField.value.trim() : '',
+      });
+    });
+    return payload;
+  }
+
+  function syncAddonsInput() {
+    const { input } = getAddonElements();
+    if (!input) {
+      return;
+    }
+    const payload = collectAddonFormData();
+    input.value = JSON.stringify(payload);
+  }
+
+  function appendAddonRow(addon = {}) {
+    const { list } = getAddonElements();
+    if (!list) {
+      return null;
+    }
+    const row = createAddonRow(addon);
+    if (entityForm && entityForm.dataset.section === 'bookings') {
+      initializeBookingAddonRow(row, addon);
+    }
+    list.appendChild(row);
+
+    updateAddonLabels();
+    updateAddonEmptyState();
+    syncAddonsInput();
+    if (entityForm && entityForm.dataset.section === 'bookings') {
+      updateBookingAddonOptionStates();
+    }
+    return row;
+  }
+
+  function initializeBookingAddonRow(row, addon = {}) {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return;
+    }
+    if (!row) {
+      return;
+    }
+    const select = row.querySelector('select[data-addon-name]');
+    const priceInput = row.querySelector('[data-addon-price]');
+    const descriptionInput = row.querySelector('[data-addon-description]');
+    if (!select || !priceInput || !descriptionInput) {
+      return;
+    }
+    const addons = getCurrentVenueAddons();
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = addons.length
+      ? 'Choose an add-on'
+      : 'No add-ons available';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.hidden = addons.length > 0;
+    select.appendChild(placeholder);
+
+    const applySelection = (source) => {
+      const priceValue =
+        source && source.price !== undefined ? Number(source.price) : NaN;
+      priceInput.value =
+        Number.isFinite(priceValue) && priceValue >= 0
+          ? String(priceValue)
+          : '';
+      descriptionInput.value =
+        source && typeof source.description === 'string'
+          ? source.description
+          : '';
+    };
+
+    if (!addons.length) {
+      select.disabled = true;
+      applySelection(null);
+      return;
+    }
+
+    select.disabled = false;
+    addons.forEach((item) => {
+      const option = document.createElement('option');
+      option.value = item && item.name ? String(item.name) : '';
+      option.textContent = option.value || 'Untitled add-on';
+      select.appendChild(option);
+    });
+
+    const initialName =
+      addon && typeof addon.name === 'string' ? addon.name : '';
+    if (initialName) {
+      const matched = addons.find((item) =>
+        item
+        && item.name
+        && String(item.name).trim().toLowerCase()
+          === initialName.trim().toLowerCase(),
+      );
+      if (matched) {
+        placeholder.selected = false;
+        select.value = matched.name;
+        applySelection(matched);
+      } else {
+        applySelection(addon);
+      }
+    } else {
+      applySelection(null);
+    }
+
+    select.addEventListener('change', () => {
+      const value = select.value || '';
+      if (!value) {
+        applySelection(null);
+      } else {
+        const matched = addons.find((item) =>
+          item
+          && item.name
+          && String(item.name).trim().toLowerCase() === value.trim().toLowerCase(),
+        );
+        applySelection(matched || null);
+      }
+      syncAddonsInput();
+      updateBookingSubtotalDisplay();
+      updateBookingAddonOptionStates();
+    });
+  }
+
+
+  function hydrateAddonsField(addons = []) {
+    const { list, input } = getAddonElements();
+    if (!list) {
+      if (input) {
+        input.value = '[]';
+      }
+      return;
+    }
+    list.innerHTML = '';
+    if (Array.isArray(addons) && addons.length) {
+      addons.forEach((addon) => appendAddonRow(addon));
+    }
+    updateAddonLabels();
+    updateAddonEmptyState();
+    syncAddonsInput();
+    updateBookingSubtotalDisplay();
+    updateBookingAddonOptionStates();
+  }
+
+  hydrateAddonsField([]);
+  window.__adminAddAddon = (event) => {
+    const targetButton = event ? event.currentTarget || event.target : null;
+    if (targetButton && targetButton.disabled) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const row = appendAddonRow();
+    if (row) {
+      const nameField = row.querySelector('[data-addon-name]');
+      if (nameField) {
+        nameField.focus();
+      }
+    }
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-action="remove-addon"]');
+    if (!target) {
+      return;
+    }
+    const { list } = getAddonElements();
+    if (!list || !list.contains(target)) {
+      return;
+    }
+    const row = target.closest('[data-addon-row]');
+    if (row) {
+      row.remove();
+      updateAddonLabels();
+      updateAddonEmptyState();
+      syncAddonsInput();
+      updateBookingAddonOptionStates();
+      updateBookingSubtotalDisplay();
+    }
+  });
+
+  document.addEventListener('input', (event) => {
+    if (!event.target.matches('[data-addon-name], [data-addon-price], [data-addon-description]')) {
+      return;
+    }
+    const { list } = getAddonElements();
+    if (!list || !list.contains(event.target)) {
+      return;
+    }
+    syncAddonsInput();
+  });
+
+  function getCurrentVenueAddons() {
+    const venueId = getCurrentVenueId();
+    if (venueId == null) {
+      return [];
+    }
+    const venue = state.venues.find(
+      (item) => Number(item.id) === Number(venueId),
+    );
+    if (!venue || !Array.isArray(venue.addons)) {
+      return [];
+    }
+    return venue.addons;
+  }
+
+  function getBookingAddonElements() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return {
+        field: null,
+        list: null,
+        empty: null,
+        input: null,
+      };
+    }
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    return {
+      field: container.querySelector('[data-addons-field]'),
+      list: container.querySelector('[data-addons-list]'),
+      empty: container.querySelector('[data-addons-empty]'),
+      input: container.querySelector('[data-addons-input]'),
+    };
+  }
+
+  function getBookingAddonSelects() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return [];
+    }
+    const { list } = getBookingAddonElements();
+    if (!list) {
+      return [];
+    }
+    return Array.from(list.querySelectorAll('select[data-addon-name]'));
+  }
+
+  function getBookingSubtotalField() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return null;
+    }
+    return entityForm.querySelector('[data-booking-subtotal]');
+  }
+
+  function computeBookingSubtotal() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return 0;
+    }
+    const startInput = entityForm.querySelector('input[name="start_date"]');
+    const endInput = entityForm.querySelector('input[name="end_date"]');
+    if (!startInput || !endInput) {
+      return 0;
+    }
+    const startRaw = (startInput.value || '').trim();
+    const endRaw = (endInput.value || '').trim();
+    if (!startRaw || !endRaw) {
+      return 0;
+    }
+    const startDate = new Date(startRaw);
+    const endDate = new Date(endRaw);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return 0;
+    }
+    let first = startDate;
+    let last = endDate;
+    if (last < first) {
+      const tmp = first;
+      first = last;
+      last = tmp;
+    }
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const sessions = Math.floor((last - first) / msPerDay) + 1;
+
+    let pricePerSession = 0;
+    const venueId = getCurrentVenueId();
+    if (venueId != null) {
+      const venue = state.venues.find((item) => Number(item.id) === Number(venueId));
+      if (venue && Number.isFinite(Number(venue.price))) {
+        pricePerSession = Number(venue.price);
+      }
+    }
+
+    let addonsTotal = 0;
+    const addons = collectAddonFormData();
+    addons.forEach((addon) => {
+      const price = Number(addon && addon.price);
+      if (Number.isFinite(price) && price > 0) {
+        addonsTotal += price;
+      }
+    });
+
+    const base = sessions > 0 && pricePerSession > 0 ? sessions * pricePerSession : 0;
+    return base + addonsTotal;
+  }
+
+  function updateBookingSubtotalDisplay() {
+    const field = getBookingSubtotalField();
+    if (!field) {
+      return;
+    }
+    const subtotal = computeBookingSubtotal();
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      field.value = '';
+      return;
+    }
+    field.value = formatCurrency(subtotal);
+  }
+
+  function updateBookingAddonOptionStates() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return;
+    }
+    const selects = getBookingAddonSelects();
+    if (!selects.length) {
+      return;
+    }
+
+    const owners = new Map();
+    selects.forEach((select) => {
+      const value = (select.value || '').trim().toLowerCase();
+      if (!value) return;
+      if (!owners.has(value)) owners.set(value, select);
+    });
+
+    selects.forEach((select) => {
+      const options = select.querySelectorAll('option');
+      options.forEach((option) => {
+        const optionValue = (option.value || '').trim().toLowerCase();
+        if (!optionValue) {
+          // keep placeholder behaviour as defined when creating it
+          return;
+        }
+        const owner = owners.get(optionValue);
+        option.disabled = Boolean(owner && owner !== select);
+      });
+    });
+  }
+
+  function setBookingAddonsAvailability(hasAddons, venueId) {
+    const button = getAddonsButtonForSection('bookings');
+    if (!button) {
+      return;
+    }
+    const { field } = getBookingAddonElements();
+    const disabled = !hasAddons;
+    button.disabled = disabled;
+    button.classList.toggle('is-disabled', disabled);
+    if (field) {
+      field.classList.toggle('addons-disabled', disabled);
+    }
+    if (disabled) {
+      button.title =
+        venueId == null
+          ? 'Select a venue before adding add-ons.'
+          : 'This venue has no add-ons configured.';
+    } else {
+      button.title = '';
+    }
+  }
+
+  function syncSelectedBookingAddons() {
+    const { input } = getBookingAddonElements();
+    if (!input) {
+      return;
+    }
+    const payload = collectAddonFormData();
+    input.value = JSON.stringify(payload);
   }
 
   function getCsrfToken() {
@@ -607,10 +1141,7 @@
     label.textContent = `${rounded.toFixed(1)} · ${ratingCountLabel}`;
     container.appendChild(label);
 
-    container.setAttribute(
-      'aria-label',
-      `Rated ${rounded.toFixed(1)} out of 5 based on ${ratingCountLabel}`,
-    );
+    container.setAttribute('aria-label', `Rated ${rounded.toFixed(1)} out of 5 based on ${ratingCountLabel}`);
 
     return container;
   }
@@ -643,6 +1174,14 @@
       return '';
     }
     return venue.facilities.join(', ');
+  }
+
+  function getVenueAddonsText(venue) {
+    if (!venue || !Array.isArray(venue.addons) || !venue.addons.length) {
+      return '-';
+    }
+    const labels = venue.addons.map((addon) => (addon && addon.name ? String(addon.name).trim() : '')).filter((name) => name);
+    return labels.length ? labels.join(', ') : '-';
   }
 
   function getVenueLocationValue(venue) {
@@ -727,6 +1266,20 @@
   function getBookingNotesLabel(booking) {
     const value = getBookingNotesValue(booking);
     return value || '—';
+  }
+
+  function getBookingAddonsLabel(booking) {
+    if (!booking || !Array.isArray(booking.selected_addons) || !booking.selected_addons.length) {
+      return '-';
+    }
+
+    const labels = booking.selected_addons
+
+      .map((addon) => (addon && addon.name ? String(addon.name).trim() : ''))
+
+      .filter((name) => name);
+
+    return labels.length ? labels.join(', ') : '-';
   }
 
   function compareVenueRatings(a, b) {
@@ -920,16 +1473,7 @@
   }
 
   function getPopularityColors(count) {
-    const palette = [
-      '#ea580c',
-      '#f97316',
-      '#fb923c',
-      '#facc15',
-      '#38d4c3',
-      '#c084fc',
-      '#f472b6',
-      '#fb7185',
-    ];
+    const palette = ['#ea580c', '#f97316', '#fb923c', '#facc15', '#38d4c3', '#c084fc', '#f472b6', '#fb7185'];
     const colors = [];
     for (let index = 0; index < count; index += 1) {
       colors.push(palette[index % palette.length]);
@@ -938,11 +1482,7 @@
   }
 
   function computeNiceScale(values) {
-    const dataPoints = Array.isArray(values)
-      ? values
-          .map((value) => Number(value))
-          .filter((value) => Number.isFinite(value) && value >= 0)
-      : [];
+    const dataPoints = Array.isArray(values) ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value >= 0) : [];
 
     if (dataPoints.length === 0) {
       return { suggestedMax: undefined, stepSize: undefined };
@@ -1129,18 +1669,10 @@
                 const suffix = value === 1 ? 'booking' : 'bookings';
                 const label = context.label || '';
                 const datasetValues =
-                  context &&
-                  context.chart &&
-                  context.chart.data &&
-                  Array.isArray(context.chart.data.datasets)
+                  context && context.chart && context.chart.data && Array.isArray(context.chart.data.datasets)
                     ? context.chart.data.datasets[context.datasetIndex]?.data || []
                     : [];
-                const total = Array.isArray(datasetValues)
-                  ? datasetValues.reduce(
-                      (sum, item) => sum + (Number(item) || 0),
-                      0,
-                    )
-                  : 0;
+                const total = Array.isArray(datasetValues) ? datasetValues.reduce((sum, item) => sum + (Number(item) || 0), 0) : 0;
                 const percentage = total > 0 ? (value / total) * 100 : 0;
                 let percentageLabel = '';
                 if (Number.isFinite(percentage) && total > 0) {
@@ -1163,10 +1695,7 @@
     }
     const dataset = analyticsData[key] || { labels: [], data: [] };
     const hasData =
-      Array.isArray(dataset.labels)
-      && dataset.labels.length > 0
-      && Array.isArray(dataset.data)
-      && dataset.data.some((value) => Number(value) > 0);
+      Array.isArray(dataset.labels) && dataset.labels.length > 0 && Array.isArray(dataset.data) && dataset.data.some((value) => Number(value) > 0);
 
     if (!hasData) {
       if (chartInstances[key]) {
@@ -1327,7 +1856,7 @@
       createPaginationButton('Prev', meta.page - 1, section, {
         disabled: !meta.hasPrevious,
         ariaLabel: 'Previous page',
-      }),
+      })
     );
     const pages = computePageList(meta.page, meta.totalPages);
     pages.forEach((pageNumber) => {
@@ -1343,7 +1872,7 @@
       createPaginationButton('Next', meta.page + 1, section, {
         disabled: !meta.hasNext,
         ariaLabel: 'Next page',
-      }),
+      })
     );
     container.appendChild(fragment);
   }
@@ -1448,9 +1977,7 @@
       if (!list.length) {
         const empty = document.createElement('div');
         empty.className = 'autocomplete-empty';
-        empty.textContent = typeof settings.emptyMessage === 'function'
-          ? settings.emptyMessage()
-          : settings.emptyMessage || 'No results found.';
+        empty.textContent = typeof settings.emptyMessage === 'function' ? settings.emptyMessage() : settings.emptyMessage || 'No results found.';
         panel.appendChild(empty);
         panel.hidden = false;
         return;
@@ -1631,8 +2158,8 @@
       typeof venuesMeta.total_available === 'number'
         ? venuesMeta.total_available
         : typeof venuesMeta.totalItems === 'number'
-          ? venuesMeta.totalItems
-          : state.venues.length;
+        ? venuesMeta.totalItems
+        : state.venues.length;
     if (totalVenues === 0) {
       venueController.setSelection('', '');
     }
@@ -1652,13 +2179,10 @@
         }
         userSearchController = new AbortController();
         try {
-          const response = await fetch(
-            `${endpoints.users.search}?q=${encodeURIComponent(query)}`,
-            {
-              headers: { 'X-Requested-With': 'XMLHttpRequest' },
-              signal: userSearchController.signal,
-            },
-          );
+          const response = await fetch(`${endpoints.users.search}?q=${encodeURIComponent(query)}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: userSearchController.signal,
+          });
           if (!response.ok) {
             throw new Error('Search failed');
           }
@@ -1720,7 +2244,38 @@
       getInputValue: (item) => item.title || '',
       getHiddenValue: (item) => (item.id !== undefined ? item.id : ''),
       emptyMessage: () => (state.venues.length ? 'No venues found.' : 'Create a venue first.'),
+      onSelect: (item) => {
+        if (!entityForm || entityForm.dataset.section !== 'bookings') {
+          return;
+        }
+        const venueId =
+          item && item.id !== undefined ? item.id : getCurrentVenueId();
+        const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+        if (bookingAddonsField) {
+          bookingAddonsField.value = '[]';
+        }
+        hydrateAddonsField([]);
+        const available = getCurrentVenueAddons();
+        setBookingAddonsAvailability(available.length > 0, venueId);
+      },
     });
+
+    const venueTextInput = venueAutocompleteField.querySelector('input[type="text"]');
+    if (venueTextInput) {
+      venueTextInput.addEventListener('input', () => {
+        if (!entityForm || entityForm.dataset.section !== 'bookings') {
+          return;
+        }
+        if (!venueTextInput.value.trim()) {
+          const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+          if (bookingAddonsField) {
+            bookingAddonsField.value = '[]';
+          }
+          hydrateAddonsField([]);
+          setBookingAddonsAvailability(false, null);
+        }
+      });
+    }
   }
 
   function renderVenues() {
@@ -1750,10 +2305,7 @@
       row.appendChild(titleCell);
 
       const descriptionCell = document.createElement('td');
-      const descriptionText =
-        typeof venue.description === 'string' && venue.description.trim()
-          ? venue.description.trim()
-          : '—';
+      const descriptionText = typeof venue.description === 'string' && venue.description.trim() ? venue.description.trim() : '—';
       descriptionCell.textContent = descriptionText;
       row.appendChild(descriptionCell);
 
@@ -1762,10 +2314,7 @@
       row.appendChild(typeCell);
 
       const ratingCell = document.createElement('td');
-      const ratingElement = createStarRatingElement(
-        venue.average_rating,
-        venue.rating_count,
-      );
+      const ratingElement = createStarRatingElement(venue.average_rating, venue.rating_count);
       ratingCell.appendChild(ratingElement);
       row.appendChild(ratingCell);
 
@@ -1777,6 +2326,10 @@
       const facilitiesCell = document.createElement('td');
       facilitiesCell.textContent = getVenueFacilitiesText(venue);
       row.appendChild(facilitiesCell);
+
+      const addonsCell = document.createElement('td');
+      addonsCell.textContent = getVenueAddonsText(venue);
+      row.appendChild(addonsCell);
 
       const priceCell = document.createElement('td');
       priceCell.textContent = formatCurrency(venue.price);
@@ -1848,6 +2401,10 @@
       notesCell.textContent = getBookingNotesLabel(booking);
       row.appendChild(notesCell);
 
+      const addonsCell = document.createElement('td');
+      addonsCell.textContent = getBookingAddonsLabel(booking);
+      row.appendChild(addonsCell);
+
       const actionsCell = document.createElement('td');
       actionsCell.className = 'actions-col';
       const actionGroup = document.createElement('div');
@@ -1898,8 +2455,8 @@
         typeof venuesMeta.total_available === 'number'
           ? venuesMeta.total_available
           : typeof venuesMeta.totalItems === 'number'
-            ? venuesMeta.totalItems
-            : state.venues.length;
+          ? venuesMeta.totalItems
+          : state.venues.length;
       const hasVenues = totalVenues > 0;
       const hasUsers = state.hasUsers;
       const canCreate = hasVenues && hasUsers;
@@ -1960,6 +2517,10 @@
 
   function clearForm() {
     entityForm.reset();
+    hydrateAddonsField([]);
+    if (entityForm.dataset.section === 'bookings') {
+      setBookingAddonsAvailability(false, null);
+    }
     clearAutocompletes();
     if (entityForm.dataset.section === 'bookings') {
       const paidField = entityForm.querySelector('input[name="has_been_paid"]');
@@ -2012,32 +2573,44 @@
     clearErrors();
     closeAllAutocompletes();
 
+    let editingVenue = null;
+    if (section === 'venues' && recordId) {
+      editingVenue =
+        state.venues.find((item) => Number(item.id) === Number(recordId)) || null;
+    }
+    if (section === 'venues') {
+      const addons =
+        editingVenue && Array.isArray(editingVenue.addons) ? editingVenue.addons : [];
+      hydrateAddonsField(addons);
+    } else {
+      hydrateAddonsField([]);
+      setBookingAddonsAvailability(false, null);
+    }
+
     if (mode === 'edit' && recordId) {
       if (section === 'venues') {
-        const venue = state.venues.find((item) => Number(item.id) === Number(recordId));
-        if (venue) {
-          entityForm.querySelector('input[name="title"]').value = venue.title;
+        if (editingVenue) {
+          entityForm.querySelector('input[name="title"]').value = editingVenue.title;
           const typeField = entityForm.querySelector('select[name="type"]');
           if (typeField) {
             const fallback = typeField.options.length ? typeField.options[0].value : '';
-            typeField.value = venue.type || fallback;
+            typeField.value = editingVenue.type || fallback;
           }
-          entityForm.querySelector('textarea[name="description"]').value = venue.description || '';
-          entityForm.querySelector('input[name="facilities"]').value = (venue.facilities || []).join(', ');
-          entityForm.querySelector('input[name="price"]').value = venue.price;
-          entityForm.querySelector('input[name="location"]').value = venue.location || '';
+          entityForm.querySelector('textarea[name="description"]').value = editingVenue.description || '';
+          entityForm.querySelector('input[name="facilities"]').value = (editingVenue.facilities || []).join(', ');
+          entityForm.querySelector('input[name="price"]').value = editingVenue.price;
+          entityForm.querySelector('input[name="location"]').value = editingVenue.location || '';
           const imageField = entityForm.querySelector('input[name="image"]');
           if (imageField) {
             imageField.value = '';
           }
         }
       } else if (section === 'bookings') {
-        const booking = state.bookings.find((item) => Number(item.id) === Number(recordId));
+        const booking =
+          state.bookings.find((item) => Number(item.id) === Number(recordId)) || null;
         if (booking) {
           if (autocompleteControllers.user) {
-            const usernameValue = booking.user
-              ? booking.user.username
-              : booking.username || '';
+            const usernameValue = booking.user ? booking.user.username : booking.username || '';
             const userIdValue = booking.user ? booking.user.id : '';
             autocompleteControllers.user.setSelection(usernameValue, userIdValue);
           }
@@ -2048,8 +2621,17 @@
           }
           entityForm.querySelector('input[name="start_date"]').value = booking.start_date;
           entityForm.querySelector('input[name="end_date"]').value = booking.end_date;
-          entityForm.querySelector('input[name="has_been_paid"]').checked = Boolean(booking.has_been_paid);
+          entityForm.querySelector('input[name="has_been_paid"]').checked =
+            Boolean(booking.has_been_paid);
           entityForm.querySelector('textarea[name="notes"]').value = booking.notes || '';
+          const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+          if (bookingAddonsField) {
+            bookingAddonsField.value = JSON.stringify(booking.selected_addons || []);
+          }
+          const availableAddons = getCurrentVenueAddons();
+          const venueId = booking.venue ? booking.venue.id : null;
+          setBookingAddonsAvailability(availableAddons.length > 0, venueId);
+          hydrateAddonsField(booking.selected_addons || []);
         }
       }
     } else if (section === 'bookings') {
@@ -2059,13 +2641,17 @@
       if (autocompleteControllers.venue) {
         autocompleteControllers.venue.setSelection('', '');
       }
+      setBookingAddonsAvailability(false, null);
     }
 
-    modalTitle.textContent = mode === 'edit'
-      ? `Edit ${sectionConfig[section].title.slice(0, -1)}`
-      : `Add ${sectionConfig[section].title.slice(0, -1)}`;
+    modalTitle.textContent =
+      mode === 'edit' ? `Edit ${sectionConfig[section].title.slice(0, -1)}` : `Add ${sectionConfig[section].title.slice(0, -1)}`;
     if (submitLabel) {
       submitLabel.textContent = mode === 'edit' ? 'Update' : 'Create';
+    }
+
+    if (section === 'bookings') {
+      updateBookingSubtotalDisplay();
     }
 
     showModalBackdrop();
@@ -2078,14 +2664,15 @@
       anime.remove([modalBackdrop, modalElement]);
       anime.set(modalBackdrop, { opacity: 0 });
       anime.set(modalElement, { opacity: 0, translateY: 22, scale: 0.96 });
-      modalAnimation = anime.timeline({
-        duration: 280,
-        easing: 'easeOutQuad',
-        complete: () => {
-          resetModalStyles();
-          modalAnimation = null;
-        },
-      })
+      modalAnimation = anime
+        .timeline({
+          duration: 280,
+          easing: 'easeOutQuad',
+          complete: () => {
+            resetModalStyles();
+            modalAnimation = null;
+          },
+        })
         .add({
           targets: modalBackdrop,
           opacity: 1,
@@ -2099,7 +2686,7 @@
             scale: 1,
             duration: 280,
           },
-          '-=120',
+          '-=120'
         );
     } else {
       resetModalStyles();
@@ -2128,15 +2715,16 @@
       modalAnimation = null;
     }
     anime.remove([modalBackdrop, modalElement]);
-    modalAnimation = anime.timeline({
-      duration: 220,
-      easing: 'easeInOutQuad',
-      complete: () => {
-        hideModalBackdrop();
-        resetModalStyles();
-        modalAnimation = null;
-      },
-    })
+    modalAnimation = anime
+      .timeline({
+        duration: 220,
+        easing: 'easeInOutQuad',
+        complete: () => {
+          hideModalBackdrop();
+          resetModalStyles();
+          modalAnimation = null;
+        },
+      })
       .add({
         targets: modalElement,
         opacity: 0,
@@ -2150,7 +2738,7 @@
           opacity: 0,
           duration: 160,
         },
-        '-=120',
+        '-=120'
       );
   }
 
@@ -2161,15 +2749,10 @@
     }
 
     const currentMeta = state.pagination[section] || {};
-    const query =
-      options.query !== undefined ? options.query : state.search[section] || '';
-    const requestedPageSize =
-      options.pageSize !== undefined ? Number(options.pageSize) : currentMeta.pageSize;
-    const pageSize = Number.isFinite(requestedPageSize) && requestedPageSize > 0
-      ? requestedPageSize
-      : DEFAULT_PAGE_SIZE;
-    const requestedPage =
-      options.page !== undefined ? Number(options.page) : currentMeta.page;
+    const query = options.query !== undefined ? options.query : state.search[section] || '';
+    const requestedPageSize = options.pageSize !== undefined ? Number(options.pageSize) : currentMeta.pageSize;
+    const pageSize = Number.isFinite(requestedPageSize) && requestedPageSize > 0 ? requestedPageSize : DEFAULT_PAGE_SIZE;
+    const requestedPage = options.page !== undefined ? Number(options.page) : currentMeta.page;
     const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
     const params = new URLSearchParams();
@@ -2272,6 +2855,7 @@
     }
 
     const url = mode === 'edit' ? endpoint.update(recordId) : endpoint.create;
+    syncAddonsInput();
     const formData = new FormData(entityForm);
 
     if (section === 'venues') {
@@ -2321,18 +2905,15 @@
 
       if (section === 'venues') {
         if (
-          mode === 'edit'
-          && autocompleteControllers.venue
-          && autocompleteControllers.venue.hiddenInput
-          && Number(autocompleteControllers.venue.hiddenInput.value)
-            === Number(payload.data.id)
+          mode === 'edit' &&
+          autocompleteControllers.venue &&
+          autocompleteControllers.venue.hiddenInput &&
+          Number(autocompleteControllers.venue.hiddenInput.value) === Number(payload.data.id)
         ) {
           autocompleteControllers.venue.setSelection(payload.data.title || '', payload.data.id);
         }
 
-        const targetPage = mode === 'edit'
-          ? state.pagination.venues.page || 1
-          : 1;
+        const targetPage = mode === 'edit' ? state.pagination.venues.page || 1 : 1;
         await refreshFromServer('venues', {
           page: targetPage,
           query: state.search.venues || '',
@@ -2346,9 +2927,7 @@
         }
       } else if (section === 'bookings') {
         state.hasUsers = true;
-        const targetPage = mode === 'edit'
-          ? state.pagination.bookings.page || 1
-          : 1;
+        const targetPage = mode === 'edit' ? state.pagination.bookings.page || 1 : 1;
         await refreshFromServer('bookings', {
           page: targetPage,
           query: state.search.bookings || '',
@@ -2428,6 +3007,15 @@
   });
 
   entityForm.addEventListener('submit', handleFormSubmit);
+
+  const bookingStartInput = entityForm.querySelector('input[name="start_date"]');
+  const bookingEndInput = entityForm.querySelector('input[name="end_date"]');
+  if (bookingStartInput && bookingEndInput) {
+    ['change', 'input'].forEach((eventName) => {
+      bookingStartInput.addEventListener(eventName, updateBookingSubtotalDisplay);
+      bookingEndInput.addEventListener(eventName, updateBookingSubtotalDisplay);
+    });
+  }
 
   document.querySelectorAll('[data-action="close-modal"]').forEach((button) => {
     button.addEventListener('click', () => {

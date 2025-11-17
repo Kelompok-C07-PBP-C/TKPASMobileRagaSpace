@@ -1,0 +1,6 @@
+  function getAddonElements() {
+    if (!entityForm) {
+      return { field: null, list: null, input: null, empty: null };
+    }
+    const activeSectionKey = entityForm.dataset.section || 'venues';
+  

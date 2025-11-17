@@ -34,6 +34,7 @@ class Venue(models.Model):
   title = models.CharField(max_length=255)
   description = models.TextField()
   facilities = models.JSONField(default=list, blank=True)
+  addons = models.JSONField(default=list, blank=True)
   price = models.PositiveIntegerField(validators=[MinValueValidator(0)])
   location = models.CharField(max_length=255)
   image = models.ImageField(upload_to="venues/", blank=True)
@@ -68,6 +69,7 @@ class Booking(models.Model):
   )
   notes = models.TextField(blank=True)
   contact_phone = models.CharField(max_length=32, blank=True)
+  selected_addons = models.JSONField(default=list, blank=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
 

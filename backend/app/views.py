@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+from typing import Any
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.forms import AuthenticationForm
@@ -62,10 +63,71 @@ def _resolve_request_user_id(request: HttpRequest, payload: dict | None = None) 
         return None
 
 
+def _normalize_addon_entries(raw: Any) -> list[dict[str, object]]:
+    if not raw:
+        return []
+    if isinstance(raw, dict):
+        items = [raw]
+    elif isinstance(raw, (list, tuple)):
+        items = raw
+    else:
+        return []
+    normalized: list[dict[str, object]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        if not name:
+            continue
+        try:
+            price = int(item.get("price", 0))
+        except (TypeError, ValueError):
+            price = 0
+        if price < 0:
+            price = 0
+        description = str(item.get("description", "")).strip()
+        normalized.append({"name": name, "price": price, "description": description})
+    return normalized
+
+
+def _calculate_addons_total(addons: list[dict[str, object]]) -> int:
+    total = 0
+    for addon in addons:
+        try:
+            total += int(addon.get("price", 0))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return max(total, 0)
+
+
+def _select_valid_addons(requested: Any, available: Any) -> list[dict[str, object]]:
+    normalized_available = _normalize_addon_entries(available)
+    normalized_requested = _normalize_addon_entries(requested)
+    if not normalized_available or not normalized_requested:
+        return []
+    matches: list[dict[str, object]] = []
+    for candidate in normalized_requested:
+        name = candidate["name"].lower()
+        price = candidate["price"]
+        match = next(
+            (
+                option
+                for option in normalized_available
+                if option["name"].lower() == name and option["price"] == price
+            ),
+            None,
+        )
+        if match:
+            matches.append(match)
+    return matches
+
+
 def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
     start = booking.date.start_date
     end = booking.date.end_date
     sessions = (end - start).days + 1
+    selected_addons = _normalize_addon_entries(getattr(booking, "selected_addons", []))
+    addons_total = _calculate_addons_total(selected_addons)
     image_url = booking.venue.image_url
     if not image_url and booking.venue.image:
         image_url = booking.venue.image.url
@@ -82,11 +144,14 @@ def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
             "image_url": image_url,
             "image_absolute_url": absolute_image_url,
             "facilities": booking.venue.facilities,
+            "addons": _normalize_addon_entries(getattr(booking.venue, "addons", [])),
         },
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "sessions": sessions,
-        "subtotal": sessions * booking.venue.price,
+        "selected_addons": selected_addons,
+        "addons_total": addons_total,
+        "subtotal": sessions * booking.venue.price + addons_total,
         "has_been_paid": booking.has_been_paid,
         "date_paid": booking.date_paid.isoformat() if booking.date_paid else None,
         "contact_phone": booking.contact_phone,
@@ -124,6 +189,7 @@ def _serialize_wishlist_entry(entry: WishlistEntry, *, request: HttpRequest | No
             "image_url": image_url,
             "image_absolute_url": absolute_image_url,
             "average_rating": rating_value,
+            "addons": _normalize_addon_entries(getattr(venue, "addons", [])),
         },
     }
 
@@ -259,6 +325,7 @@ def top_venues_view(request: HttpRequest):
                 "price": venue.price,
                 "description": venue.description,
                 "facilities": venue.facilities,
+                "addons": _normalize_addon_entries(getattr(venue, "addons", [])),
                 "image_url": image_url,
                 "avg_rating": round(float(avg_rating), 2),
                 "rating_count": venue.rating_count,
@@ -289,6 +356,7 @@ def venues_list_view(request: HttpRequest):
                 "city": city,
                 "price": venue.price,
                 "image_url": image_url,
+                "addons": _normalize_addon_entries(getattr(venue, "addons", [])),
                 "average_rating": float(venue.average_rating) if venue.average_rating is not None else None,
             }
         )
@@ -408,6 +476,7 @@ def booking_create_view(request: HttpRequest):
     notes = (payload.get("notes") or "").strip()
     has_been_paid = bool(payload.get("has_been_paid", False))
     username_hint = (payload.get("username") or "").strip()
+    requested_addons = payload.get("selected_addons") or []
 
     if not venue_id:
         return JsonResponse({"detail": "venue_id is required"}, status=400)
@@ -454,6 +523,7 @@ def booking_create_view(request: HttpRequest):
         start_date=start_date,
         end_date=end_date,
     )
+    selected_addons = _select_valid_addons(requested_addons, venue.addons)
     booking = Booking.objects.create(
         user=user,
         venue=venue,
@@ -461,6 +531,7 @@ def booking_create_view(request: HttpRequest):
         contact_phone=phone_number,
         notes=notes,
         has_been_paid=has_been_paid,
+        selected_addons=selected_addons,
     )
     return JsonResponse(_serialize_booking(booking, request=request), status=201)
 
@@ -731,6 +802,7 @@ def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
         "type": venue.type,
         "description": venue.description,
         "facilities": facilities,
+        "addons": _normalize_addon_entries(getattr(venue, "addons", [])),
         "price": venue.price,
         "location": venue.location,
         "image_url": image_url,
@@ -750,6 +822,7 @@ def _admin_serialize_booking(booking: Booking) -> dict[str, object]:
         top_email = user_payload.get("email") or ""
     contact_phone = (booking.contact_phone or "").strip()
     guest_label = _booking_guest_label(booking)
+    selected_addons = _normalize_addon_entries(getattr(booking, "selected_addons", []))
     return {
         "id": booking.id,
         "username": top_username or top_email or contact_phone,
@@ -763,6 +836,8 @@ def _admin_serialize_booking(booking: Booking) -> dict[str, object]:
             "price": booking.venue.price,
             "location": booking.venue.location,
         },
+        "selected_addons": selected_addons,
+        "addons_total": _calculate_addons_total(selected_addons),
         "has_been_paid": booking.has_been_paid,
         "date_paid": booking.date_paid.isoformat() if booking.date_paid else None,
         "start_date": booking.date.start_date.isoformat(),

@@ -69,10 +69,14 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: Colors.white.withValues(alpha: 0.08),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.08,
+                            ),
                             child: IconButton(
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                  color: Colors.white),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                              ),
                               onPressed: () => Navigator.of(context).pop(),
                             ),
                           ),
@@ -159,8 +163,9 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () => setState(() {}),
                                 style: ElevatedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   backgroundColor: const Color(0xFF1FA2FF),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
@@ -186,8 +191,9 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                           padding: EdgeInsets.symmetric(vertical: 160),
                           child: Center(
                             child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -277,7 +283,9 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                   backgroundColor: const Color(0xFF1FA2FF),
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 14),
+                                    horizontal: 20,
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(18),
                                   ),
@@ -296,24 +304,21 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                       )
                     else
                       SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final product = products[index];
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                bottom: index == products.length - 1 ? 0 : 16,
-                              ),
-                              child: _CatalogProductCard(
-                                product: product,
-                                onTap: () => Navigator.of(context).pop(product),
-                                isFavorite: _isFavoriteProduct(product),
-                                onToggleFavorite: () =>
-                                    _toggleProductFavorite(product),
-                              ),
-                            );
-                          },
-                          childCount: products.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final product = products[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == products.length - 1 ? 0 : 16,
+                            ),
+                            child: _CatalogProductCard(
+                              product: product,
+                              onTap: () => Navigator.of(context).pop(product),
+                              isFavorite: _isFavoriteProduct(product),
+                              onToggleFavorite: () =>
+                                  _toggleProductFavorite(product),
+                            ),
+                          );
+                        }, childCount: products.length),
                       ),
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
@@ -346,23 +351,28 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
         throw Exception('Failed to load venues');
       }
       final decoded = jsonDecode(res.body) as List<dynamic>;
-      final fetched = decoded.map((raw) {
-        final map = raw as Map<String, dynamic>;
-        final location = (map['location'] ?? '').toString();
-        final city = (map['city'] ?? '').toString();
-        return _CatalogProduct(
-          id: map['id'] is int
-              ? map['id'] as int
-              : int.tryParse(map['id']?.toString() ?? ''),
-          title: (map['title'] ?? '').toString(),
-          category: (map['type'] ?? '').toString(),
-          city: city.isNotEmpty ? city : (location.split(',').first.trim()),
-          description: (map['description'] ?? '').toString(),
-          price: int.tryParse(map['price']?.toString() ?? '') ?? 0,
-          rating: double.tryParse(map['average_rating']?.toString() ?? '') ?? 0,
-          imageUrl: (map['image_url'] ?? '').toString(),
-        );
-      }).where((product) => product.title.isNotEmpty).toList();
+      final fetched = decoded
+          .map((raw) {
+            final map = raw as Map<String, dynamic>;
+            final location = (map['location'] ?? '').toString();
+            final city = (map['city'] ?? '').toString();
+            return _CatalogProduct(
+              id: map['id'] is int
+                  ? map['id'] as int
+                  : int.tryParse(map['id']?.toString() ?? ''),
+              title: (map['title'] ?? '').toString(),
+              category: (map['type'] ?? '').toString(),
+              city: city.isNotEmpty ? city : (location.split(',').first.trim()),
+              description: (map['description'] ?? '').toString(),
+              price: int.tryParse(map['price']?.toString() ?? '') ?? 0,
+              rating:
+                  double.tryParse(map['average_rating']?.toString() ?? '') ?? 0,
+              imageUrl: (map['image_url'] ?? '').toString(),
+              addons: _VenueCardData._parseAddons(map['addons']),
+            );
+          })
+          .where((product) => product.title.isNotEmpty)
+          .toList();
       setState(() {
         _products = fetched;
         _loading = false;
@@ -386,6 +396,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
         price: product.price,
         rating: product.rating,
         imageUrl: product.imageUrl,
+        addons: product.addons,
       );
       return _filterVenues(
         [dummyVenue],
@@ -433,6 +444,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       price: product.price,
       rating: product.rating,
       imageUrl: product.imageUrl,
+      addons: product.addons,
     );
   }
 }
@@ -594,7 +606,11 @@ class _CatalogProductCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.star_rounded, color: Colors.amber.shade400, size: 18),
+                Icon(
+                  Icons.star_rounded,
+                  color: Colors.amber.shade400,
+                  size: 18,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   product.rating.toStringAsFixed(1),
