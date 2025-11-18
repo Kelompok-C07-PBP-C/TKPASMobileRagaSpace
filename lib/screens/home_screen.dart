@@ -4945,15 +4945,21 @@ class _ConfirmationRow extends StatelessWidget {
   }
 
   bool overlaps(DateTime otherStart, DateTime otherEnd) {
+    // Treat ranges as half-open [start, end): end is exclusive.
     final candidateStart =
         otherStart.isBefore(otherEnd) ? otherStart : otherEnd;
     final candidateEnd =
         otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
-    // Match backend logic: treat touching endpoints as overlapping.
-    // Overlap exists unless the candidate range ends strictly before
-    // this range starts, or starts strictly after this range ends.
-    if (candidateEnd.isBefore(start)) return false;
-    if (candidateStart.isAfter(end)) return false;
+    // No overlap if candidate ends on/before this.start,
+    // or starts on/after this.end.
+    if (candidateEnd.isBefore(start) ||
+        candidateEnd.isAtSameMomentAs(start)) {
+      return false;
+    }
+    if (candidateStart.isAfter(end) ||
+        candidateStart.isAtSameMomentAs(end)) {
+      return false;
+    }
     return true;
   }
 
@@ -5080,11 +5086,9 @@ class _DailyHourRange {
   final double endHour;
 
   bool overlaps(double otherStart, double otherEnd) {
-    // Inclusive-style overlap to match backend booking detection:
-    // ranges overlap unless one ends strictly before the other starts.
-    if (endHour < otherStart) return false;
-    if (startHour > otherEnd) return false;
-    return true;
+    // Half-open [startHour, endHour) vs [otherStart, otherEnd):
+    // they overlap only when each starts before the other ends.
+    return endHour > otherStart && startHour < otherEnd;
   }
 }
 

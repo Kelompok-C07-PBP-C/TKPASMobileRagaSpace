@@ -3086,6 +3086,17 @@
     }
   });
 
+  document.addEventListener('click', async (event) => {
+    const refreshButton = event.target.closest('[data-action="refresh-bookings"]');
+    if (!refreshButton) {
+      return;
+    }
+    await refreshFromServer('bookings', {
+      page: state.pagination.bookings.page || 1,
+      query: state.search.bookings || '',
+    });
+  });
+
   Object.entries(searchInputs).forEach(([section, input]) => {
     if (!input) {
       return;

@@ -531,10 +531,14 @@ def booking_create_view(request: HttpRequest):
     except Venue.DoesNotExist:
         return JsonResponse({"detail": "Venue not found"}, status=404)
 
+    # Treat booking ranges as half-open intervals: [start_date, end_date).
+    # Two ranges overlap only if existing.start_date < new_end_date
+    # and existing.end_date > new_start_date. This makes the end
+    # instant exclusive so back-to-back bookings are allowed.
     overlapping_exists = Booking.objects.filter(
         venue=venue,
-        date__start_date__lte=end_date,
-        date__end_date__gte=start_date,
+        date__start_date__lt=end_date,
+        date__end_date__gt=start_date,
     ).exists()
     if overlapping_exists:
         return JsonResponse(

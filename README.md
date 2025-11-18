@@ -1,24 +1,42 @@
 # marco
 
-A new Flutter project.
+Flutter client + Django backend for venue booking.
+
+The repository contains:
+
+- `lib/` – Flutter app (Android/iOS/web/desktop).
+- `backend/` – Django project with REST API and admin UI.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### 1. Start the Django backend
 
-A few resources to get you started if this is your first Flutter project:
+From the repo root:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+cd backend
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+On Windows you can run the same commands from PowerShell.
+
+### 2. Run the Flutter app
+
+Make sure you have Flutter installed and in your `PATH`, then from the repo root:
+
+```bash
+flutter pub get
+flutter run
+```
 
 ## Run on a USB-connected Android device
 
-1. Boot your Django backend bound to all interfaces so the phone can reach it:
+1. Boot your Django backend bound to all interfaces so the phone can reach it
+   (from the repo root):
    ```bash
+   cd backend
    python manage.py runserver 0.0.0.0:8000
    ```
 2. Plug in the device, enable developer mode, and confirm it shows up:
