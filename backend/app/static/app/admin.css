@@ -830,6 +830,7 @@ th {
 .form-grid input[type='text'],
 .form-grid input[type='number'],
 .form-grid input[type='date'],
+.form-grid input[type='datetime-local'],
 .form-grid input[type='file'],
 .form-grid select,
 .form-grid textarea {
@@ -845,6 +846,7 @@ th {
 .form-grid input[type='text']::placeholder,
 .form-grid input[type='number']::placeholder,
 .form-grid input[type='date']::placeholder,
+.form-grid input[type='datetime-local']::placeholder,
 .form-grid textarea::placeholder {
   color: rgba(148, 163, 184, 0.58);
 }
@@ -866,9 +868,23 @@ th {
   border-color: rgba(59, 130, 246, 0.55);
 }
 
+.form-grid input[type='date'],
+.form-grid input[type='datetime-local'] {
+  padding-right: 42px;
+  letter-spacing: 0.04em;
+}
+
+.form-grid input[type='date']::-webkit-calendar-picker-indicator,
+.form-grid input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.9);
+  opacity: 0.85;
+}
+
 .form-grid input[type='text']:focus,
 .form-grid input[type='number']:focus,
 .form-grid input[type='date']:focus,
+.form-grid input[type='datetime-local']:focus,
 .form-grid input[type='file']:focus,
 .form-grid select:focus,
 .form-grid textarea:focus {
