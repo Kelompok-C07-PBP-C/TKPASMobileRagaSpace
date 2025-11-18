@@ -4918,7 +4918,7 @@ class _ConfirmationRow extends StatelessWidget {
   }
 }
 
-class _BookedDateRange {
+  class _BookedDateRange {
   const _BookedDateRange({required this.start, required this.end});
 
   final DateTime start;
@@ -4945,9 +4945,16 @@ class _BookedDateRange {
   }
 
   bool overlaps(DateTime otherStart, DateTime otherEnd) {
-    final normalizedStart = otherStart.isBefore(otherEnd) ? otherStart : otherEnd;
-    final normalizedEnd = otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
-    return normalizedEnd.isAfter(start) && normalizedStart.isBefore(end);
+    final candidateStart =
+        otherStart.isBefore(otherEnd) ? otherStart : otherEnd;
+    final candidateEnd =
+        otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
+    // Match backend logic: treat touching endpoints as overlapping.
+    // Overlap exists unless the candidate range ends strictly before
+    // this range starts, or starts strictly after this range ends.
+    if (candidateEnd.isBefore(start)) return false;
+    if (candidateStart.isAfter(end)) return false;
+    return true;
   }
 
   Iterable<DateTime> days() sync* {
@@ -5073,7 +5080,11 @@ class _DailyHourRange {
   final double endHour;
 
   bool overlaps(double otherStart, double otherEnd) {
-    return endHour > otherStart && startHour < otherEnd;
+    // Inclusive-style overlap to match backend booking detection:
+    // ranges overlap unless one ends strictly before the other starts.
+    if (endHour < otherStart) return false;
+    if (startHour > otherEnd) return false;
+    return true;
   }
 }
 
