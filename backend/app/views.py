@@ -159,9 +159,13 @@ def _select_valid_addons(requested: Any, available: Any) -> list[dict[str, objec
 def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
     start = booking.date.start_date
     end = booking.date.end_date
-    start_day = start.date()
-    end_day = end.date()
-    sessions = (end_day - start_day).days + 1
+    # Treat bookings as hour-based: compute total whole hours between
+    # start and end, with a minimum of 1 hour.
+    delta = end - start
+    total_seconds = max(delta.total_seconds(), 0)
+    hours = int(total_seconds // 3600)
+    if hours <= 0:
+        hours = 1
     selected_addons = _normalize_addon_entries(getattr(booking, "selected_addons", []))
     addons_total = _calculate_addons_total(selected_addons)
     image_url = booking.venue.image_url
@@ -184,10 +188,10 @@ def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
         },
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
-        "sessions": sessions,
+        "sessions": hours,
         "selected_addons": selected_addons,
         "addons_total": addons_total,
-        "subtotal": sessions * booking.venue.price + addons_total,
+        "subtotal": hours * booking.venue.price + addons_total,
         "has_been_paid": booking.has_been_paid,
         "date_paid": booking.date_paid.isoformat() if booking.date_paid else None,
         "contact_phone": booking.contact_phone,

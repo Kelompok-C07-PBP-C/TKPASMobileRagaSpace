@@ -196,12 +196,28 @@
   }
 
   function formatDateTimeLocal(value) {
+    /*
+     * Normalize incoming ISO strings for <input type="datetime-local">.
+     * We snap minutes/seconds to :00 so that the picker effectively
+     * works with hourly slots (hours only, no minute precision).
+     */
     if (!value) {
       return '';
     }
+    const date = new Date(String(value));
+    if (!Number.isNaN(date.getTime())) {
+      date.setMinutes(0, 0, 0);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hour = String(date.getHours()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hour}:00`;
+    }
     const stringValue = String(value);
     if (stringValue.length >= 16) {
-      return stringValue.slice(0, 16).replace(' ', 'T');
+      // Fallback: keep date + hour, zero out minutes
+      const base = stringValue.slice(0, 13).replace(' ', 'T');
+      return `${base}:00`;
     }
     return stringValue.replace(' ', 'T');
   }
@@ -957,18 +973,22 @@
   }
 
   function getBookingSubtotalField() {
-    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+    if (!entityForm) {
       return null;
     }
-    return entityForm.querySelector('[data-booking-subtotal]');
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    return container.querySelector('[data-booking-subtotal]');
   }
 
   function computeBookingSubtotal() {
-    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+    if (!entityForm) {
       return 0;
     }
-    const startInput = entityForm.querySelector('input[name="start_date"]');
-    const endInput = entityForm.querySelector('input[name="end_date"]');
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    const startInput = container.querySelector('input[name="start_date"]');
+    const endInput = container.querySelector('input[name="end_date"]');
     if (!startInput || !endInput) {
       return 0;
     }
@@ -977,20 +997,22 @@
     if (!startRaw || !endRaw) {
       return 0;
     }
-    const startDate = new Date(startRaw);
-    const endDate = new Date(endRaw);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    const startDateTime = new Date(startRaw);
+    const endDateTime = new Date(endRaw);
+    if (Number.isNaN(startDateTime.getTime()) || Number.isNaN(endDateTime.getTime())) {
       return 0;
     }
-    let first = startDate;
-    let last = endDate;
+
+    let first = startDateTime;
+    let last = endDateTime;
     if (last < first) {
       const tmp = first;
       first = last;
       last = tmp;
     }
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const sessions = Math.floor((last - first) / msPerDay) + 1;
+    const msPerHour = 60 * 60 * 1000;
+    const rawHours = (last - first) / msPerHour;
+    const hours = Math.max(1, Math.round(rawHours));
 
     let pricePerSession = 0;
     const venueId = getCurrentVenueId();
@@ -1010,7 +1032,7 @@
       }
     });
 
-    const base = sessions > 0 && pricePerSession > 0 ? sessions * pricePerSession : 0;
+    const base = hours > 0 && pricePerSession > 0 ? hours * pricePerSession : 0;
     return base + addonsTotal;
   }
 
@@ -1097,9 +1119,13 @@
   }
 
   function formatCurrency(value, { compact = false } = {}) {
+    /*
+     * Format amounts in Indonesian Rupiah.
+     * We rely on the browser locale to render the "Rp" symbol correctly.
+     */
     const options = {
       style: 'currency',
-      currency: 'USD',
+      currency: 'IDR',
       maximumFractionDigits: 0,
     };
 
@@ -1170,6 +1196,7 @@
   }
 
   function formatDateTime(dateString) {
+    // Admin booking list: show date and hour only (no minutes)
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) {
       return dateString;
@@ -1179,7 +1206,6 @@
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
     });
   }
 
