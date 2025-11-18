@@ -195,6 +195,17 @@
     return { labels, data };
   }
 
+  function formatDateTimeLocal(value) {
+    if (!value) {
+      return '';
+    }
+    const stringValue = String(value);
+    if (stringValue.length >= 16) {
+      return stringValue.slice(0, 16).replace(' ', 'T');
+    }
+    return stringValue.replace(' ', 'T');
+  }
+
   const initialVenues = parseInitialPayload('initial-venues');
   const initialBookings = parseInitialPayload('initial-bookings');
   const initialSalesData = parseInitialData('sales-chart-data');
@@ -1158,6 +1169,20 @@
     });
   }
 
+  function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
   function getVenueTitleValue(venue) {
     return venue && typeof venue.title === 'string' ? venue.title : '';
   }
@@ -1248,8 +1273,8 @@
   function getBookingDateLabel(booking) {
     const startRaw = booking && booking.start_date ? booking.start_date : '';
     const endRaw = booking && booking.end_date ? booking.end_date : '';
-    const startFormatted = startRaw ? formatDate(startRaw) : '';
-    const endFormatted = endRaw ? formatDate(endRaw) : '';
+    const startFormatted = startRaw ? formatDateTime(startRaw) : '';
+    const endFormatted = endRaw ? formatDateTime(endRaw) : '';
     const startLabel = startFormatted || startRaw || '—';
     const endLabel = endFormatted || endRaw || '—';
     return `${startLabel} – ${endLabel}`;
@@ -2619,8 +2644,14 @@
             const venueId = booking.venue ? booking.venue.id : '';
             autocompleteControllers.venue.setSelection(venueTitle, venueId);
           }
-          entityForm.querySelector('input[name="start_date"]').value = booking.start_date;
-          entityForm.querySelector('input[name="end_date"]').value = booking.end_date;
+          const startInput = entityForm.querySelector('input[name="start_date"]');
+          if (startInput) {
+            startInput.value = formatDateTimeLocal(booking.start_date);
+          }
+          const endInput = entityForm.querySelector('input[name="end_date"]');
+          if (endInput) {
+            endInput.value = formatDateTimeLocal(booking.end_date);
+          }
           entityForm.querySelector('input[name="has_been_paid"]').checked =
             Boolean(booking.has_been_paid);
           entityForm.querySelector('textarea[name="notes"]').value = booking.notes || '';

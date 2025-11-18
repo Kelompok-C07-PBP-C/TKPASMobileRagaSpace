@@ -96,6 +96,7 @@ class Api {
     required String email,
     required String firstName,
     required String lastName,
+    required String phoneNumber,
     File? avatarFile,
   }) async {
     final request = http.MultipartRequest('POST', _u('account/update/'));
@@ -105,6 +106,7 @@ class Api {
       'email': email,
       'first_name': firstName,
       'last_name': lastName,
+      'phone_number': phoneNumber,
     });
     if (avatarFile != null) {
       request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));

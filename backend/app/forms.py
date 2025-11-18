@@ -6,6 +6,7 @@ from typing import Any
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from .models import Booking, BookingDate, Venue
 
@@ -130,8 +131,24 @@ class VenueForm(forms.ModelForm):
 
 class BookingForm(forms.ModelForm):
     username = forms.CharField(required=False, max_length=255)
-    start_date = forms.DateField(input_formats=["%Y-%m-%d"])
-    end_date = forms.DateField(input_formats=["%Y-%m-%d"])
+    start_date = forms.DateTimeField(
+        input_formats=[
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+        ]
+    )
+    end_date = forms.DateTimeField(
+        input_formats=[
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+        ]
+    )
     selected_addons = forms.CharField(required=False, widget=forms.HiddenInput())
 
     class Meta:
@@ -158,8 +175,14 @@ class BookingForm(forms.ModelForm):
         cleaned = super().clean()
         start = cleaned.get("start_date")
         end = cleaned.get("end_date")
-        if start and end and end < start:
-            raise ValidationError("End date cannot be before the start date.")
+        if start and timezone.is_naive(start):
+            start = timezone.make_aware(start, timezone.get_current_timezone())
+            cleaned["start_date"] = start
+        if end and timezone.is_naive(end):
+            end = timezone.make_aware(end, timezone.get_current_timezone())
+            cleaned["end_date"] = end
+        if start and end and end <= start:
+            raise ValidationError("End date must be after the start date.")
 
         if not User.objects.exists():
             raise ValidationError("Create a user account before adding bookings.")
@@ -199,8 +222,8 @@ class BookingForm(forms.ModelForm):
         booking = super().save(commit=False)
         start = self.cleaned_data["start_date"]
         end = self.cleaned_data["end_date"]
-        if start and end and end < start:
-            raise ValidationError("End date cannot be before the start date.")
+        if start and end and end <= start:
+            raise ValidationError("End date must be after the start date.")
 
         if booking.pk and booking.date_id:
             booking_date = booking.date

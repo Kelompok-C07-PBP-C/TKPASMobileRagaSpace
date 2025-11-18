@@ -9,8 +9,8 @@ from django.dispatch import receiver
 
 
 class BookingDate(models.Model):
-  start_date = models.DateField()
-  end_date = models.DateField()
+  start_date = models.DateTimeField()
+  end_date = models.DateTimeField()
 
   class Meta:
       ordering = ["start_date", "end_date"]
@@ -155,6 +155,7 @@ class Profile(models.Model):
       settings.AUTH_USER_MODEL, related_name="profile", on_delete=models.CASCADE
   )
   avatar = models.ImageField(upload_to="profiles/", blank=True)
+  phone_number = models.CharField(max_length=32, blank=True)
 
   def __str__(self) -> str:
       return f"Profile for {self.user.get_username()}"

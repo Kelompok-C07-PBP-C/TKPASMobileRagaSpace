@@ -165,6 +165,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   String? _avatarUrl;
+  String? _accountPhoneNumber;
   static const List<_TestimonialData> _testimonials = [
     _TestimonialData(
       name: 'RPM Dimaz',
@@ -1136,6 +1137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           data: data,
           apiBaseUrl: _apiBaseUrl,
           isFavorite: isFavorite,
+          accountPhoneNumber: _accountPhoneNumber,
           onToggleFavorite: _toggleWishlistAndReturn,
         ),
       ),
@@ -1497,10 +1499,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       final data = await Api().fetchAccount(userId);
       final avatar = (data['avatar_url'] ?? '').toString();
+      final phone = (data['phone_number'] ?? '').toString();
       if (!mounted) return;
-      if (_avatarUrl != avatar) {
-        setState(() => _avatarUrl = avatar);
-      }
+      setState(() {
+        _avatarUrl = avatar;
+        _accountPhoneNumber = phone;
+      });
     } catch (_) {
       // ignore failure; keep placeholder avatar
     }
@@ -2449,11 +2453,13 @@ class _VenueDetailLoadingScreen extends StatefulWidget {
     required this.apiBaseUrl,
     required this.isFavorite,
     required this.onToggleFavorite,
+    this.accountPhoneNumber,
   });
 
   final _VenueCardData data;
   final String apiBaseUrl;
   final bool isFavorite;
+  final String? accountPhoneNumber;
   final Future<bool> Function(_VenueCardData data) onToggleFavorite;
 
   @override
@@ -2494,6 +2500,7 @@ class _VenueDetailLoadingScreenState extends State<_VenueDetailLoadingScreen>
           data: widget.data,
           apiBaseUrl: widget.apiBaseUrl,
           isFavorite: widget.isFavorite,
+          accountPhoneNumber: widget.accountPhoneNumber,
           onToggleFavorite: widget.onToggleFavorite,
         ),
       ),
@@ -2745,11 +2752,13 @@ class _VenueDetailScreen extends StatefulWidget {
     required this.apiBaseUrl,
     required this.isFavorite,
     required this.onToggleFavorite,
+    this.accountPhoneNumber,
   });
 
   final _VenueCardData data;
   final String apiBaseUrl;
   final bool isFavorite;
+  final String? accountPhoneNumber;
   final Future<bool> Function(_VenueCardData data) onToggleFavorite;
 
   @override
@@ -2761,6 +2770,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   late String apiBaseUrl;
   late bool _isFavorite;
   List<_VenueReview> _reviews = const [];
+  String? _accountPhoneNumber;
   bool _loadingReviews = false;
   String? _reviewsError;
   bool _submittingReview = false;
@@ -2768,6 +2778,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   bool _availabilityLoading = false;
   Completer<void>? _availabilityCompleter;
   Set<int> _blockedDayKeyCache = <int>{};
+  List<_BookedDateRange> _bookedRanges = const [];
+  Map<int, List<_DailyHourRange>> _bookedHoursByDay = const {};
   final Set<int> _detailSelectedAddonIndexes = <int>{};
 
   @override
@@ -2776,6 +2788,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     data = widget.data;
     apiBaseUrl = widget.apiBaseUrl;
     _isFavorite = widget.isFavorite;
+    _accountPhoneNumber = widget.accountPhoneNumber;
     _loadBookedRanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchReviews();
@@ -2786,6 +2799,27 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     final result = await widget.onToggleFavorite(data);
     if (!mounted) return;
     setState(() => _isFavorite = result);
+  }
+
+  void _openAccountSettings() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AccountSettingsScreen()))
+        .then((_) => _refreshAccountPhone());
+  }
+
+  Future<void> _refreshAccountPhone() async {
+    final userId = Api.currentUserId;
+    if (userId == null) return;
+    try {
+      final data = await Api().fetchAccount(userId);
+      final phone = (data['phone_number'] ?? '').toString();
+      if (!mounted) return;
+      setState(() {
+        _accountPhoneNumber = phone;
+      });
+    } catch (_) {
+      // ignore refresh errors
+    }
   }
 
   void _toggleDetailAddonSelection(int index, bool isSelected) {
@@ -2807,6 +2841,87 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       if (index < 0 || index >= data.addons.length) return sum;
       return sum + data.addons[index].price;
     });
+  }
+
+  Map<int, List<_DailyHourRange>> _buildBookedHoursByDay(
+    List<_BookedDateRange> ranges,
+  ) {
+    final result = <int, List<_DailyHourRange>>{};
+    for (final range in ranges) {
+      var dayCursor =
+          DateTime(range.start.year, range.start.month, range.start.day);
+      while (dayCursor.isBefore(range.end)) {
+        final dayStart = dayCursor;
+        final dayEnd = dayStart.add(const Duration(days: 1));
+        final segmentStart =
+            range.start.isAfter(dayStart) ? range.start : dayStart;
+        final segmentEnd = range.end.isBefore(dayEnd) ? range.end : dayEnd;
+        if (segmentEnd.isAfter(segmentStart)) {
+          final dayKey = _dayKeyFromDate(dayStart);
+          final startHour =
+              segmentStart.difference(dayStart).inMinutes / 60.0;
+          final endHour = segmentEnd.difference(dayStart).inMinutes / 60.0;
+          result
+              .putIfAbsent(dayKey, () => <_DailyHourRange>[])
+              .add(_DailyHourRange(startHour: startHour, endHour: endHour));
+        }
+        dayCursor = dayEnd;
+      }
+    }
+    for (final entry in result.entries) {
+      entry.value.sort((a, b) => a.startHour.compareTo(b.startHour));
+    }
+    return result;
+  }
+
+  Set<int> _computeBlockedDayKeys(
+    Map<int, List<_DailyHourRange>> hourMap,
+  ) {
+    final blocked = <int>{};
+    hourMap.forEach((dayKey, ranges) {
+      if (_isDayFullyBooked(ranges)) {
+        blocked.add(dayKey);
+      }
+    });
+    return blocked;
+  }
+
+  bool _isDayFullyBooked(List<_DailyHourRange> ranges) {
+    if (ranges.isEmpty) return false;
+    double coverage = 0;
+    for (final range in ranges) {
+      if (range.startHour > coverage) {
+        return false;
+      }
+      coverage = math.max(coverage, range.endHour);
+      if (coverage >= 24) {
+        return true;
+      }
+    }
+    return coverage >= 24;
+  }
+
+  void _applyBookedRanges(List<_BookedDateRange> ranges,
+      {bool markLoaded = false}) {
+    final hourMap = _buildBookedHoursByDay(ranges);
+    final blockedKeys = _computeBlockedDayKeys(hourMap);
+    if (mounted) {
+      setState(() {
+        _bookedRanges = ranges;
+        _bookedHoursByDay = hourMap;
+        _blockedDayKeyCache = blockedKeys;
+        if (markLoaded) {
+          _availabilityLoaded = true;
+        }
+      });
+    } else {
+      _bookedRanges = ranges;
+      _bookedHoursByDay = hourMap;
+      _blockedDayKeyCache = blockedKeys;
+      if (markLoaded) {
+        _availabilityLoaded = true;
+      }
+    }
   }
 
   List<_VenueAddon> get _detailSelectedAddons {
@@ -2848,17 +2963,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
           }
         }
       }
-      final keys = ranges
-          .expand((range) => range.days())
-          .map(_dayKeyFromDate)
-          .toSet();
-      if (mounted) {
-        setState(() {
-          _blockedDayKeyCache = keys;
-        });
-      } else {
-        _blockedDayKeyCache = keys;
-      }
+      _applyBookedRanges(ranges);
       success = true;
     } catch (_) {
       // ignore errors; booking dialog will rely on backend validation
@@ -2871,6 +2976,18 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   }
 
   Future<void> _openBookingDialog(BuildContext context) async {
+    final phone = (_accountPhoneNumber ?? '').trim();
+    if (phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tambahkan nomor telepon di Account settings sebelum booking.'),
+          ),
+        );
+      }
+      _openAccountSettings();
+      return;
+    }
     await _loadBookedRanges();
     if (!context.mounted) return;
     final summary = await _showBookingDialog(context);
@@ -2892,6 +3009,9 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
           venueName: data.name,
           disabledDayKeys: _blockedDayKeys(),
           selectedAddons: _detailSelectedAddons,
+          bookedRanges: _bookedRanges,
+          bookedHoursByDay: _bookedHoursByDay,
+          phoneNumber: (_accountPhoneNumber ?? '').trim(),
           onSubmit: (start, end, phone, addons) =>
               _submitBookingRequest(start, end, phone, addons),
         ),
@@ -2921,26 +3041,18 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   Set<int> _blockedDayKeys() => _blockedDayKeyCache;
 
   void _appendBookedRange(DateTime start, DateTime end) {
-    DateTime normalize(DateTime value) =>
-        DateTime(value.year, value.month, value.day);
-    var normalizedStart = normalize(start);
-    var normalizedEnd = normalize(end);
+    var normalizedStart = start;
+    var normalizedEnd = end;
     if (normalizedEnd.isBefore(normalizedStart)) {
       final temp = normalizedStart;
       normalizedStart = normalizedEnd;
       normalizedEnd = temp;
     }
-    final newKeys = <int>{};
-    var cursor = normalizedStart;
-    while (!cursor.isAfter(normalizedEnd)) {
-      newKeys.add(_dayKeyFromDate(cursor));
-      cursor = cursor.add(const Duration(days: 1));
-    }
-    if (newKeys.isEmpty) return;
-    setState(() {
-      _blockedDayKeyCache = {..._blockedDayKeyCache, ...newKeys};
-      _availabilityLoaded = true;
-    });
+    final updatedRanges = [
+      ..._bookedRanges,
+      _BookedDateRange(start: normalizedStart, end: normalizedEnd),
+    ];
+    _applyBookedRanges(updatedRanges, markLoaded: true);
   }
 
   Future<void> _showConfirmationDialog(
@@ -3001,8 +3113,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
         'venue_id': venueId,
-        'start_date': start.toIso8601String().split('T').first,
-        'end_date': end.toIso8601String().split('T').first,
+        'start_date': start.toUtc().toIso8601String(),
+        'end_date': end.toUtc().toIso8601String(),
         'phone_number': phone,
         'notes': 'Booking dibuat via aplikasi mobile',
         if (selectedAddons.isNotEmpty)
@@ -4019,6 +4131,9 @@ class _BookingDialog extends StatefulWidget {
     required this.onSubmit,
     required this.disabledDayKeys,
     required this.selectedAddons,
+    required this.bookedRanges,
+    required this.bookedHoursByDay,
+    required this.phoneNumber,
   });
 
   final int pricePerSession;
@@ -4032,6 +4147,9 @@ class _BookingDialog extends StatefulWidget {
   )
   onSubmit;
   final List<_VenueAddon> selectedAddons;
+  final List<_BookedDateRange> bookedRanges;
+  final Map<int, List<_DailyHourRange>> bookedHoursByDay;
+  final String phoneNumber;
 
   @override
   State<_BookingDialog> createState() => _BookingDialogState();
@@ -4040,11 +4158,12 @@ class _BookingDialog extends StatefulWidget {
 class _BookingDialogState extends State<_BookingDialog> {
   final _startCtrl = TextEditingController();
   final _endCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
   DateTime? _startDate;
   DateTime? _endDate;
   String? _error;
   bool _submitting = false;
+  int? _startHour;
+  int? _endHour;
 
   DateTime _normalizeDate(DateTime value) =>
       DateTime(value.year, value.month, value.day);
@@ -4060,6 +4179,93 @@ class _BookingDialogState extends State<_BookingDialog> {
       cursor = cursor.add(const Duration(days: 1));
     }
     return false;
+  }
+
+  DateTime _clampDate(DateTime value, DateTime min, DateTime max) {
+    var normalized = _normalizeDate(value);
+    if (normalized.isBefore(min)) normalized = min;
+    if (normalized.isAfter(max)) normalized = max;
+    return normalized;
+  }
+
+  DateTime? _nextSelectableDate(DateTime start, DateTime lastDate) {
+    var cursor = _normalizeDate(start);
+    while (!cursor.isAfter(lastDate)) {
+      if (!_isDateDisabled(cursor)) return cursor;
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return null;
+  }
+
+  DateTime? get _startDateTime {
+    if (_startDate == null || _startHour == null) return null;
+    return _combineDateAndHour(_startDate!, _startHour!);
+  }
+
+  DateTime? get _endDateTime {
+    if (_endDate == null || _endHour == null) return null;
+    return _combineDateAndHour(_endDate!, _endHour!, isEnd: true);
+  }
+
+  DateTime _combineDateAndHour(
+    DateTime date,
+    int hour, {
+    bool isEnd = false,
+  }) {
+    final base = DateTime(date.year, date.month, date.day);
+    if (isEnd && hour >= 24) {
+      return base.add(const Duration(days: 1));
+    }
+    return base.add(Duration(hours: hour));
+  }
+
+  bool _isRangeAvailable(DateTime start, DateTime end) {
+    if (!end.isAfter(start)) return false;
+    for (final range in widget.bookedRanges) {
+      if (range.overlaps(start, end)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  List<int> _availableStartHours() {
+    final date = _startDate;
+    if (date == null) return const [];
+    final dayKey = _dayKeyFromDate(date);
+    final blocked = widget.bookedHoursByDay[dayKey] ?? const <_DailyHourRange>[];
+    final hours = <int>[];
+    for (var hour = 0; hour < 24; hour++) {
+      final slotStart = hour.toDouble();
+      final slotEnd = slotStart + 1;
+      final overlaps = blocked.any((range) => range.overlaps(slotStart, slotEnd));
+      if (!overlaps) {
+        hours.add(hour);
+      }
+    }
+    return hours;
+  }
+
+  List<int> _availableEndHours() {
+    final endDate = _endDate;
+    final startDateTime = _startDateTime;
+    final startDate = _startDate;
+    if (endDate == null || startDateTime == null || startDate == null) {
+      return const [];
+    }
+    final isSameDay = _normalizeDate(startDate).isAtSameMomentAs(
+      _normalizeDate(endDate),
+    );
+    final minHour = isSameDay && _startHour != null ? _startHour! + 1 : 1;
+    final hours = <int>[];
+    for (var hour = minHour; hour <= 24; hour++) {
+      final candidateEnd = _combineDateAndHour(endDate, hour, isEnd: true);
+      if (!candidateEnd.isAfter(startDateTime)) continue;
+      if (_isRangeAvailable(startDateTime, candidateEnd)) {
+        hours.add(hour);
+      }
+    }
+    return hours;
   }
 
   void _showBlockedSnack(String message) {
@@ -4091,21 +4297,33 @@ class _BookingDialogState extends State<_BookingDialog> {
   void dispose() {
     _startCtrl.dispose();
     _endCtrl.dispose();
-    _phoneCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate({required bool isStart}) async {
-    final now = DateTime.now();
-    final initial = isStart
-        ? (_startDate ?? now)
-        : (_endDate ?? _startDate ?? now.add(const Duration(days: 1)));
-    final firstDate = isStart ? now : (_startDate ?? now);
+    final today = _normalizeDate(DateTime.now());
+    final lastDate = today.add(const Duration(days: 365));
+    var firstDate = isStart ? today : (_startDate ?? today);
+    firstDate = _clampDate(firstDate, today, lastDate);
+    var initial = isStart
+        ? (_startDate ?? firstDate)
+        : (_endDate ?? _startDate ?? firstDate);
+    initial = _clampDate(initial, firstDate, lastDate);
+    final selectableInitial = _nextSelectableDate(initial, lastDate);
+    if (selectableInitial == null) {
+      _showBlockedSnack(
+        'Tidak ada tanggal tersedia dalam 1 tahun ke depan.',
+      );
+      return;
+    }
+    if (firstDate.isAfter(selectableInitial)) {
+      firstDate = selectableInitial;
+    }
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: selectableInitial,
       firstDate: firstDate,
-      lastDate: now.add(const Duration(days: 365)),
+      lastDate: lastDate,
       selectableDayPredicate: (day) => !_isDateDisabled(day),
       builder: (context, child) {
         return Theme(
@@ -4139,12 +4357,15 @@ class _BookingDialogState extends State<_BookingDialog> {
         if (overlaps) {
           _endDate = null;
           _endCtrl.clear();
+          _endHour = null;
         } else {
           _endDate = newEnd;
           if (newEnd != null) {
             _endCtrl.text = _formatReadableDate(newEnd);
           }
         }
+        _startHour = null;
+        _endHour = null;
         _error = null;
       });
       if (overlaps) {
@@ -4167,30 +4388,47 @@ class _BookingDialogState extends State<_BookingDialog> {
     setState(() {
       _endDate = normalized;
       _endCtrl.text = _formatReadableDate(normalized);
+      _endHour = null;
       _error = null;
     });
   }
 
   Future<void> _submit() async {
     if (_submitting) return;
-    final phone = _phoneCtrl.text.trim();
-    if (_startDate == null || _endDate == null || phone.isEmpty) {
+    final phone = widget.phoneNumber.trim();
+    final startDateTime = _startDateTime;
+    final endDateTime = _endDateTime;
+    if (startDateTime == null || endDateTime == null) {
+      setState(
+        () => _error =
+            'Mohon pilih tanggal serta jam mulai/selesai.',
+      );
+      return;
+    }
+    if (phone.isEmpty) {
       setState(
         () =>
-            _error = 'Mohon pilih tanggal mulai/selesai dan isi nomor telepon.',
+            _error = 'Nomor telepon tidak tersedia. Perbarui di pengaturan akun.',
       );
       return;
     }
-    if (_endDate!.isBefore(_startDate!)) {
+    if (!endDateTime.isAfter(startDateTime)) {
       setState(
-        () => _error = 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+        () => _error = 'Jam selesai harus setelah jam mulai.',
       );
       return;
     }
-    if (_rangeOverlapsDisabled(_startDate!, _endDate!)) {
+    if (_rangeOverlapsDisabled(startDateTime, endDateTime)) {
       setState(
         () => _error =
             'Rentang tanggal bertabrakan dengan booking lain. Pilih rentang berbeda.',
+      );
+      return;
+    }
+    if (!_isRangeAvailable(startDateTime, endDateTime)) {
+      setState(
+        () => _error =
+            'Rentang jam tersebut sudah dibooking. Pilih jam lain.',
       );
       return;
     }
@@ -4201,8 +4439,8 @@ class _BookingDialogState extends State<_BookingDialog> {
     });
     try {
       final summary = await widget.onSubmit(
-        _startDate!,
-        _endDate!,
+        startDateTime,
+        endDateTime,
         phone,
         widget.selectedAddons,
       );
@@ -4222,6 +4460,8 @@ class _BookingDialogState extends State<_BookingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final startHourOptions = _availableStartHours();
+    final endHourOptions = _availableEndHours();
     return _GlassPanel(
       radius: 36,
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
@@ -4250,69 +4490,89 @@ class _BookingDialogState extends State<_BookingDialog> {
           const SizedBox(height: 24),
           LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 360;
-              final startField = _DateField(
+              final isCompact = constraints.maxWidth < 420;
+              final startDateField = _DateField(
                 label: 'Mulai',
                 value: _startCtrl.text,
                 hint: 'Pilih tanggal',
                 onTap: () => _pickDate(isStart: true),
               );
-              final endField = _DateField(
+              final endDateField = _DateField(
                 label: 'Selesai',
                 value: _endCtrl.text,
                 hint: 'Pilih tanggal',
                 onTap: () => _pickDate(isStart: false),
               );
-              if (isWide) {
-                return Row(
+              final startHourField = _HourDropdownField(
+                label: 'Jam mulai',
+                value: _startHour,
+                options: startHourOptions,
+                dense: !isCompact,
+                hint: _startDate == null
+                    ? 'Pilih tanggal mulai lebih dulu'
+                    : startHourOptions.isEmpty
+                        ? 'Tidak ada jam tersedia'
+                        : 'Pilih jam mulai',
+                onChanged: (value) {
+                  setState(() {
+                    _startHour = value;
+                    _endHour = null;
+                  });
+                },
+              );
+              final endHourField = _HourDropdownField(
+                label: 'Jam selesai',
+                value: _endHour,
+                options: endHourOptions,
+                dense: !isCompact,
+                hint: _startHour == null
+                    ? 'Pilih jam mulai lebih dulu'
+                    : _endDate == null
+                        ? 'Pilih tanggal selesai lebih dulu'
+                        : endHourOptions.isEmpty
+                            ? 'Tidak ada jam selesai tersedia'
+                            : 'Pilih jam selesai',
+                onChanged: (value) {
+                  setState(() {
+                    _endHour = value;
+                  });
+                },
+              );
+              if (isCompact) {
+                return Column(
                   children: [
-                    Expanded(child: startField),
-                    const SizedBox(width: 16),
-                    Expanded(child: endField),
+                    startDateField,
+                    const SizedBox(height: 16),
+                    startHourField,
+                    const SizedBox(height: 16),
+                    endDateField,
+                    const SizedBox(height: 16),
+                    endHourField,
                   ],
                 );
               }
               return Column(
-                children: [startField, const SizedBox(height: 16), endField],
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: startDateField),
+                      const SizedBox(width: 16),
+                      Expanded(child: startHourField),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: endDateField),
+                      const SizedBox(width: 16),
+                      Expanded(child: endHourField),
+                    ],
+                  ),
+                ],
               );
             },
           ),
           const SizedBox(height: 20),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nomor telepon',
-                style: GoogleFonts.plusJakartaSans(color: Colors.white70),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                style: GoogleFonts.plusJakartaSans(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Contoh: 0812 3456 7890',
-                  hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white54),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: const BorderSide(color: Color(0xFF1FA2FF)),
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
           _BookingSubtotalBanner(
             sessions: _sessionCount(),
@@ -4664,51 +4924,156 @@ class _BookedDateRange {
   final DateTime start;
   final DateTime end;
 
-  static DateTime _normalize(DateTime value) =>
-      DateTime(value.year, value.month, value.day);
-
   static _BookedDateRange? tryParse(Map<String, dynamic> map) {
     DateTime? parse(String key) {
       final raw = map[key];
       if (raw == null) return null;
-      return DateTime.tryParse(raw.toString());
+      final parsed = DateTime.tryParse(raw.toString());
+      if (parsed == null) return null;
+      return parsed.isUtc ? parsed.toLocal() : parsed;
     }
 
     final startRaw = parse('start_date');
     final endRaw = parse('end_date');
     if (startRaw == null || endRaw == null) return null;
-    var normalizedStart = _normalize(startRaw);
-    var normalizedEnd = _normalize(endRaw);
-    if (normalizedEnd.isBefore(normalizedStart)) {
-      final temp = normalizedStart;
-      normalizedStart = normalizedEnd;
-      normalizedEnd = temp;
+    var normalizedStart = startRaw;
+    var normalizedEnd = endRaw;
+    if (!normalizedEnd.isAfter(normalizedStart)) {
+      return null;
     }
     return _BookedDateRange(start: normalizedStart, end: normalizedEnd);
   }
 
-  bool contains(DateTime date) {
-    final normalized = _normalize(date);
-    return !normalized.isBefore(start) && !normalized.isAfter(end);
-  }
-
-  bool overlaps(DateTime startDate, DateTime endDate) {
-    var normalizedStart = _normalize(startDate);
-    var normalizedEnd = _normalize(endDate);
-    if (normalizedEnd.isBefore(normalizedStart)) {
-      final temp = normalizedStart;
-      normalizedStart = normalizedEnd;
-      normalizedEnd = temp;
-    }
-    return !(normalizedEnd.isBefore(start) || normalizedStart.isAfter(end));
+  bool overlaps(DateTime otherStart, DateTime otherEnd) {
+    final normalizedStart = otherStart.isBefore(otherEnd) ? otherStart : otherEnd;
+    final normalizedEnd = otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
+    return normalizedEnd.isAfter(start) && normalizedStart.isBefore(end);
   }
 
   Iterable<DateTime> days() sync* {
-    var cursor = start;
-    while (!cursor.isAfter(end)) {
+    var cursor = DateTime(start.year, start.month, start.day);
+    final last = DateTime(end.year, end.month, end.day);
+    while (!cursor.isAfter(last)) {
       yield cursor;
       cursor = cursor.add(const Duration(days: 1));
     }
+  }
+
+  bool coversDay(DateTime day) {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final startsBefore = !start.isAfter(dayStart);
+    final endsAfter = !end.isBefore(dayEnd);
+    return startsBefore && endsAfter;
+  }
+}
+
+class _HourDropdownField extends StatelessWidget {
+  const _HourDropdownField({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    required this.hint,
+    this.dense = false,
+    this.maxLines = 1,
+  });
+
+  final String label;
+  final int? value;
+  final List<int> options;
+  final ValueChanged<int?> onChanged;
+  final String hint;
+  final bool dense;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = options.isEmpty;
+    final gap = dense ? 4.0 : 6.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+        SizedBox(height: gap),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: disabled ? null : value,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF0F1D3C),
+              icon: const Icon(Icons.expand_more, color: Colors.white70),
+              selectedItemBuilder: (context) {
+                return options.map((hour) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _formatHourLabel(hour),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }).toList();
+              },
+              hint: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  hint,
+                  maxLines: maxLines,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
+              onChanged: disabled ? null : onChanged,
+              items: options
+                  .map(
+                    (hour) => DropdownMenuItem(
+                      value: hour,
+                      child: Text(
+                        _formatHourLabel(hour),
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatHourLabel(int hour) {
+  if (hour >= 24) {
+    return '00:00 (besok)';
+  }
+  return '${hour.toString().padLeft(2, '0')}:00';
+}
+
+class _DailyHourRange {
+  const _DailyHourRange({required this.startHour, required this.endHour});
+
+  final double startHour;
+  final double endHour;
+
+  bool overlaps(double otherStart, double otherEnd) {
+    return endHour > otherStart && startHour < otherEnd;
   }
 }
 
@@ -4741,8 +5106,11 @@ class _BookingSummary {
   });
 
   factory _BookingSummary.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(String? value) =>
-        DateTime.tryParse(value ?? '') ?? DateTime.now();
+    DateTime parseDate(String? value) {
+      final parsed = DateTime.tryParse(value ?? '');
+      if (parsed == null) return DateTime.now();
+      return parsed.isUtc ? parsed.toLocal() : parsed;
+    }
     final venue = (json['venue'] as Map<String, dynamic>?) ?? const {};
     final rawImageUrl =
         (venue['image_absolute_url'] ?? venue['image_url'] ?? '').toString();

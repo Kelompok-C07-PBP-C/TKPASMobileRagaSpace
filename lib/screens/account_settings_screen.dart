@@ -21,6 +21,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   final _emailCtrl = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _currentPassCtrl = TextEditingController();
   final _newPassCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
@@ -46,6 +47,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     _emailCtrl.dispose();
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
     _currentPassCtrl.dispose();
     _newPassCtrl.dispose();
     _confirmPassCtrl.dispose();
@@ -68,6 +70,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         _emailCtrl.text = (data['email'] ?? '').toString();
         _firstNameCtrl.text = (data['first_name'] ?? '').toString();
         _lastNameCtrl.text = (data['last_name'] ?? '').toString();
+        _phoneCtrl.text = (data['phone_number'] ?? '').toString();
         _avatarUrl = (data['avatar_url'] ?? '').toString();
         _loading = false;
       });
@@ -101,6 +104,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       );
       return;
     }
+    if (_phoneCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number cannot be empty.')),
+      );
+      return;
+    }
     setState(() => _savingProfile = true);
     try {
       final data = await Api().updateAccount(
@@ -109,6 +118,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         email: _emailCtrl.text.trim(),
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
+        phoneNumber: _phoneCtrl.text.trim(),
         avatarFile: _avatarFile,
       );
       setState(() {
@@ -301,6 +311,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             _buildTextField(_firstNameCtrl, label: 'First name'),
             const SizedBox(height: 16),
             _buildTextField(_lastNameCtrl, label: 'Last name'),
+            const SizedBox(height: 16),
+            _buildTextField(
+              _phoneCtrl,
+              label: 'Phone number',
+              keyboardType: TextInputType.phone,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

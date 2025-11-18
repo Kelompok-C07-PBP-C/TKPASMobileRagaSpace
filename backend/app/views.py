@@ -37,6 +37,40 @@ def _parse_date(value: str | None):
         return None
 
 
+def _parse_datetime(value: str | None):
+    if not value:
+        return None
+    cleaned = value.strip()
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    formats = [
+        "%Y-%m-%dT%H:%M%z",
+        "%Y-%m-%d %H:%M%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%d %H:%M:%S%z",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ]
+    dt = None
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            break
+        except (ValueError, TypeError):
+            continue
+    if dt is None:
+        try:
+            dt = datetime.fromisoformat(cleaned)
+        except (ValueError, TypeError):
+            return None
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    return dt
+
+
 def _absolute_media_url(request: HttpRequest, url: str | None) -> str:
     if not url:
         return ""
@@ -125,7 +159,9 @@ def _select_valid_addons(requested: Any, available: Any) -> list[dict[str, objec
 def _serialize_booking(booking: Booking, *, request: HttpRequest | None = None):
     start = booking.date.start_date
     end = booking.date.end_date
-    sessions = (end - start).days + 1
+    start_day = start.date()
+    end_day = end.date()
+    sessions = (end_day - start_day).days + 1
     selected_addons = _normalize_addon_entries(getattr(booking, "selected_addons", []))
     addons_total = _calculate_addons_total(selected_addons)
     image_url = booking.venue.image_url
@@ -280,6 +316,7 @@ def _serialize_user_account(user, request: HttpRequest | None = None):
         "first_name": user.first_name,
         "last_name": user.last_name,
         "avatar_url": avatar_url,
+        "phone_number": profile.phone_number,
     }
 
 
@@ -404,10 +441,12 @@ def account_update_view(request: HttpRequest):
     user.save()
 
     profile = _get_or_create_profile(user)
+    phone_number = (request.POST.get("phone_number") or "").strip()
     avatar = request.FILES.get("avatar")
     if avatar:
         profile.avatar = avatar
-        profile.save()
+    profile.phone_number = phone_number
+    profile.save()
 
     return JsonResponse({"success": True, "data": _serialize_user_account(user, request=request)})
 
@@ -470,8 +509,8 @@ def booking_create_view(request: HttpRequest):
     except (TypeError, ValueError):
         venue_id = None
 
-    start_date = _parse_date(payload.get("start_date"))
-    end_date = _parse_date(payload.get("end_date"))
+    start_date = _parse_datetime(payload.get("start_date"))
+    end_date = _parse_datetime(payload.get("end_date"))
     phone_number = (payload.get("phone_number") or "").strip()
     notes = (payload.get("notes") or "").strip()
     has_been_paid = bool(payload.get("has_been_paid", False))
@@ -484,8 +523,8 @@ def booking_create_view(request: HttpRequest):
         return JsonResponse({"detail": "phone_number is required"}, status=400)
     if not start_date or not end_date:
         return JsonResponse({"detail": "start_date and end_date required"}, status=400)
-    if end_date < start_date:
-        return JsonResponse({"detail": "end_date cannot be before start_date"}, status=400)
+    if end_date <= start_date:
+        return JsonResponse({"detail": "end_date must be after start_date"}, status=400)
 
     try:
         venue = Venue.objects.get(pk=venue_id)
@@ -559,7 +598,7 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
 @csrf_exempt
 @require_GET
 def venue_availability_view(request: HttpRequest, venue_id: int):
-    today = timezone.localdate()
+    cutoff = timezone.now()
     include_history = request.GET.get("include_history") in ("1", "true", "True")
     bookings = (
         Booking.objects.filter(venue_id=venue_id)
@@ -567,7 +606,7 @@ def venue_availability_view(request: HttpRequest, venue_id: int):
         .order_by("date__start_date")
     )
     if not include_history:
-        bookings = bookings.filter(date__end_date__gte=today)
+        bookings = bookings.filter(date__end_date__gte=cutoff)
 
     data: list[dict[str, object]] = []
     for booking in bookings:
