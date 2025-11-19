@@ -17,15 +17,15 @@ class SimpleCorsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Handle CORS preflight requests for API endpoints.
-        if request.method == "OPTIONS" and request.path.startswith("/api/"):
+        # Handle CORS preflight requests for API and media endpoints.
+        if request.method == "OPTIONS" and self._is_cors_path(request.path):
             response = HttpResponse()
         else:
             response = self.get_response(request)
 
-        # Only attach CORS headers for API endpoints and if an Origin is present.
+        # Only attach CORS headers for API/media endpoints and if an Origin is present.
         origin = request.headers.get("Origin")
-        if origin and request.path.startswith("/api/"):
+        if origin and self._is_cors_path(request.path):
             # Echo the requesting origin so that credentials can be used.
             response["Access-Control-Allow-Origin"] = origin
             response["Vary"] = "Origin"
@@ -43,3 +43,13 @@ class SimpleCorsMiddleware:
 
         return response
 
+    @staticmethod
+    def _is_cors_path(path: str) -> bool:
+        """
+        Returns True for paths where we want CORS headers.
+
+        This includes:
+        - /api/...   JSON API endpoints
+        - /media/... user-uploaded images, so Flutter web can render them
+        """
+        return path.startswith("/api/") or path.startswith("/media/")
