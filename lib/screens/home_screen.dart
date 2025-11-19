@@ -4155,7 +4155,7 @@ class _BookingDialog extends StatefulWidget {
   State<_BookingDialog> createState() => _BookingDialogState();
 }
 
-class _BookingDialogState extends State<_BookingDialog> {
+  class _BookingDialogState extends State<_BookingDialog> {
   final _startCtrl = TextEditingController();
   final _endCtrl = TextEditingController();
   DateTime? _startDate;
@@ -4276,7 +4276,9 @@ class _BookingDialogState extends State<_BookingDialog> {
 
   int _sessionCount() {
     if (_startDate == null || _endDate == null) return 0;
-    return _endDate!.difference(_startDate!).inDays + 1;
+    final diff = _endDate!.difference(_startDate!);
+    final hours = diff.inHours;
+    return hours <= 0 ? 0 : hours;
   }
 
   int get _selectedAddonsTotalExternal {
@@ -5168,14 +5170,15 @@ class _BookingSummary {
   }
 
   factory _BookingSummary.localMock({
-    required String venueName,
-    required int venuePrice,
-    required DateTime startDate,
-    required DateTime endDate,
-    required String phoneNumber,
-    List<_VenueAddon> selectedAddons = const [],
-  }) {
-    final sessions = endDate.difference(startDate).inDays + 1;
+      required String venueName,
+      required int venuePrice,
+      required DateTime startDate,
+      required DateTime endDate,
+      required String phoneNumber,
+      List<_VenueAddon> selectedAddons = const [],
+    }) {
+      final diff = endDate.difference(startDate);
+      final sessions = diff.inHours <= 0 ? 1 : diff.inHours;
     final now = DateTime.now();
     return _BookingSummary(
       id: now.millisecondsSinceEpoch,
@@ -5189,10 +5192,10 @@ class _BookingSummary {
       venuePrice: venuePrice,
       startDate: startDate,
       endDate: endDate,
-      sessions: sessions,
-      subtotal:
-          sessions * venuePrice +
-          selectedAddons.fold(0, (sum, addon) => sum + addon.price),
+        sessions: sessions,
+        subtotal:
+            sessions * venuePrice +
+            selectedAddons.fold(0, (sum, addon) => sum + addon.price),
       phoneNumber: phoneNumber,
       hasBeenPaid: false,
       datePaid: null,
@@ -5229,7 +5232,8 @@ class _BookingSummary {
 
 String _formatPriceLabel(int price) {
   if (price <= 0) return 'Check availability';
-  return '${_formatCurrency(price)} / sesi';
+  // Price is per hour on both mobile and admin
+  return '${_formatCurrency(price)} / jam';
 }
 
 String _formatCurrency(int value) {
