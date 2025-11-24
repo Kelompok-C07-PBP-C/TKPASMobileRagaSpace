@@ -117,3 +117,22 @@ Setiap data mencakup:
 * *Link Design (Figma/Prototype)*: https://www.figma.com/design/jXh9W3tagXfWVRxPSbpGmP/DESIGN-MOBILE?m=auto&t=bbgBl0vK2AYZvu3Z-1 (view only)
 
 ---
+
+
+
+
+
+
+Langkah-langkah Integrasi Aplikasi dengan Website :
+
+Membangun Wrapper Class untuk HTTP Request
+Membuat sebuah wrapper class yang memanfaatkan library HTTP dan MAP guna mendukung mekanisme cookie-based authentication pada aplikasi.
+
+Mengimplementasikan REST API di Django
+Mengembangkan endpoint API pada Django melalui views.py dengan menggunakan JsonResponse atau Django JSON Serializer untuk memastikan data dikirim dalam format JSON yang konsisten.
+
+Mengembangkan Desain Front-End
+Mengimplementasikan tampilan antarmuka aplikasi berdasarkan desain website yang telah ada, sehingga memastikan keselarasan UI/UX.
+
+Integrasi Front-End dan Back-End secara Asinkron
+Menghubungkan front-end dengan API back-end menggunakan konsep asynchronous HTTP request agar komunikasi data lebih efisien dan responsif.
