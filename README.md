@@ -29,7 +29,7 @@ Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas
 
 ## Daftar Modul yang Akan Diimplementasikan
 
-1. Modul Autentikasi dan Landing Page by Alexander Haekal Dinova
+1. Modul Admin by Alexander Haekal Dinova
 
    * Register (akun user & admin)
    * Login (opsi Gmail)
@@ -50,19 +50,20 @@ Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas
    * Filter berdasarkan harga
    * Sortir berdasarkan harga
 
-4. Modul Penyewaan Lapangan (User) by RPM Dimaz
+4. Modul Booking dan Product Detail (User) by RPM Dimaz
 
    * Pemesanan lapangan
    * Pembayaran
 
-5. Modul Interaksi Pengguna by Rindu Aurellia Zahra
+5. Modul Wishlist (User) by Rindu Aurellia Zahra
 
    * Like lapangan
-   * Review lapangan
+   * Page wishlist user
      
-6. Modul Sewa Alat Olahraga Tambahan (add-on/condiment) by Bilqis Nisrina Dzahabiyah Mulyadi
-   * Pemesanan add-on alat olahraga
-   * Pembayaran yang terintegrasi dengan penyewaan lapangan
+6. Modul Account Setting by Bilqis Nisrina Dzahabiyah Mulyadi
+   * Edit username, email, phone number, dan password
+   * Page Setting
+   * Integrasi dengan autentifikasi
 
 ---
 
