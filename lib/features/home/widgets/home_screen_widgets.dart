@@ -1,4 +1,4 @@
-part of 'home_screen.dart';
+part of 'package:marco/features/home/home_screen.dart';
 
 class _VenueCard extends StatelessWidget {
   const _VenueCard({

@@ -6,8 +6,8 @@ import 'package:marco/theme/aurora_palette.dart';
 import 'package:marco/widgets/aurora_backdrop.dart';
 import 'package:marco/widgets/twinkle_overlay.dart';
 
-import '../services/api.dart';
-import '../widgets/gradient_button.dart';
+import '../../services/api.dart';
+import '../../widgets/gradient_button.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});

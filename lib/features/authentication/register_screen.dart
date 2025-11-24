@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api.dart';
-import '../widgets/auth_background.dart';
-import '../widgets/gradient_button.dart';
+import '../../services/api.dart';
+import '../../widgets/auth_background.dart';
+import '../../widgets/gradient_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

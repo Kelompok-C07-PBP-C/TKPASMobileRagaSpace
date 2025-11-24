@@ -1071,7 +1071,7 @@ def admin_panel(request: HttpRequest):
     bookings_queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
-        .order_by("-date__start_date", "-created_at")
+        .order_by("-created_at", "-date__start_date")
     )
     analytics = _build_booking_analytics()
     UserModel = get_user_model()
@@ -1188,7 +1188,7 @@ def admin_bookings_list_api(request: HttpRequest):
     queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
-        .order_by("-date__start_date", "-created_at")
+        .order_by("-created_at", "-date__start_date")
     )
     queryset = _apply_booking_search(queryset, query)
     analytics = _build_booking_analytics()

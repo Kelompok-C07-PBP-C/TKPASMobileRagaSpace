@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/login_screen.dart';
+import 'features/authentication/login_screen.dart';
 
 const bool _showPerfOverlay =
     bool.fromEnvironment('ENABLE_PERF_OVERLAY', defaultValue: false);

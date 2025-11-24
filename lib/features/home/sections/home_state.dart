@@ -1,25 +1,4 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:math' as math;
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:marco/services/api.dart';
-import 'package:marco/services/base_url_resolver.dart';
-import 'package:marco/theme/aurora_palette.dart';
-import 'package:marco/widgets/aurora_backdrop.dart';
-import 'package:marco/widgets/aurora_route.dart';
-import 'package:marco/widgets/twinkle_overlay.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:visibility_detector/visibility_detector.dart';
-import 'account_settings_screen.dart';
-import 'login_screen.dart';
-
-part 'home_screen_models.dart';
-part 'home_screen_catalog.dart';
-part 'home_screen_wishlist.dart';
-part 'home_screen_bookings.dart';
-part 'home_screen_widgets.dart';
+part of 'package:marco/features/home/home_screen.dart';
 
 const _backgroundGradient = AuroraPalette.sky;
 const _ctaBlue = Color(0xFF1FA2FF);
@@ -69,12 +48,6 @@ Widget _buildNetworkImage(String url, {BoxFit fit = BoxFit.cover}) {
     },
     errorBuilder: (_, __, ___) => placeholder,
   );
-}
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
@@ -4275,10 +4248,11 @@ class _BookingDialog extends StatefulWidget {
   }
 
   int _sessionCount() {
-    if (_startDate == null || _endDate == null) return 0;
-    final diff = _endDate!.difference(_startDate!);
-    final hours = diff.inHours;
-    return hours <= 0 ? 0 : hours;
+    final start = _startDateTime;
+    final end = _endDateTime;
+    if (start == null || end == null) return 0;
+    final hours = end.difference(start).inHours;
+    return hours > 0 ? hours : 0;
   }
 
   int get _selectedAddonsTotalExternal {

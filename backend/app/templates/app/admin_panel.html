@@ -16,19 +16,44 @@
   >
     <aside class="sidebar">
       <div class="sidebar-header">
-        <span class="sidebar-logo">Cloud Docs</span>
-        <span class="sidebar-subtitle">Events Admin</span>
+        <div class="sidebar-brand">
+          <span class="sidebar-logo">Cloud Docs</span>
+          <span class="sidebar-logo-short" aria-hidden="true">CD</span>
+          <span class="sidebar-subtitle">Events Admin</span>
+        </div>
+        <button
+          class="sidebar-toggle"
+          type="button"
+          data-action="toggle-sidebar"
+          aria-label="Collapse sidebar"
+          aria-pressed="false"
+        >
+          ⇤
+        </button>
       </div>
       <nav class="sidebar-nav" aria-label="Admin navigation">
-        <button class="nav-link is-active" type="button" data-target="venues">
-          Venues
+        <button
+          class="nav-link is-active"
+          type="button"
+          data-target="venues"
+          data-icon="🏟"
+        >
+          <span class="nav-label">Venues</span>
         </button>
-        <button class="nav-link" type="button" data-target="bookings">
-          Bookings
+        <button
+          class="nav-link"
+          type="button"
+          data-target="bookings"
+          data-icon="🗓"
+        >
+          <span class="nav-label">Bookings</span>
         </button>
       </nav>
       <div class="sidebar-footer">
-        <a href="{% url 'html-admin-logout' %}" class="logout-link">Log out</a>
+        <a href="{% url 'html-admin-logout' %}" class="logout-link">
+          <span class="logout-icon" aria-hidden="true">⟵</span>
+          <span class="logout-label">Log out</span>
+        </a>
       </div>
     </aside>
     <section class="content-area">
@@ -89,7 +114,7 @@
               </label>
             </div>
             <div class="table-wrapper" data-table-wrapper="venues">
-              <table class="data-table">
+              <table class="data-table" data-table-section="venues">
                 <thead>
                   <tr>
                     <th
@@ -222,7 +247,7 @@
               </button>
             </div>
             <div class="table-wrapper" data-table-wrapper="bookings">
-              <table class="data-table">
+              <table class="data-table" data-table-section="bookings">
                 <thead>
                   <tr>
                     <th
@@ -254,18 +279,27 @@
                     </th>
                     <th
                       scope="col"
-                      data-sort-section="bookings"
-                      data-sort-key="dates"
-                      aria-sort="none"
-                      tabindex="0"
-                    >
-                      Dates
-                    </th>
-                    <th
-                      scope="col"
-                      data-sort-section="bookings"
-                      data-sort-key="paid"
-                      aria-sort="none"
+                    data-sort-section="bookings"
+                    data-sort-key="dates"
+                    aria-sort="none"
+                    tabindex="0"
+                  >
+                    Dates
+                  </th>
+                  <th
+                    scope="col"
+                    data-sort-section="bookings"
+                    data-sort-key="created"
+                    aria-sort="none"
+                    tabindex="0"
+                  >
+                    Created
+                  </th>
+                  <th
+                    scope="col"
+                    data-sort-section="bookings"
+                    data-sort-key="paid"
+                    aria-sort="none"
                       tabindex="0"
                     >
                       Paid

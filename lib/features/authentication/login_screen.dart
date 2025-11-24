@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api.dart';
-import '../widgets/aurora_route.dart';
-import '../widgets/gradient_button.dart';
-import '../widgets/hero_slideshow.dart';
+import '../../services/api.dart';
+import '../../widgets/aurora_route.dart';
+import '../../widgets/gradient_button.dart';
+import '../../widgets/hero_slideshow.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 

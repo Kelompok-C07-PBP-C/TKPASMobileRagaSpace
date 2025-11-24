@@ -82,6 +82,9 @@
     return;
   }
 
+  const sidebarToggle = app.querySelector('[data-action="toggle-sidebar"]');
+  const sidebarToggleKey = 'admin.sidebar.collapsed';
+
   const endpoints = {
     venues: {
       list: '/api/admin/venues/',
@@ -126,7 +129,7 @@
     hasUsers: app.dataset.hasUsers === 'true',
     sort: {
       venues: { key: null, direction: 'asc' },
-      bookings: { key: null, direction: 'asc' },
+      bookings: { key: 'created', direction: 'desc' },
     },
     pagination: {
       venues: {
@@ -1306,6 +1309,17 @@
     return `${startLabel} – ${endLabel}`;
   }
 
+  function getBookingCreatedValue(booking) {
+    return booking && booking.created_at ? booking.created_at : '';
+  }
+
+  function getBookingCreatedLabel(booking) {
+    const value = getBookingCreatedValue(booking);
+    if (!value) return '—';
+    const formatted = formatDateTime(value);
+    return formatted || value;
+  }
+
   function getBookingPaidLabel(booking) {
     return booking && booking.has_been_paid ? 'Paid' : 'Pending';
   }
@@ -1389,6 +1403,7 @@
       dates: { compare: compareBookingDates },
       paid: { type: 'number', getValue: (item) => (item && item.has_been_paid ? 1 : 0) },
       notes: { type: 'string', getValue: getBookingNotesValue },
+      created: { type: 'date', getValue: getBookingCreatedValue },
       actions: { type: 'number', getValue: (item) => Number(item && item.id) },
     },
   };
@@ -2356,8 +2371,13 @@
       row.appendChild(titleCell);
 
       const descriptionCell = document.createElement('td');
-      const descriptionText = typeof venue.description === 'string' && venue.description.trim() ? venue.description.trim() : '—';
-      descriptionCell.textContent = descriptionText;
+      descriptionCell.dataset.col = 'venue-description';
+      const descriptionText =
+        typeof venue.description === 'string' && venue.description.trim() ? venue.description.trim() : '—';
+      const descSpan = document.createElement('span');
+      descSpan.className = 'venue-description__text';
+      descSpan.textContent = descriptionText;
+      descriptionCell.appendChild(descSpan);
       row.appendChild(descriptionCell);
 
       const typeCell = document.createElement('td');
@@ -2443,6 +2463,10 @@
       const datesCell = document.createElement('td');
       datesCell.textContent = getBookingDateLabel(booking);
       row.appendChild(datesCell);
+
+      const createdCell = document.createElement('td');
+      createdCell.textContent = getBookingCreatedLabel(booking);
+      row.appendChild(createdCell);
 
       const paidCell = document.createElement('td');
       paidCell.textContent = getBookingPaidLabel(booking);
@@ -2530,6 +2554,15 @@
     }
   }
 
+  function setSidebarCollapsed(collapsed) {
+    app.classList.toggle('sidebar-collapsed', collapsed);
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute('aria-pressed', String(collapsed));
+      sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      sidebarToggle.textContent = collapsed ? '⇥' : '⇤';
+    }
+  }
+
   function setActiveSection(section) {
     if (!sectionConfig[section]) {
       return;
@@ -2564,6 +2597,20 @@
     updateHeader(section);
     updateActionButton();
     refreshFromServer(section);
+  }
+
+  function registerSidebarToggle() {
+    if (!sidebarToggle) {
+      return;
+    }
+    const stored = localStorage.getItem(sidebarToggleKey);
+    const initialCollapsed = stored === 'true';
+    setSidebarCollapsed(initialCollapsed);
+    sidebarToggle.addEventListener('click', () => {
+      const next = !app.classList.contains('sidebar-collapsed');
+      setSidebarCollapsed(next);
+      localStorage.setItem(sidebarToggleKey, String(next));
+    });
   }
 
   function clearForm() {
@@ -3136,6 +3183,7 @@
     });
   });
 
+  registerSidebarToggle();
   registerSorting();
   initializeCharts();
   renderVenues();

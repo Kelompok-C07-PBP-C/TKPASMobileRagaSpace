@@ -2,6 +2,7 @@
   color-scheme: dark;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sidebar-width: 260px;
+  --sidebar-width-collapsed: 86px;
   --bg-muted: #050816;
   --bg-gradient: radial-gradient(circle at 6% -10%, rgba(99, 102, 241, 0.18), transparent 70%),
     radial-gradient(circle at 82% 0%, rgba(147, 197, 253, 0.2), transparent 78%),
@@ -154,6 +155,10 @@ body.admin-body {
   min-height: 100vh;
 }
 
+.sidebar-collapsed {
+  --sidebar-width: var(--sidebar-width-collapsed);
+}
+
 .sidebar {
   background: rgba(2, 6, 23, 0.82);
   backdrop-filter: blur(22px);
@@ -168,9 +173,17 @@ body.admin-body {
   left: 0;
   bottom: 0;
   width: var(--sidebar-width);
+  transition: width 0.24s ease, padding 0.24s ease;
 }
 
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -181,9 +194,37 @@ body.admin-body {
   font-size: 1.1rem;
 }
 
+.sidebar-logo-short {
+  display: none;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
 .sidebar-subtitle {
   font-size: 0.9rem;
   color: rgba(148, 163, 184, 0.8);
+}
+
+.sidebar-toggle {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-primary);
+  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sidebar-nav {
@@ -203,6 +244,10 @@ body.admin-body {
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
 }
 
 .nav-link:hover,
@@ -218,6 +263,23 @@ body.admin-body {
   box-shadow: 0 10px 25px -10px rgba(234, 88, 12, 0.55);
 }
 
+.nav-link::before {
+  content: attr(data-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.nav-label {
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
 .sidebar-footer {
   margin-top: auto;
 }
@@ -227,11 +289,23 @@ body.admin-body {
   opacity: 0.78;
   text-decoration: none;
   font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.logout-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .logout-link:hover {
   color: #ffffff;
   opacity: 1;
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .content-area {
@@ -240,6 +314,60 @@ body.admin-body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  transition: margin-left 0.24s ease;
+}
+
+.sidebar-collapsed .sidebar {
+  align-items: center;
+  padding: 16px 14px;
+}
+
+.sidebar-collapsed .sidebar-brand {
+  align-items: center;
+}
+
+.sidebar-collapsed .sidebar-logo {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-logo-short {
+  display: inline-flex;
+}
+
+.sidebar-collapsed .sidebar-subtitle {
+  display: none;
+}
+
+.sidebar-collapsed .nav-link {
+  justify-content: center;
+  gap: 0;
+  padding: 10px 12px;
+}
+
+.sidebar-collapsed .nav-label {
+  opacity: 0;
+  width: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-collapsed .sidebar-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar-collapsed .logout-label {
+  display: none;
+}
+
+.sidebar-collapsed .logout-link {
+  padding: 10px;
+  justify-content: center;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  transform: rotate(180deg);
 }
 
 .content-header {
@@ -497,6 +625,27 @@ body.admin-body {
   text-align: left;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
+}
+
+.data-table[data-table-section="bookings"] th,
+.data-table[data-table-section="bookings"] td {
+  white-space: nowrap;
+}
+
+.data-table[data-table-section="venues"] td[data-col="venue-description"] {
+  max-width: 360px;
+  white-space: normal;
+  vertical-align: top;
+}
+
+.venue-description__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .data-table tbody tr:hover {

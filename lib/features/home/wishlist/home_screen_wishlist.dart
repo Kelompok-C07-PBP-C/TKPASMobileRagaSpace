@@ -1,4 +1,4 @@
-part of 'home_screen.dart';
+part of 'package:marco/features/home/home_screen.dart';
 
 class _WishlistScreen extends StatefulWidget {
   const _WishlistScreen({
