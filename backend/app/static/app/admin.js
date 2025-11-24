@@ -2559,7 +2559,7 @@
     if (sidebarToggle) {
       sidebarToggle.setAttribute('aria-pressed', String(collapsed));
       sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-      sidebarToggle.textContent = collapsed ? '⇥' : '⇤';
+      sidebarToggle.textContent = collapsed ? '→' : '←';
     }
   }
 
@@ -2610,6 +2610,14 @@
       const next = !app.classList.contains('sidebar-collapsed');
       setSidebarCollapsed(next);
       localStorage.setItem(sidebarToggleKey, String(next));
+      sidebarToggle.classList.add('is-animating');
+      sidebarToggle.addEventListener(
+        'animationend',
+        () => {
+          sidebarToggle.classList.remove('is-animating');
+        },
+        { once: true },
+      );
     });
   }
 

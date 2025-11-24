@@ -28,7 +28,7 @@
           aria-label="Collapse sidebar"
           aria-pressed="false"
         >
-          ⇤
+          ←
         </button>
       </div>
       <nav class="sidebar-nav" aria-label="Admin navigation">
@@ -50,9 +50,12 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <a href="{% url 'html-admin-logout' %}" class="logout-link">
-          <span class="logout-icon" aria-hidden="true">⟵</span>
-          <span class="logout-label">Log out</span>
+        <a
+          href="{% url 'html-admin-logout' %}"
+          class="nav-link nav-link--logout"
+          data-icon="⏻"
+        >
+          <span class="nav-label">Log out</span>
         </a>
       </div>
     </aside>
