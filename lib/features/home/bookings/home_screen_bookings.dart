@@ -21,7 +21,6 @@ class _BookingsScreen extends StatefulWidget {
 
 class _BookingsScreenState extends State<_BookingsScreen> {
   int? _cancellingId;
-  static final String _apiBaseUrl = _HomeScreenState._apiBaseUrl;
   List<_BookingSummary> _bookings = [];
   bool _loading = true;
   String? _error;
