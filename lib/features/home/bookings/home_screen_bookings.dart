@@ -1,5 +1,10 @@
 part of 'package:marco/features/home/home_screen.dart';
 
+typedef BookingHttpDelete = Future<http.Response> Function(Uri uri);
+
+/// Optional override used in tests to stub the HTTP delete call.
+BookingHttpDelete? bookingHttpDeleteOverride;
+
 enum _BookingFilter {
   all,
   paid,
@@ -78,7 +83,8 @@ class _BookingsScreenState extends State<_BookingsScreen> {
     setState(() => _cancellingId = booking.id);
     try {
       final uri = Uri.parse('$_apiBaseUrl/api/bookings/${booking.id}/');
-      final res = await http.delete(uri).timeout(const Duration(seconds: 8));
+      final deleteFn = bookingHttpDeleteOverride ?? http.delete;
+      final res = await deleteFn(uri).timeout(const Duration(seconds: 8));
       if (res.statusCode >= 200 && res.statusCode < 300) {
         setState(() {
           _bookings.removeWhere((b) => b.id == booking.id);
@@ -562,6 +568,24 @@ class _EmptyState extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Test-only helper to render the bookings screen in isolation.
+Widget buildBookingsTestApp({
+  required Future<List<Map<String, dynamic>>> Function() loadBookings,
+  required Future<void> Function(dynamic booking) onSelect,
+}) {
+  Future<List<_BookingSummary>> mappedLoader() async {
+    final items = await loadBookings();
+    return items.map(_BookingSummary.fromJson).toList();
+  }
+
+  return MaterialApp(
+    home: _BookingsScreen(
+      loadBookings: mappedLoader,
+      onSelectBooking: (booking) => onSelect(booking),
+    ),
+  );
 }
 
 

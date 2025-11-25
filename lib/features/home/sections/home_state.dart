@@ -22,6 +22,12 @@ const List<String> _filterPrices = [
   'Premium',
 ];
 
+@visibleForTesting
+bool homeDisableNetworkImagesForTests = false;
+
+@visibleForTesting
+bool homeSkipNetworkForTests = false;
+
 final String _apiBaseUrl = resolveBaseApiHost();
 final String _apiHostBase = _apiBaseUrl.replaceFirst(
   RegExp(r'/api/?$'),
@@ -219,9 +225,11 @@ class _HomeScreenState extends _HomeScreenCore
     _startHighlightAutoScroll();
     _startTestimonialAutoScroll();
     _scrollController = ScrollController()..addListener(_handleScroll);
-    _fetchTopVenues();
-    _loadWishlist();
-    _loadProfileSummary();
+    if (!homeSkipNetworkForTests) {
+      _fetchTopVenues();
+      _loadWishlist();
+      _loadProfileSummary();
+    }
   }
 
   @override
@@ -317,4 +325,29 @@ class _HomeScreenState extends _HomeScreenCore
       bottomNavigationBar: _buildBottomNavigation(context),
     );
   }
+
+  // === Debug helpers for tests ===
+
+  @visibleForTesting
+  void debugStartHighlightAutoScrollForTests() => _startHighlightAutoScroll();
+
+  @visibleForTesting
+  void debugPauseHighlightAutoScrollForTests() => _pauseHighlightAutoScroll();
+
+  @visibleForTesting
+  void debugStartTestimonialAutoScrollForTests() =>
+      _startTestimonialAutoScroll();
+
+  @visibleForTesting
+  void debugPauseTestimonialAutoScrollForTests() =>
+      _pauseTestimonialAutoScroll();
+
+  @visibleForTesting
+  void debugHandleScrollForTests(num offset) {
+    _scrollController.jumpTo(offset.toDouble());
+    _handleScroll();
+  }
+
+  @visibleForTesting
+  bool debugStickyNavVisibleForTests() => _stickyNavVisible;
 }

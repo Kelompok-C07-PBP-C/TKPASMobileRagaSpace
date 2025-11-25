@@ -9,8 +9,45 @@ import 'package:marco/widgets/twinkle_overlay.dart';
 import '../../services/api.dart';
 import '../../widgets/gradient_button.dart';
 
+typedef AccountUserIdProvider = int? Function();
+typedef AccountFetchFn = Future<Map<String, dynamic>> Function(Api api, int userId);
+typedef AccountUpdateFn = Future<Map<String, dynamic>> Function(
+  Api api, {
+  required int userId,
+  required String username,
+  required String email,
+  required String firstName,
+  required String lastName,
+  required String phoneNumber,
+  File? avatarFile,
+});
+typedef AccountChangePasswordFn = Future<void> Function(
+  Api api, {
+  required int userId,
+  required String currentPassword,
+  required String newPassword,
+  required String confirmPassword,
+});
+typedef AccountAvatarImageFactory = ImageProvider<Object> Function(
+  File? file,
+  String? url,
+);
+
+/// Test-only overrides used by widget tests.
+AccountUserIdProvider? accountUserIdOverride;
+AccountFetchFn? accountFetchOverride;
+AccountUpdateFn? accountUpdateOverride;
+AccountChangePasswordFn? accountChangePasswordOverride;
+AccountAvatarImageFactory? accountAvatarImageFactoryOverride;
+
+int? _getCurrentUserId() =>
+    accountUserIdOverride != null ? accountUserIdOverride!() : Api.currentUserId;
+
 class AccountSettingsScreen extends StatefulWidget {
-  const AccountSettingsScreen({super.key});
+  const AccountSettingsScreen({super.key, this.picker});
+
+  /// Optional override for image picker, used in tests.
+  final ImagePicker? picker;
 
   @override
   State<AccountSettingsScreen> createState() => _AccountSettingsScreenState();
@@ -33,11 +70,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   String? _avatarUrl;
   File? _avatarFile;
 
-  final _picker = ImagePicker();
+  late final ImagePicker _picker;
 
   @override
   void initState() {
     super.initState();
+    _picker = widget.picker ?? ImagePicker();
     _loadAccount();
   }
 
@@ -55,7 +93,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   Future<void> _loadAccount() async {
-    final userId = Api.currentUserId;
+    final userId = _getCurrentUserId();
     if (userId == null) {
       setState(() {
         _error = 'Please log in again to edit your account.';
@@ -64,7 +102,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       return;
     }
     try {
-      final data = await Api().fetchAccount(userId);
+      final api = Api();
+      final data = accountFetchOverride != null
+          ? await accountFetchOverride!(api, userId)
+          : await api.fetchAccount(userId);
       setState(() {
         _usernameCtrl.text = (data['username'] ?? '').toString();
         _emailCtrl.text = (data['email'] ?? '').toString();
@@ -91,7 +132,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final userId = Api.currentUserId;
+    final userId = _getCurrentUserId();
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Session expired. Please log in again.')),
@@ -112,15 +153,27 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     }
     setState(() => _savingProfile = true);
     try {
-      final data = await Api().updateAccount(
-        userId: userId,
-        username: _usernameCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        firstName: _firstNameCtrl.text.trim(),
-        lastName: _lastNameCtrl.text.trim(),
-        phoneNumber: _phoneCtrl.text.trim(),
-        avatarFile: _avatarFile,
-      );
+      final api = Api();
+      final data = accountUpdateOverride != null
+          ? await accountUpdateOverride!(
+              api,
+              userId: userId,
+              username: _usernameCtrl.text.trim(),
+              email: _emailCtrl.text.trim(),
+              firstName: _firstNameCtrl.text.trim(),
+              lastName: _lastNameCtrl.text.trim(),
+              phoneNumber: _phoneCtrl.text.trim(),
+              avatarFile: _avatarFile,
+            )
+          : await api.updateAccount(
+              userId: userId,
+              username: _usernameCtrl.text.trim(),
+              email: _emailCtrl.text.trim(),
+              firstName: _firstNameCtrl.text.trim(),
+              lastName: _lastNameCtrl.text.trim(),
+              phoneNumber: _phoneCtrl.text.trim(),
+              avatarFile: _avatarFile,
+            );
       setState(() {
         _avatarUrl = (data['avatar_url'] ?? '').toString();
         _avatarFile = null;
@@ -140,7 +193,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   Future<void> _changePassword() async {
-    final userId = Api.currentUserId;
+    final userId = _getCurrentUserId();
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Session expired. Please log in again.')),
@@ -163,12 +216,23 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     }
     setState(() => _changingPassword = true);
     try {
-      await Api().changePassword(
-        userId: userId,
-        currentPassword: _currentPassCtrl.text,
-        newPassword: _newPassCtrl.text,
-        confirmPassword: _confirmPassCtrl.text,
-      );
+      final api = Api();
+      if (accountChangePasswordOverride != null) {
+        await accountChangePasswordOverride!(
+          api,
+          userId: userId,
+          currentPassword: _currentPassCtrl.text,
+          newPassword: _newPassCtrl.text,
+          confirmPassword: _confirmPassCtrl.text,
+        );
+      } else {
+        await api.changePassword(
+          userId: userId,
+          currentPassword: _currentPassCtrl.text,
+          newPassword: _newPassCtrl.text,
+          confirmPassword: _confirmPassCtrl.text,
+        );
+      }
       _currentPassCtrl.clear();
       _newPassCtrl.clear();
       _confirmPassCtrl.clear();
@@ -378,14 +442,20 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     );
     Widget avatarWidget;
     if (_avatarFile != null) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(_avatarFile, null)
+          : FileImage(_avatarFile!);
       avatarWidget = CircleAvatar(
         radius: 48,
-        backgroundImage: FileImage(_avatarFile!),
+        backgroundImage: provider,
       );
     } else if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(null, _avatarUrl)
+          : NetworkImage(_avatarUrl!);
       avatarWidget = CircleAvatar(
         radius: 48,
-        backgroundImage: NetworkImage(_avatarUrl!),
+        backgroundImage: provider,
         backgroundColor: Colors.transparent,
       );
     } else {
@@ -457,6 +527,33 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       ),
     );
   }
+
+  // Test-only helpers to reach internal logic from widget tests.
+  Future<void> debugSaveProfileForTests() => _saveProfile();
+  Future<void> debugChangePasswordForTests() => _changePassword();
+  void debugSetProfileFieldsForTests({String? username, String? phoneNumber}) {
+    if (username != null) _usernameCtrl.text = username;
+    if (phoneNumber != null) _phoneCtrl.text = phoneNumber;
+  }
+
+  void debugSetPasswordFieldsForTests({
+    String? currentPassword,
+    String? newPassword,
+    String? confirmPassword,
+  }) {
+    if (currentPassword != null) _currentPassCtrl.text = currentPassword;
+    if (newPassword != null) _newPassCtrl.text = newPassword;
+    if (confirmPassword != null) _confirmPassCtrl.text = confirmPassword;
+  }
+
+  void debugSetAvatarForTests({File? file, String? url}) {
+    setState(() {
+      _avatarFile = file;
+      _avatarUrl = url;
+    });
+  }
+
+  Widget debugBuildAvatarForTests() => _buildAvatar();
 }
 
 

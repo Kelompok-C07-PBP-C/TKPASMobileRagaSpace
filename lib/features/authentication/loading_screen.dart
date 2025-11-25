@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marco/theme/aurora_palette.dart';
 import 'package:marco/widgets/aurora_backdrop.dart';
 import 'package:marco/widgets/twinkle_overlay.dart';
 import '../../widgets/aurora_route.dart';
 import '../home/home_screen.dart';
+
+@visibleForTesting
+bool loadingScreenDisableAutoNavigateForTests = false;
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -36,6 +40,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   }
 
   Future<void> _navigateToHome() async {
+    if (loadingScreenDisableAutoNavigateForTests) return;
     await Future<void>.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -49,6 +54,14 @@ class _LoadingScreenState extends State<LoadingScreen>
     _pulseController.dispose();
     _haloController.dispose();
     super.dispose();
+  }
+
+  @visibleForTesting
+  Future<void> debugNavigateToHomeImmediatelyForTests() async {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      AuroraWarpRoute(const HomeScreen()),
+    );
   }
 
   @override

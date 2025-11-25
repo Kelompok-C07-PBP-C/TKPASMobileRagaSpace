@@ -1,5 +1,10 @@
 part of 'package:marco/features/home/home_screen.dart';
 
+typedef CatalogHttpGet = Future<http.Response> Function(Uri uri);
+
+/// Optional override used in tests to stub the HTTP GET call.
+CatalogHttpGet? catalogHttpGetOverride;
+
 class _ProductCatalogScreen extends StatefulWidget {
   const _ProductCatalogScreen({
     required this.initialCity,
@@ -346,7 +351,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
     });
     try {
       final uri = Uri.parse('${widget.apiBaseUrl}/api/venues/');
-      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      final getFn = catalogHttpGetOverride ?? http.get;
+      final res = await getFn(uri).timeout(const Duration(seconds: 8));
       if (res.statusCode != 200) {
         throw Exception('Failed to load venues');
       }
@@ -447,6 +453,28 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       addons: product.addons,
     );
   }
+}
+
+/// Test-only helper to render the catalog screen in isolation.
+Widget buildCatalogTestApp({
+  String initialCity = 'All cities',
+  String initialCategory = 'All categories',
+  String initialPrice = 'Any price',
+  String apiBaseUrl = 'http://localhost',
+  Set<String> initialWishlistKeys = const {},
+  Future<bool> Function(Map<String, dynamic> venue)? onToggleFavorite,
+}) {
+  return MaterialApp(
+    home: _ProductCatalogScreen(
+      initialCity: initialCity,
+      initialCategory: initialCategory,
+      initialPrice: initialPrice,
+      apiBaseUrl: apiBaseUrl,
+      initialWishlistKeys: initialWishlistKeys,
+      onToggleFavorite: (venue) async =>
+          onToggleFavorite?.call(venue.toMap()) ?? false,
+    ),
+  );
 }
 
 class _CatalogDropdown extends StatelessWidget {

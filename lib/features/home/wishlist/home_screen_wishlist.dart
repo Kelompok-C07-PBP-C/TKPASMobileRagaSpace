@@ -120,3 +120,19 @@ class _WishlistScreenState extends State<_WishlistScreen> {
     );
   }
 }
+
+/// Test-only helper to render the wishlist screen in isolation.
+Widget buildWishlistTestApp({
+  required List<Map<String, dynamic>> items,
+  required Future<void> Function(Map<String, dynamic>) onRemove,
+  required ValueChanged<Map<String, dynamic>> onSelect,
+}) {
+  final mapped = items.map(_VenueCardData.fromMap).toList();
+  return MaterialApp(
+    home: _WishlistScreen(
+      items: mapped,
+      onRemove: (venue) => onRemove(venue.toMap()),
+      onSelect: (venue) => onSelect(venue.toMap()),
+    ),
+  );
+}

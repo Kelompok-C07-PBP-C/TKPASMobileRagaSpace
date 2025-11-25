@@ -195,7 +195,9 @@ class _TestimonialCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: ClipOval(
-          child: Image.network(data.avatarUrl, fit: BoxFit.cover),
+          child: homeDisableNetworkImagesForTests
+              ? const SizedBox.shrink()
+              : Image.network(data.avatarUrl, fit: BoxFit.cover),
         ),
       ),
     );
