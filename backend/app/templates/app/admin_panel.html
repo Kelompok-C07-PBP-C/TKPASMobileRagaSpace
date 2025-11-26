@@ -3,6 +3,11 @@
 {% block extra_head %}
   {{ block.super }}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+  <style>
+    .top1{
+      margin-top:1rem;
+    }
+  </style>
 {% endblock %}
 
 {% block title %}Admin Panel{% endblock %}
@@ -103,7 +108,7 @@
               </article>
             </div>
           </div>
-          <div class="surface-card surface-card--table">
+          <div class="surface-card surface-card--table top1" >
             <div class="table-controls">
               <label class="search-field">
                 <span class="sr-only">Search venues</span>
