@@ -1,0 +1,139 @@
+:root {
+  --c1: #d9ed92;
+  --c2: #b5e48c;
+  --c3: #99d98c;
+  --c4: #76c893;
+  --c5: #52b69a;
+  --c6: #34a0a4;
+  --c7: #168aad;
+  --c8: #1a759f;
+  --c9: #1e6091;
+  --c10: #184e77;
+}
+.section{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+body {
+  flex-direction: column;
+  background-color: black;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  overflow: overlay;
+  overflow-x: hidden;
+  
+  padding: 0;
+  margin: 0;
+  font-family: 'Geologica', sans-serif;
+  position: relative;
+}
+.subtitle {
+  color: hsl(189, 28%, 95%, 1);
+  max-width: 50rem;
+  text-align: center;
+  font-family: 'MuseoModerno', sans-serif;
+  mix-blend-mode: overlay;
+  font-size: 1.1rem;
+  margin-top: -20px;
+}
+.welcome {
+  line-height: 0rem;
+  font-size: 12rem;
+  text-wrap: nowrap;
+  color: hsl(189, 38%, 60%, 1);
+  filter: brightness(110%);
+  mix-blend-mode: overlay;
+  font-family: 'Monoton', sans-serif;
+  text-transform: uppercase;
+  animation-duration: 500ms;
+  animation-timing-function: ease-in-out;
+  animation-name: animasi;
+  animation-fill-mode: forwards;
+}
+@keyframes animasi {
+  0%{
+    letter-spacing: -1rem;
+  }
+  100%{
+    letter-spacing: 0.2rem;
+  }
+}
+.decorate {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  mix-blend-mode: color-burn;
+  opacity: 0.2;
+  filter: blur(1px);
+  z-index: 2;
+}
+.button {
+  margin-top: 1rem;
+  color: #eff5f6;
+  background-color: hsla(115, 48%, 94%, 0.1);
+  padding-inline: 4rem;
+  padding-block: 0.8rem;
+  border-radius: 15px;
+  border: 1px solid hsl(189, 28%, 95%, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px hsla(0, 0%, 0%, 0.1), inset 0 1px 0 hsla(0, 0%, 50%, 0.5), inset 0 -1px 0 hsla(0, 0%, 50%, 0.1),
+    inset 0 0 20px 10px hsla(0, 0%, 50%, 0.1);
+  font-size: 1rem;
+  transition: 0.2s ease-in-out;
+  cursor: pointer;
+}
+.button:hover {
+  filter: brightness(80%);
+  color: hsl(189, 28%, 75%);
+}
+
+#second{
+ background: linear-gradient(
+  to bottom,
+  #0d1410, /* very deep green tint */
+  #101712, /* dark olive green */
+  #111a15, /* muted teal-green */
+  #111d18, /* deep turquoise */
+  #101f20, /* blue-green */
+  #0e2026, /* aqua-blue */
+  #0c202c, /* deep cyan */
+  #0a1d30, /* ocean blue */
+  #091a30, /* dark indigo */
+  #071426  /* deep teal navy */
+);
+}
+#first::after{
+  content: '';
+  display: block;
+  background-color:#0d1410 ;
+  width: 100vw;
+  height: 6rem;
+  position: relative;
+  overflow: visible;
+  bottom: 0;
+  clip-path: ellipse(51% 49% at 50% 99%);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(90, 90, 90);
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}

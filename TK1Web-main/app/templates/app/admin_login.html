@@ -1,0 +1,116 @@
+{% extends "app/base_admin_auth.html" %}
+
+{% block title %}Masuk Control Center{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .password-control {
+      position: relative;
+    }
+    .password-control .toggle-password {
+      position: absolute;
+      top: 38px;
+      right: 12px;
+      border: none;
+      background: transparent;
+      color: rgba(148, 163, 184, 0.9);
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: color 0.2s ease;
+    }
+    .password-control .toggle-password:hover {
+      color: #ffffff;
+    }
+    .password-control .form-link {
+      margin-top: 0.35rem;
+      display: inline-block;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <section class="card login-card">
+    <div class="card-header">
+      <div class="card-icon" aria-hidden="true">RS</div>
+      <h1>Sign in to Control Center</h1>
+      <p>Kelola venue, jadwal, dan booking di satu ruang kerja terpadu.</p>
+    </div>
+
+    <form method="post" class="auth-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+
+      {% if error %}
+        <div class="form-errors is-visible" role="alert">
+          <ul>
+            <li>{{ error }}</li>
+          </ul>
+        </div>
+      {% endif %}
+
+      <div class="form-control">
+        <label for="id_username">Email atau Username</label>
+        <input
+          id="id_username"
+          type="text"
+          name="username"
+          placeholder="contoh: admin@ragaspace.id"
+          autocomplete="username"
+          required
+          value="{{ form.data.username|default:'' }}"
+        />
+      </div>
+
+      <div class="form-control password-control">
+        <label for="id_password">Password</label>
+        <input
+          id="id_password"
+          type="password"
+          name="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          required
+        />
+        <button
+          type="button"
+          class="toggle-password"
+          aria-label="Tampilkan password"
+          data-target="#id_password"
+        >
+          👁
+        </button>
+        <a class="form-link" href="mailto:support@ragaspace.id">Lupa password?</a>
+      </div>
+
+      <label class="checkbox">
+        <input type="checkbox" name="remember" checked />
+        <span>Ingat perangkat ini</span>
+      </label>
+
+      <button type="submit" class="primary-btn">
+        <span>Masuk sekarang</span>
+      </button>
+
+      <p class="switch-link">
+        Belum punya akses?
+        <a href="mailto:support@ragaspace.id">Hubungi super admin</a>
+      </p>
+    </form>
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.toggle-password').forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = document.querySelector(button.dataset.target);
+          if (!target) return;
+          const isPassword = target.getAttribute('type') === 'password';
+          target.setAttribute('type', isPassword ? 'text' : 'password');
+          button.textContent = isPassword ? '🙈' : '👁';
+        });
+      });
+    });
+  </script>
+{% endblock %}
