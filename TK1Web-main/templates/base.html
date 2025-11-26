@@ -81,7 +81,12 @@
           >
           {% else %}
            <a href="{% url 'catalog' %}" class="font-medium text-slate-900 transition hover:text-[#1B89AE]">Catalog</a>
-          <a href="{% url 'wishlist' %}" class="font-medium text-slate-900 transition hover:text-[#1B89AE]">Wishlist</a>
+          <a
+            href="{% url 'wishlist' %}?user_id={{ request.user.id }}"
+            class="font-medium text-slate-900 transition hover:text-[#1B89AE]"
+          >
+            Wishlist
+          </a>
           <a href="{% url 'booked-places' %}" class="font-medium text-slate-900 transition hover:text-[#1B89AE]" style="text-wrap:nowrap">Booked places</a>
           {% endif %}
         </div>
@@ -111,7 +116,12 @@
             >
             {% else %}
             <a href="{% url 'catalog' %}" class="transition hover:text-[#1B89AE]">Catalog</a>
-            <a href="{% url 'wishlist' %}" class="transition hover:text-[#1B89AE]">Wishlist</a>
+            <a
+              href="{% url 'wishlist' %}?user_id={{ request.user.id }}"
+              class="transition hover:text-[#1B89AE]"
+            >
+              Wishlist
+            </a>
             <a href="{% url 'booked-places' %}" class="transition hover:text-[#1B89AE]">Booked places</a>
             {% endif %}
           </div>

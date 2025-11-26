@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.apps import apps
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
@@ -19,22 +20,33 @@ class BookingCancelView(LoginRequiredMixin, View):
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         booking = get_object_or_404(Booking.objects.select_related("payment"), pk=pk, user=request.user)
-        if booking.status in {Booking.STATUS_COMPLETED, Booking.STATUS_CANCELLED}:
-            messages.error(request, "This booking can no longer be cancelled.")
+        wants_json = request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+        # Only allow cancelling bookings that have not been paid yet. In this
+        # flow, pending/active bookings are unpaid; confirmed/completed are paid.
+        if booking.status not in {Booking.STATUS_PENDING, Booking.STATUS_ACTIVE}:
+            message = "This booking can no longer be cancelled."
+            if wants_json:
+                return JsonResponse(
+                    {"success": False, "booking_id": pk, "message": message},
+                    status=400,
+                )
+            messages.error(request, message)
             return redirect("booked-places")
-        booking.cancel()
 
-        payment = None
-        try:
-            payment = booking.payment
-        except Payment.DoesNotExist:
-            # Ensure a payment record exists so the user can book again later.
-            payment = booking.ensure_payment()
+        # Remove the mirrored admin/app booking so that cancelled bookings
+        # disappear from the integrated dashboard as well.
+        AppBooking = apps.get_model("app", "Booking")
+        AppBooking.objects.filter(linked_booking_id=booking.pk).delete()
 
-        if payment is not None:
-            payment.status = "waiting"
-            payment.save(update_fields=["status", "updated_at"])
-        messages.success(request, "Booking cancelled successfully.")
+        # Deleting the core booking will cascade to its Payment record.
+        booking.delete()
+
+        message = "Booking cancelled and removed successfully."
+        if wants_json:
+            return JsonResponse({"success": True, "booking_id": pk, "message": message})
+
+        messages.success(request, message)
         return redirect("booked-places")
 
 
@@ -91,6 +103,7 @@ class BookedPlacesView(LoginRequiredMixin, ListView):
             Booking.objects.filter(
                 user=self.request.user,
                 status__in=[
+                    Booking.STATUS_PENDING,
                     Booking.STATUS_ACTIVE,
                     Booking.STATUS_CONFIRMED,
                     Booking.STATUS_COMPLETED,
@@ -147,6 +160,7 @@ class BookedPlacesJSONView(LoginRequiredMixin, View):
             Booking.objects.filter(
                 user=request.user,
                 status__in=[
+                    Booking.STATUS_PENDING,
                     Booking.STATUS_ACTIVE,
                     Booking.STATUS_CONFIRMED,
                     Booking.STATUS_COMPLETED,

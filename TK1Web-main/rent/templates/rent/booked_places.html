@@ -9,7 +9,14 @@
   <div class="space-y-4" data-booking-list>
     {% for booking in bookings %}
     <article
-      class="rounded-[2.5rem] border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40 backdrop-blur-xl transition duration-300"
+      class="rounded-[2.5rem] border p-6 shadow-xl backdrop-blur-xl transition duration-300
+      {% if booking.status == 'active' %}
+        border-amber-300/40 bg-amber-500/15 shadow-amber-500/40
+      {% elif booking.status == 'confirmed' or booking.status == 'completed' %}
+        border-emerald-300/40 bg-emerald-500/15 shadow-emerald-500/40
+      {% else %}
+        border-white/10 bg-white/5 shadow-slate-950/40
+      {% endif %}"
       data-booking-card
       data-booking-id="{{ booking.pk }}"
     >
@@ -68,7 +75,9 @@
       {% endif %}
       <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="text-sm text-white/70">
-          {% if booking.status == 'active' %}
+          {% if booking.status == 'pending' %}
+          <span class="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-amber-200">Awaiting admin approval</span>
+          {% elif booking.status == 'active' %}
           <span class="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-amber-200">Awaiting payment</span>
           {% elif booking.status == 'confirmed' %}
           <span class="rounded-full border border-sky-300/30 bg-sky-400/10 px-3 py-1 text-sky-200">Payment received</span>
@@ -82,16 +91,23 @@
             href="{% url 'payment' booking.pk %}"
             class="inline-flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md shadow-cyan-500/40 transition hover:bg-primary/80"
           >Complete payment</a>
-          {% elif booking.status == 'confirmed' %}
-          
-          <span class="inline-flex items-center rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/70">You're all set! We'll remind you before your event.</span>
-           <button
+          <button
             type="button"
             data-modal-target="cancel-booking-{{ booking.pk }}"
             class="inline-flex items-center justify-center rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
             data-booking-cancel-trigger
             data-booking-id="{{ booking.pk }}"
           >Cancel booking</button>
+          {% elif booking.status == 'pending' %}
+          <button
+            type="button"
+            data-modal-target="cancel-booking-{{ booking.pk }}"
+            class="inline-flex items-center justify-center rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            data-booking-cancel-trigger
+            data-booking-id="{{ booking.pk }}"
+          >Cancel request</button>
+          {% elif booking.status == 'confirmed' %}
+          <span class="inline-flex items-center rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/70">You're all set! We'll remind you before your event.</span>
           {% endif %}
 
         </div>
@@ -104,7 +120,7 @@
   </p>
 </section>
 {% for booking in bookings %}
-{% if booking.status != 'cancelled' and booking.status != 'completed' %}
+{% if booking.status == 'pending' or booking.status == 'active' %}
 <div
   id="cancel-booking-{{ booking.pk }}"
   class="fixed inset-0 z-50 hidden"

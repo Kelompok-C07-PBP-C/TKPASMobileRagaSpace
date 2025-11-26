@@ -80,6 +80,7 @@ a{
     rgba(255, 255, 255, 0.035) 0px -1px 0px inset;
   backdrop-filter: blur(6px) saturate(1.2);
   position: fixed;
+  top: auto;
   bottom: 10px;
   right: 10px;
   display: flex;

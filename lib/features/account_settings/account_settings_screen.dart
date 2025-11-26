@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:io' show File;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +22,8 @@ typedef AccountUpdateFn = Future<Map<String, dynamic>> Function(
   required String lastName,
   required String phoneNumber,
   File? avatarFile,
+  Uint8List? avatarBytes,
+  String? avatarFilename,
 });
 typedef AccountChangePasswordFn = Future<void> Function(
   Api api, {
@@ -69,6 +73,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   String? _error;
   String? _avatarUrl;
   File? _avatarFile;
+  Uint8List? _avatarBytes;
+  String? _avatarFilename;
 
   late final ImagePicker _picker;
 
@@ -126,8 +132,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _pickAvatar() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1200);
     if (picked == null) return;
+    final bytes = await picked.readAsBytes();
     setState(() {
-      _avatarFile = File(picked.path);
+      _avatarBytes = bytes;
+      _avatarFilename = picked.name.isNotEmpty ? picked.name : picked.path.split('/').last;
+      _avatarFile = kIsWeb ? null : File(picked.path);
     });
   }
 
@@ -163,7 +172,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               firstName: _firstNameCtrl.text.trim(),
               lastName: _lastNameCtrl.text.trim(),
               phoneNumber: _phoneCtrl.text.trim(),
-              avatarFile: _avatarFile,
+              avatarFile: kIsWeb ? null : _avatarFile,
+              avatarBytes: _avatarBytes,
+              avatarFilename: _avatarFilename,
             )
           : await api.updateAccount(
               userId: userId,
@@ -172,11 +183,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               firstName: _firstNameCtrl.text.trim(),
               lastName: _lastNameCtrl.text.trim(),
               phoneNumber: _phoneCtrl.text.trim(),
-              avatarFile: _avatarFile,
+              avatarFile: kIsWeb ? null : _avatarFile,
+              avatarBytes: _avatarBytes,
+              avatarFilename: _avatarFilename,
             );
       setState(() {
         _avatarUrl = (data['avatar_url'] ?? '').toString();
         _avatarFile = null;
+        _avatarBytes = null;
+        _avatarFilename = null;
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -441,7 +456,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       child: const Icon(Icons.person_rounded, color: Colors.white, size: 44),
     );
     Widget avatarWidget;
-    if (_avatarFile != null) {
+    if (_avatarBytes != null) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(null, null)
+          : MemoryImage(_avatarBytes!);
+      avatarWidget = CircleAvatar(
+        radius: 48,
+        backgroundImage: provider as ImageProvider<Object>,
+      );
+    } else if (_avatarFile != null) {
       final provider = accountAvatarImageFactoryOverride != null
           ? accountAvatarImageFactoryOverride!(_avatarFile, null)
           : FileImage(_avatarFile!);

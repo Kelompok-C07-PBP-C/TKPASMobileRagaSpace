@@ -15,6 +15,9 @@ from django.utils.text import Truncator
 from django.views import View
 from django.views.generic import ListView
 
+from app.models import WishlistEntry, Venue as AppVenue
+from app.sync import _ensure_app_venue_from_main
+
 from authentication.mixins import EnsureCsrfCookieMixin
 from manajemen_lapangan.models import Venue
 from rent.models import Booking
@@ -59,11 +62,37 @@ def wishlist_toggle(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 def _toggle_wishlist_entry(request: HttpRequest, venue: Venue) -> bool:
-    wishlist, created = Wishlist.objects.get_or_create(user=request.user, venue=venue)
-    if created:
-        return True
-    wishlist.delete()
-    return False
+    """
+    Toggle wishlist state for the given TK1Web venue while keeping the
+    app-level WishlistEntry table in sync.
+
+    The Flutter app talks to /api/wishlist/ which uses app.models.WishlistEntry,
+    while the TK1Web pages historically used interaksi.Wishlist. To ensure both
+    surfaces see the same data, we treat WishlistEntry as the canonical store
+    and mirror changes into interaksi.Wishlist.
+    """
+    # Ensure there is a corresponding app Venue for this TK1Web venue.
+    app_venue = AppVenue.objects.filter(linked_venue_id=venue.pk).first()
+    if app_venue is None:
+        app_venue = _ensure_app_venue_from_main(venue)
+
+    entry = WishlistEntry.objects.filter(user=request.user, venue=app_venue).first()
+    legacy_exists = Wishlist.objects.filter(user=request.user, venue=venue).exists()
+
+    # If an app-level entry already exists or there is a legacy wishlist row,
+    # treat the current state as "wishlisted" and remove it in a single click.
+    if entry or legacy_exists:
+        if entry:
+            entry.delete()
+        Wishlist.objects.filter(user=request.user, venue=venue).delete()
+        return False
+
+    # Not yet wishlisted: create app entry. The post_save signal for
+    # WishlistEntry will mirror this into interaksi.Wishlist, but we also
+    # ensure the row exists eagerly for the current request.
+    WishlistEntry.objects.create(user=request.user, venue=app_venue)
+    Wishlist.objects.get_or_create(user=request.user, venue=venue)
+    return True
 
 
 def _request_wants_json(request: HttpRequest) -> bool:

@@ -7,7 +7,7 @@ from django.apps import apps
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.text import slugify
@@ -411,6 +411,27 @@ def sync_wishlist_to_tk1web(sender, instance: WishlistEntry, **kwargs):
   wishlist, _ = Wishlist.objects.get_or_create(user=instance.user, venue=venue)
   if instance.linked_wishlist_id != wishlist.pk:
       _update_instance_link(WishlistEntry, instance.pk, "linked_wishlist_id", wishlist.pk)
+
+
+@receiver(post_delete, sender=WishlistEntry)
+def delete_wishlist_from_tk1web(sender, instance: WishlistEntry, **kwargs):
+  """
+  Ensure TK1Web's interaksi.Wishlist is kept in sync when an app-level
+  WishlistEntry is removed (e.g. via the Flutter API).
+  """
+  Wishlist = apps.get_model("interaksi", "Wishlist")
+  # Prefer the explicit link if present.
+  if instance.linked_wishlist_id:
+      Wishlist.objects.filter(pk=instance.linked_wishlist_id).delete()
+      return
+  # Fallback: resolve the main venue and delete by (user, venue).
+  venue = None
+  try:
+      venue = _resolve_main_venue(instance.venue)
+  except Exception:
+      venue = None
+  if venue is not None and instance.user_id:
+      Wishlist.objects.filter(user_id=instance.user_id, venue=venue).delete()
 
 
 @receiver(post_save, sender=Comment)

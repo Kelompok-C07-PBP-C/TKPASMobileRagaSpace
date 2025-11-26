@@ -1,5 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'base_url_resolver.dart';
@@ -98,6 +100,9 @@ class Api {
     required String lastName,
     required String phoneNumber,
     File? avatarFile,
+    Uint8List? avatarBytes,
+    String? avatarFilename,
+    Object? avatarWebSource,
   }) async {
     final request = http.MultipartRequest('POST', _u('account/update/'));
     request.fields.addAll({
@@ -108,8 +113,42 @@ class Api {
       'last_name': lastName,
       'phone_number': phoneNumber,
     });
-    if (avatarFile != null) {
-      request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));
+
+    // Resolve avatar payload for all platforms (web and io).
+    final resolvedBytes = await () async {
+      if (avatarBytes != null) return avatarBytes;
+      if (avatarWebSource != null) {
+        // Support XFile or html.File by duck-typing readAsBytes / bytes.
+        try {
+          final dyn = avatarWebSource as dynamic;
+          if (dyn.bytes != null) {
+            final b = dyn.bytes;
+            if (b is Uint8List) return b;
+            if (b is List<int>) return Uint8List.fromList(b);
+          }
+          if (dyn.readAsBytes != null) {
+            final b = await dyn.readAsBytes();
+            if (b is Uint8List) return b;
+            if (b is List<int>) return Uint8List.fromList(b);
+          }
+        } catch (_) {
+          // ignore and fall through
+        }
+      }
+      if (!kIsWeb && avatarFile != null) {
+        return await avatarFile.readAsBytes();
+      }
+      return null;
+    }();
+
+    if (resolvedBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'avatar',
+          resolvedBytes,
+          filename: avatarFilename ?? (avatarFile?.path.split('/').last ?? 'avatar.jpg'),
+        ),
+      );
     }
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);

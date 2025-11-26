@@ -85,18 +85,17 @@ def _absolute_media_url(request: HttpRequest, url: str | None) -> str:
 
 
 def _resolve_request_user_id(request: HttpRequest, payload: dict | None = None) -> int | None:
+    payload = payload or {}
+    candidate = payload.get("user_id") or request.GET.get("user_id")
+    if candidate is not None:
+        try:
+            return int(candidate)
+        except (ValueError, TypeError):
+            return None
+    # Fallback to the authenticated session user when no explicit user_id is supplied.
     if request.user.is_authenticated and request.user.id:
         return request.user.id
-    payload = payload or {}
-    candidate = payload.get("user_id")
-    if candidate is None:
-        candidate = request.GET.get("user_id")
-    if candidate is None:
-        return None
-    try:
-        return int(candidate)
-    except (ValueError, TypeError):
-        return None
+    return None
 
 
 def _normalize_addon_entries(raw: Any) -> list[dict[str, object]]:
@@ -234,6 +233,41 @@ def _serialize_wishlist_entry(entry: WishlistEntry, *, request: HttpRequest | No
             "addons": _normalize_addon_entries(getattr(venue, "addons", [])),
         },
     }
+
+
+def _sync_legacy_wishlist_for_user(user):
+    """
+    Ensure any historical TK1Web wishlist rows for this user are mirrored into
+    the app-level WishlistEntry table so that the /api/wishlist/ endpoint and
+    the web wishlist page see the same data.
+    """
+    from django.apps import apps as _apps
+
+    Wishlist = _apps.get_model("interaksi", "Wishlist")
+
+    legacy_rows = (
+        Wishlist.objects.filter(user=user)
+        .select_related("venue")
+    )
+    if not legacy_rows.exists():
+        return
+
+    for legacy in legacy_rows:
+        main_venue = legacy.venue
+        if not main_venue:
+            continue
+        # Find or create the corresponding app Venue.
+        app_venue = Venue.objects.filter(linked_venue_id=main_venue.pk).first()
+        if app_venue is None:
+            from .sync import _ensure_app_venue_from_main  # type: ignore[attr-defined]
+
+            try:
+                app_venue = _ensure_app_venue_from_main(main_venue)  # pragma: no cover - defensive
+            except Exception:
+                app_venue = None
+        if app_venue is None:
+            continue
+        WishlistEntry.objects.get_or_create(user=user, venue=app_venue)
 
 
 DEFAULT_PAGE_SIZE = 6
@@ -603,7 +637,13 @@ def booking_detail_view(request: HttpRequest, booking_id: int):
             return JsonResponse({"detail": "Booking not found"}, status=404)
         if booking.has_been_paid:
             return JsonResponse({"detail": "Cannot cancel a paid booking"}, status=409)
+        # Also delete the mirrored TK1Web booking so the web UI and admin
+        # dashboard no longer show this record.
+        linked_id = booking.linked_booking_id
         booking.delete()
+        if linked_id:
+            RentBooking = apps.get_model("rent", "Booking")
+            RentBooking.objects.filter(pk=linked_id).delete()
         return JsonResponse({"detail": "deleted"})
     return JsonResponse({"detail": "Method not allowed"}, status=405)
 
@@ -649,6 +689,11 @@ def wishlist_view(request: HttpRequest):
         user = UserModel.objects.get(pk=user_id)
     except UserModel.DoesNotExist:
         return JsonResponse({"detail": "User not found"}, status=404)
+
+    # Keep historical TK1Web wishlist rows in sync with the app-level table so
+    # that the Flutter app (/api/wishlist/) and the web wishlist page both see
+    # the same items for this user.
+    _sync_legacy_wishlist_for_user(user)
 
     def _extract_venue_id() -> int | None:
         value = payload.get("venue_id")
