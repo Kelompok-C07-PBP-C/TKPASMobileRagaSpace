@@ -124,23 +124,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xF016264D),
-              Color(0xE0123A63),
-              Color(0xC0116B76),
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: const Color(0xFF020617),
           borderRadius: BorderRadius.circular(38),
           border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1BD7A1).withValues(alpha: 0.45),
-              blurRadius: 40,
-              spreadRadius: 2,
+              color: Colors.black.withValues(alpha: 0.65),
+              blurRadius: 42,
+              spreadRadius: 12,
               offset: const Offset(0, 26),
             ),
           ],

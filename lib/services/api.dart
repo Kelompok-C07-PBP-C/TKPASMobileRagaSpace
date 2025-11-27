@@ -3,6 +3,7 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'base_url_resolver.dart';
 
@@ -12,6 +13,11 @@ class Api {
   final String baseUrl;
 
   static final String defaultBaseUrl = _ensureTrailingSlash('${resolveBaseApiHost()}/api/');
+
+  // Keys for persisting "remember me" behaviour.
+  static const String _rememberKey = 'auth_remember_me';
+  static const String _rememberUserKey = 'auth_remember_username';
+  static const String _rememberPasswordKey = 'auth_remember_password';
 
   static int? _currentUserId;
   static String? _currentUsername;
@@ -37,6 +43,61 @@ class Api {
     _currentUsername = null;
   }
 
+  /// Persist or clear the "remember me" credentials.
+  static Future<void> _persistRememberMe({
+    required bool remember,
+    required String username,
+    required String password,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberKey, remember);
+    if (remember) {
+      await prefs.setString(_rememberUserKey, username);
+      await prefs.setString(_rememberPasswordKey, password);
+    } else {
+      await prefs.remove(_rememberUserKey);
+      await prefs.remove(_rememberPasswordKey);
+    }
+  }
+
+  /// Clear any stored "remember me" state.
+  static Future<void> clearRememberedLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberKey, false);
+    await prefs.remove(_rememberUserKey);
+    await prefs.remove(_rememberPasswordKey);
+  }
+
+  /// Returns whether the user previously opted into "Remind me next time".
+  static Future<bool> isRememberMeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_rememberKey) ?? false;
+  }
+
+  /// Attempts to perform an automatic login using stored credentials.
+  ///
+  /// Returns true when login succeeded and the in-memory session was updated.
+  static Future<bool> tryAutoLoginFromStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remember = prefs.getBool(_rememberKey) ?? false;
+    if (!remember) return false;
+
+    final username = prefs.getString(_rememberUserKey);
+    final password = prefs.getString(_rememberPasswordKey);
+    if (username == null || password == null) {
+      return false;
+    }
+    try {
+      await Api().login(username, password, rememberMe: true);
+      return true;
+    } on ApiError {
+      await clearRememberedLogin();
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static String _ensureTrailingSlash(String value) => value.endsWith('/') ? value : '$value/';
 
   Uri _u(String path) => Uri.parse(baseUrl + path);
@@ -57,7 +118,11 @@ class Api {
     return decoded;
   }
 
-  Future<Map<String, dynamic>> login(String username, String password) async {
+  Future<Map<String, dynamic>> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {
     final res = await http.post(
       _u('login/'),
       headers: {'Content-Type': 'application/json'},
@@ -65,6 +130,14 @@ class Api {
     );
     final decoded = _decode(res);
     _updateSession(decoded);
+    // Fire-and-forget persistence; we don't block the caller on disk I/O.
+    // If this fails it only affects auto-login, not the current session.
+    // ignore: unawaited_futures
+    _persistRememberMe(
+      remember: rememberMe,
+      username: username,
+      password: password,
+    );
     return decoded;
   }
 
@@ -81,6 +154,7 @@ class Api {
     final res = await http.post(_u('logout/'));
     final decoded = _decode(res);
     _clearSession();
+    await clearRememberedLogin();
     return decoded;
   }
 
