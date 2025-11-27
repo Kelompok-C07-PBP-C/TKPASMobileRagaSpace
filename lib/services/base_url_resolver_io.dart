@@ -4,19 +4,23 @@ const String _envOverride = String.fromEnvironment('API_BASE_URL');
 const bool _preferUsbLoopback =
     bool.fromEnvironment('USE_USB_DEVICE_LOOPBACK', defaultValue: false);
 
+// Clean, hard-coded production host used when no override is supplied.
+const String _defaultProductionHost =
+    'https://tirta-rendy-ragaspace.pbp.cs.ui.ac.id';
+
 String resolveBaseApiHostImpl() {
   final override = _normalizeUrl(_envOverride);
   if (override != null) return override;
 
-  if (Platform.isAndroid) {
-    if (_preferUsbLoopback) {
-      // Works with `adb reverse tcp:8000 tcp:8000`, allowing devices to reach
-      // the host dev server via their own loopback interface.
-      return 'http://127.0.0.1:8000';
-    }
-    return 'http://10.0.2.2:8000';
+  // In day-to-day development you can still point to a local backend by
+  // supplying API_BASE_URL via --dart-define. For non-overridden builds we
+  // default to the deployed production host so that installed APKs "just work".
+  if (Platform.isAndroid || Platform.isIOS) {
+    return _defaultProductionHost;
   }
-  if (Platform.isIOS || Platform.isMacOS) {
+
+  // Desktop / CLI defaults – still usable for local testing.
+  if (Platform.isMacOS) {
     return 'http://127.0.0.1:8000';
   }
   return 'http://localhost:8000';

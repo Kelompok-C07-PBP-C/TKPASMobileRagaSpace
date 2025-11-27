@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network access for release builds (debug already adds this in its own
+         manifest). Required for talking to the Django backend. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="marco"
         android:name="${applicationName}"

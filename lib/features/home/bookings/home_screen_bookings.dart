@@ -54,12 +54,19 @@ class _BookingsScreenState extends State<_BookingsScreen> {
         _bookings = result;
         _loading = false;
       });
-    } catch (err) {
+    } catch (err, stack) {
+      // Log the full error for debugging, but surface a concise message.
+      // ignore: avoid_print
+      print('Bookings load failed: $err\n$stack');
+      var detail = err.toString();
+      if (detail.length > 160) {
+        detail = detail.substring(0, 160);
+      }
       if (!mounted) return;
       setState(() {
         _loading = false;
         _error =
-            'Tidak bisa memuat riwayat booking. Pastikan backend berjalan lalu coba lagi.';
+            'Tidak bisa memuat riwayat booking. Detail: $detail';
       });
     }
   }
