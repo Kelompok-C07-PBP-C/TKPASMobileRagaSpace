@@ -161,6 +161,7 @@ abstract class _HomeScreenCore extends State<HomeScreen>
   Future<void> _loadProfileSummary();
   Future<void> _toggleWishlist(_VenueCardData data);
   Future<bool> _toggleWishlistAndReturn(_VenueCardData data);
+  Future<List<_VenueCardData>> _syncWishlistForScreen();
 
   void _startHighlightAutoScroll() {
     _highlightTimer?.cancel();
