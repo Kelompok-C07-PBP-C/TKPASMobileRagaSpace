@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "mobileragaspace" "\0"
+            VALUE "FileDescription", "tk2ragaspace" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "mobileragaspace" "\0"
+            VALUE "InternalName", "tk2ragaspace" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "mobileragaspace.exe" "\0"
-            VALUE "ProductName", "mobileragaspace" "\0"
+            VALUE "OriginalFilename", "tk2ragaspace.exe" "\0"
+            VALUE "ProductName", "tk2ragaspace" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
