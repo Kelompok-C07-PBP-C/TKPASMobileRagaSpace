@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:marco/theme/aurora_palette.dart';
-import 'package:marco/widgets/aurora_backdrop.dart';
-import 'package:marco/widgets/twinkle_overlay.dart';
+import 'package:tk2ragaspace/theme/aurora_palette.dart';
+import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
+import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
 import '../../widgets/aurora_route.dart';
 import '../home/home_screen.dart';
 
