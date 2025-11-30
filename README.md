@@ -38,7 +38,7 @@ Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas
    * Halaman user penyewa
    * Halaman admin pemilik tempat
 
-2. Modul Manajemen Lapangan (Admin) by Tirta Rendy Siahaan
+2. Modul Autentifikasi by Tirta Rendy Siahaan
 
    * Tambah dan hapus data lapangan
    * Tambah fasilitas, deskripsi, aturan venue, lokasi
