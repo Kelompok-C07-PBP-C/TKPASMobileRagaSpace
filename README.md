@@ -31,18 +31,17 @@ Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas
 
 1. Modul Admin by Alexander Haekal Dinova
 
-   * Register (akun user & admin)
-   * Login (opsi Gmail)
-   * Validasi email unik
-   * Halaman utama (tanpa login hanya bisa lihat-lihat)
-   * Halaman user penyewa
-   * Halaman admin pemilik tempat
-
-2. Modul Autentifikasi by Tirta Rendy Siahaan
-
    * Tambah dan hapus data lapangan
    * Tambah fasilitas, deskripsi, aturan venue, lokasi
    * Tambah jadwal ketersediaan
+   * Menyimpan list venue, kategori, kota, dan daftar jadwal
+
+2. Modul Autentifikasi by Tirta Rendy Siahaan
+
+   * Login, Register (Gmail)
+   * Validasi email unik
+   * State loading/error
+   * Simpan token/session
 
 3. Modul Katalog Lapangan (User) by Shafa Aurelia
 
