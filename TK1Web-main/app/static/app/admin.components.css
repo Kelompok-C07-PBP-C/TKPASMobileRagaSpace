@@ -146,6 +146,11 @@
   overflow-x: auto;
 }
 
+.table-wrapper.is-loading {
+  /* prevent horizontal scroll while loading overlay is visible */
+  overflow-x: hidden;
+}
+
 /* Subtle scrollbars for data tables */
 .table-wrapper::-webkit-scrollbar {
   height: 6px;
