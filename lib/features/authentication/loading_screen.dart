@@ -6,7 +6,7 @@ import 'package:tk2ragaspace/theme/aurora_palette.dart';
 import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
 import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
 import '../../widgets/aurora_route.dart';
-import '../home/home_screen.dart';
+import '../home/wishlist/home_screen.dart';
 
 @visibleForTesting
 bool loadingScreenDisableAutoNavigateForTests = false;
