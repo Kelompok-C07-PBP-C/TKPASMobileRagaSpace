@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Lightweight tiled GIF overlay that provides a subtle twinkling effect.
 class TwinkleOverlay extends StatelessWidget {
   const TwinkleOverlay({super.key, this.opacity = 0.18});
 

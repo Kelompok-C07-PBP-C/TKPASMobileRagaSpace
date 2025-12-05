@@ -1,30 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
-
-typedef CatalogHttpGet = Future<http.Response> Function(Uri uri);
-
-/// Optional override used in tests to stub the HTTP GET call.
-CatalogHttpGet? catalogHttpGetOverride;
-
-class _ProductCatalogScreen extends StatefulWidget {
-  const _ProductCatalogScreen({
-    required this.initialCity,
-    required this.initialCategory,
-    required this.initialPrice,
-    required this.apiBaseUrl,
-    required this.initialWishlistKeys,
-    required this.onToggleFavorite,
-  });
-
-  final String initialCity;
-  final String initialCategory;
-  final String initialPrice;
-  final String apiBaseUrl;
-  final Set<String> initialWishlistKeys;
-  final Future<bool> Function(_VenueCardData data) onToggleFavorite;
-
-  @override
-  State<_ProductCatalogScreen> createState() => _ProductCatalogScreenState();
-}
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
   late String _city;
@@ -351,8 +325,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
     });
     try {
       final uri = Uri.parse('${widget.apiBaseUrl}/api/venues/');
-      final getFn = catalogHttpGetOverride ?? http.get;
-      final res = await getFn(uri).timeout(const Duration(seconds: 8));
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
       if (res.statusCode != 200) {
         throw Exception('Failed to load venues');
       }
@@ -453,28 +426,6 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       addons: product.addons,
     );
   }
-}
-
-/// Test-only helper to render the catalog screen in isolation.
-Widget buildCatalogTestApp({
-  String initialCity = 'All cities',
-  String initialCategory = 'All categories',
-  String initialPrice = 'Any price',
-  String apiBaseUrl = 'http://localhost',
-  Set<String> initialWishlistKeys = const {},
-  Future<bool> Function(Map<String, dynamic> venue)? onToggleFavorite,
-}) {
-  return MaterialApp(
-    home: _ProductCatalogScreen(
-      initialCity: initialCity,
-      initialCategory: initialCategory,
-      initialPrice: initialPrice,
-      apiBaseUrl: apiBaseUrl,
-      initialWishlistKeys: initialWishlistKeys,
-      onToggleFavorite: (venue) async =>
-          onToggleFavorite?.call(venue.toMap()) ?? false,
-    ),
-  );
 }
 
 class _CatalogDropdown extends StatelessWidget {

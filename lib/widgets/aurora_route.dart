@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Route with no animations to keep transitions instant.
 class AuroraWarpRoute<T> extends PageRouteBuilder<T> {
   AuroraWarpRoute(this.child)
       : super(

@@ -1,5 +1,3 @@
-import 'dart:io' show HttpClient, HttpOverrides, SecurityContext;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,12 +13,6 @@ bool _isRenderFlexOverflow(FlutterErrorDetails details) {
 }
 
 void main() {
-  // Work around TLS chain issues on the course deployment host by relaxing
-  // certificate validation only for that specific domain. This prevents
-  // CERTIFICATE_VERIFY_FAILED handshake errors on real devices while keeping
-  // other HTTPS traffic validated normally.
-  HttpOverrides.global = _RagaHttpOverrides();
-
   WidgetsFlutterBinding.ensureInitialized();
   final FlutterExceptionHandler? originalOnError = FlutterError.onError;
   final void Function(FlutterErrorDetails details) originalPresentError =
@@ -75,19 +67,5 @@ class MyApp extends StatelessWidget {
       ),
       home: const LoginScreen(),
     );
-  }
-}
-
-class _RagaHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    final client = super.createHttpClient(context);
-    client.badCertificateCallback = (cert, host, port) {
-      if (host == 'tirta-rendy-ragaspace.pbp.cs.ui.ac.id') {
-        return true;
-      }
-      return false;
-    };
-    return client;
   }
 }

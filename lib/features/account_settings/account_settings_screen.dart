@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:marco/theme/aurora_palette.dart';
-import 'package:marco/widgets/aurora_backdrop.dart';
-import 'package:marco/widgets/twinkle_overlay.dart';
+import 'package:tk2ragaspace/theme/aurora_palette.dart';
+import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
+import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
 
 import '../../services/api.dart';
 import '../../widgets/gradient_button.dart';
@@ -578,12 +578,3 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   Widget debugBuildAvatarForTests() => _buildAvatar();
 }
-
-
-
-
-
-
-
-
-

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 enum AuroraBackdropVariant { standard, dense }
 
-/// Layered gradient bands that mimic aurora curtains without heavy blur shaders.
 class AuroraBackdrop extends StatelessWidget {
   const AuroraBackdrop({
     super.key,

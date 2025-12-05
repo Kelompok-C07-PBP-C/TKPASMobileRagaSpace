@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _CategoryChipData {
   const _CategoryChipData({required this.label, required this.icon});

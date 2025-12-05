@@ -1,19 +1,15 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _WishlistScreen extends StatefulWidget {
   const _WishlistScreen({
     required this.items,
     required this.onRemove,
     required this.onSelect,
-    this.loader,
   });
 
   final List<_VenueCardData> items;
   final Future<void> Function(_VenueCardData) onRemove;
   final ValueChanged<_VenueCardData> onSelect;
-  // Optional async loader used to refresh the wishlist from the server after
-  // the screen has been opened.
-  final Future<List<_VenueCardData>> Function()? loader;
 
   @override
   State<_WishlistScreen> createState() => _WishlistScreenState();
@@ -21,36 +17,11 @@ class _WishlistScreen extends StatefulWidget {
 
 class _WishlistScreenState extends State<_WishlistScreen> {
   late List<_VenueCardData> _items;
-  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _items = List<_VenueCardData>.from(widget.items);
-    if (widget.loader != null) {
-      _refreshFromLoader();
-    }
-  }
-
-  Future<void> _refreshFromLoader() async {
-    setState(() => _loading = _items.isEmpty);
-    try {
-      final loader = widget.loader;
-      if (loader != null) {
-        final updated = await loader();
-        if (!mounted) return;
-        setState(() {
-          _items = List<_VenueCardData>.from(updated);
-          _loading = false;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() => _loading = false);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
   }
 
   Future<void> _removeItem(_VenueCardData venue) async {
@@ -100,24 +71,17 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                   ),
                 ),
                 Expanded(
-                  child: _loading && _items.isEmpty
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                  child: _items.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Belum ada venue yang disimpan.',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
                           ),
                         )
-                      : _items.isEmpty
-                          ? Center(
-                              child: Text(
-                                'Belum ada venue yang disimpan.',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
+                      : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                           itemBuilder: (context, index) {
                             final venue = _items[index];
@@ -155,21 +119,4 @@ class _WishlistScreenState extends State<_WishlistScreen> {
       ),
     );
   }
-}
-
-/// Test-only helper to render the wishlist screen in isolation.
-Widget buildWishlistTestApp({
-  required List<Map<String, dynamic>> items,
-  required Future<void> Function(Map<String, dynamic>) onRemove,
-  required ValueChanged<Map<String, dynamic>> onSelect,
-}) {
-  final mapped = items.map(_VenueCardData.fromMap).toList();
-  return MaterialApp(
-    home: _WishlistScreen(
-      items: mapped,
-      onRemove: (venue) => onRemove(venue.toMap()),
-      onSelect: (venue) => onSelect(venue.toMap()),
-      loader: null,
-    ),
-  );
 }
