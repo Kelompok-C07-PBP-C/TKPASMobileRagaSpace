@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Tenant Dashboard • RagaSpace{% endblock %}
+{% block content %}
+<section class="space-y-8" data-animate>
+  <header class="space-y-2">
+    <h1 class="text-3xl font-semibold text-white">Selamat datang, {{ request.user.username }}!</h1>
+    <p class="text-white/70">
+      Lihat pemesanan aktif Anda dan lanjutkan pembayaran yang masih menunggu.
+    </p>
+  </header>
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40">
+      <p class="text-sm font-medium text-white/60">Wishlist</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ wishlist_count }}</p>
+      <a href="{% url 'wishlist' %}" class="mt-4 inline-flex items-center text-sm font-semibold text-primary hover:text-cyan-300">
+        Kelola wishlist
+      </a>
+    </div>
+    <div class="lg:col-span-2 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40">
+      <h2 class="text-xl font-semibold text-white">Pemesanan aktif</h2>
+      {% if active_bookings %}
+      <ul class="mt-4 space-y-4">
+        {% for booking in active_bookings %}
+        <li class="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-lg font-semibold text-white">{{ booking.venue.name }}</p>
+              <p class="text-sm text-white/60">
+                {{ booking.start_datetime|date:"d M Y H:i" }} - {{ booking.end_datetime|date:"d M Y H:i" }}
+              </p>
+              <p class="text-sm text-white/60">Status: {{ booking.get_status_display }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <a href="{% url 'payment' booking.pk %}" class="rounded-xl bg-primary/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-primary">Bayar sekarang</a>
+              <a href="{% url 'booking-cancel' booking.pk %}" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white/80 transition hover:border-red-400 hover:text-red-200">Batalkan</a>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="mt-4 text-white/60">Belum ada pemesanan aktif. Jelajahi katalog untuk memulai.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

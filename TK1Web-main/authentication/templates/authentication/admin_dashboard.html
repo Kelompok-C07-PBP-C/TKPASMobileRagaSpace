@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Owner Dashboard • RagaSpace{% endblock %}
+{% block content %}
+<section class="space-y-8" data-animate>
+  <header class="space-y-2">
+    <h1 class="text-3xl font-semibold text-white">Ringkasan Pemilik Tempat</h1>
+    <p class="text-white/70">
+      Pantau performa venue dan proses approval terbaru sebelum masuk ke workspace manajemen.
+    </p>
+  </header>
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40">
+      <p class="text-sm font-medium text-white/60">Total Venue</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ total_venues }}</p>
+      <a href="{% url 'admin-venues' %}" class="mt-4 inline-flex items-center text-sm font-semibold text-primary hover:text-cyan-300">Kelola venue</a>
+    </div>
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40">
+      <p class="text-sm font-medium text-white/60">Booking menunggu approval</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ pending_bookings }}</p>
+      <a href="{% url 'admin-bookings' %}" class="mt-4 inline-flex items-center text-sm font-semibold text-primary hover:text-cyan-300">Tinjau booking</a>
+    </div>
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40">
+      <p class="text-sm font-medium text-white/60">Pembayaran terkonfirmasi</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ confirmed_payments }}</p>
+      <a href="{% url 'admin-dashboard' %}" class="mt-4 inline-flex items-center text-sm font-semibold text-primary hover:text-cyan-300">Workspace admin</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
