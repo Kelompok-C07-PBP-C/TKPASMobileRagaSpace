@@ -39,11 +39,15 @@ class VenueFilterTests(TestCase):
     def test_city_choices_include_preferred_and_dynamic_cities(self):
         venue_filter = VenueFilter()
         choices = venue_filter.filters["city"].field.choices
-        # The first preferred city should be Jakarta as defined in PREFERRED_CITY_ORDER
-        self.assertEqual(choices[0][0], "Jakarta")
+        # The filter exposes an explicit empty_label, and the first non-empty
+        # choice should be Jakarta as defined in PREFERRED_CITY_ORDER.
         self.assertEqual(venue_filter.filters["city"].extra.get("empty_label"), "All cities")
-        # "Solo" should appear at the end because it is not in the preferred list
-        self.assertEqual(choices[-1][0], "Solo")
+        non_empty_choices = [choice for choice in choices if choice[0]]
+        self.assertGreaterEqual(len(non_empty_choices), 2)
+        self.assertEqual(non_empty_choices[0][0], "Jakarta")
+        self.assertEqual(venue_filter.filters["city"].extra.get("empty_label"), "All cities")
+        # "Solo" should appear at the end of the non-empty list because it is not in the preferred list
+        self.assertEqual(non_empty_choices[-1][0], "Solo")
         # The bound form should mirror the filter field choices
         self.assertEqual(venue_filter.form.fields["city"].choices, choices)
 

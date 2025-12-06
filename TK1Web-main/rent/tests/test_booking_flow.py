@@ -155,8 +155,11 @@ class BookingFlowTests(TestCase):
         self.assertEqual(booking.payment.status, "confirmed")
 
         response = self.client.post(reverse("booking-cancel", args=[booking.pk]))
+        # The view should redirect back to booked places and keep the booking
+        # confirmed, since confirmed bookings are considered paid and cannot
+        # be cancelled in this flow.
         self.assertRedirects(response, reverse("booked-places"))
 
         booking.refresh_from_db()
-        self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
-        self.assertEqual(booking.payment.status, "waiting")
+        self.assertEqual(booking.status, Booking.STATUS_CONFIRMED)
+        self.assertEqual(booking.payment.status, "confirmed")

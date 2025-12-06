@@ -11,7 +11,9 @@ from katalog.constants import PREFERRED_CITY_ORDER
 class VenueFilter(django_filters.FilterSet):
     city = django_filters.ChoiceFilter(
         field_name="city",
-        lookup_expr="exact",
+        # Use icontains so that compact labels such as "Bandung"
+        # still match stored values like "Bandung, Indonesia".
+        lookup_expr="icontains",
         empty_label="All cities",
         widget=forms.Select(
             attrs={

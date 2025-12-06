@@ -218,10 +218,32 @@ def _get_or_create_import_category():
   return category
 
 
+def _resolve_category_for_app_venue(app_venue: "Venue"):
+  """
+  Choose an appropriate manajemen_lapangan.Category for the given app Venue.
+
+  We prefer a category whose *name* matches the app venue type (e.g. "Tennis",
+  "Futsal"). If no such category exists we gracefully fall back to the generic
+  "Imported" category so existing data keeps working.
+  """
+  Category = apps.get_model("manajemen_lapangan", "Category")
+
+  venue_type = (app_venue.type or "").strip()
+  if venue_type:
+      # Try a case-insensitive name match first so that "Tennis" in the
+      # admin UI maps to the Tennis category used by the catalog filters.
+      category = Category.objects.filter(name__iexact=venue_type).first()
+      if category:
+          return category
+
+  # As a safe fallback, keep using / creating the generic "Imported" bucket.
+  return _get_or_create_import_category()
+
+
 def _resolve_main_venue(app_venue: Venue):
   """Ensure a corresponding manajemen_lapangan.Venue exists and return it."""
   MLVenue = apps.get_model("manajemen_lapangan", "Venue")
-  category = _get_or_create_import_category()
+  category = _resolve_category_for_app_venue(app_venue)
 
   slug_base = slugify(app_venue.title) or f"venue-{app_venue.pk}"
   slug = slug_base
