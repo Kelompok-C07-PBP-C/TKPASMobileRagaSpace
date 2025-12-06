@@ -456,52 +456,11 @@
   }
 
   function getFilteredRecords(section) {
+    // Rely on the server to perform filtering (via the ``q`` parameter).
+    // The in‑memory state for a section already contains only the rows
+    // for the current page / query, so the "filtered" records are just
+    // the current records.
     const records = Array.isArray(state[section]) ? state[section] : [];
-    const rawQuery =
-      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
-    const query = rawQuery.trim().toLowerCase();
-
-    if (!query) {
-      return records;
-    }
-
-    if (section === 'venues') {
-      return records.filter((venue) => {
-        const parts = [
-          getVenueTitleValue(venue),
-          getVenueLocationValue(venue),
-          getVenueFacilitiesValue(venue),
-          getVenueAddonsText(venue),
-          venue && venue.type,
-          venue && venue.description,
-          venue && venue.price != null ? String(venue.price) : '',
-        ];
-        return parts.some((value) => {
-          if (!value) return false;
-          return String(value).toLowerCase().includes(query);
-        });
-      });
-    }
-
-    if (section === 'bookings') {
-      return records.filter((booking) => {
-        const parts = [
-          getBookingGuestValue(booking),
-          getBookingPhoneValue(booking),
-          getBookingVenueValue(booking),
-          getBookingNotesValue(booking),
-          getBookingAddonsLabel(booking),
-          getBookingPaidLabel(booking),
-          getBookingDateLabel(booking),
-          getBookingCreatedValue(booking),
-        ];
-        return parts.some((value) => {
-          if (!value) return false;
-          return String(value).toLowerCase().includes(query);
-        });
-      });
-    }
-
     return records;
   }
 
@@ -929,12 +888,12 @@
   }
 
   function handlePageChange(section, page) {
-    const meta = state.pagination[section] || {};
-    const parsed = Number(page);
-    const pageNumber = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-    const pageSize = meta.pageSize || DEFAULT_PAGE_SIZE;
-    const query = state.search[section] || '';
-    loadSection(section, { page: pageNumber, pageSize, query });
+      const meta = state.pagination[section] || {};
+      const parsed = Number(page);
+      const pageNumber = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+      const pageSize = meta.pageSize || DEFAULT_PAGE_SIZE;
+      const query = state.search[section] || '';
+      loadSection(section, { page: pageNumber, pageSize, query });
   }
 
   function createPaginationButton(label, pageNumber, section, options = {}) {
@@ -962,6 +921,7 @@
     }
     const meta = state.pagination[section];
     container.innerHTML = '';
+
     if (!meta || meta.totalPages <= 1) {
       container.classList.add('is-hidden');
       return;
@@ -1015,15 +975,15 @@
     if (!footer) {
       return;
     }
-    const meta = state.pagination[section];
-    const hasItems = meta && meta.totalItems > 0;
+    const items = getFilteredRecords(section);
+    const hasItems = Array.isArray(items) && items.length > 0;
     footer.classList.toggle('is-hidden', !hasItems);
   }
 
-  function handleSearchChange(section, rawValue) {
-    if (!(section in searchTimeouts)) {
-      return;
-    }
+    function handleSearchChangeLocal(section, rawValue) {
+      if (!(section in searchTimeouts)) {
+        return;
+      }
     const query = typeof rawValue === 'string' ? rawValue.trim() : '';
     state.search[section] = query;
     const meta = state.pagination[section] || {};
@@ -1037,6 +997,12 @@
   // Client-side search overrides: once the initial data page is loaded,
   // filter the in-memory records instead of issuing a new request on
   // every keystroke from the admin search boxes.
+  function hasActiveSearch(section) {
+    const raw =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    return raw.trim().length > 0;
+  }
+
   function toggleEmptyState(section) {
     const emptyState = emptyStates[section];
     if (!emptyState) {
@@ -1091,16 +1057,47 @@
     }
     const query = typeof rawValue === 'string' ? rawValue.trim() : '';
     state.search[section] = query;
+    const meta = state.pagination[section] || {};
+    const pageSize = meta.pageSize || DEFAULT_PAGE_SIZE;
     window.clearTimeout(searchTimeouts[section]);
     searchTimeouts[section] = window.setTimeout(() => {
-      if (section === 'venues') {
-        renderVenues();
-      } else if (section === 'bookings') {
-        renderBookings();
+      loadSection(section, { page: 1, pageSize, query });
+    }, 220);
+  }
+
+  // Final summary helper: uses server pagination metadata so that the
+  // "Showing X‑Y of Z" text always reflects the current query.
+  function updateSummary(section) {
+    const summary = tableSummaries[section];
+    if (!summary) {
+      return;
+    }
+
+    const meta = state.pagination[section];
+    const items = getFilteredRecords(section);
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim();
+
+    if (!items || !items.length) {
+      summary.textContent = '';
+      return;
+    }
+
+    if (!meta || !meta.totalItems || !meta.pageSize) {
+      if (query) {
+        summary.textContent = `Showing ${items.length} result(s) matching "${query}".`;
+      } else {
+        summary.textContent = `Showing ${items.length} result(s).`;
       }
-      toggleEmptyState(section);
-      updateSummary(section);
-    }, 160);
+      return;
+    }
+
+    const totalItems = meta.totalItems;
+    const startIndex = (meta.page - 1) * meta.pageSize + 1;
+    const endIndex = Math.min(totalItems, startIndex + items.length - 1);
+    const queryText = query || meta.query ? ` matching "${query || meta.query}"` : '';
+    summary.textContent = `Showing ${startIndex}-${endIndex} of ${totalItems}${queryText} results.`;
   }
 
   function createAutocompleteController(fieldElement, options = {}) {
