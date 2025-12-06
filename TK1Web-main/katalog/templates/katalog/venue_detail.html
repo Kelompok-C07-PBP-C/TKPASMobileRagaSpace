@@ -147,7 +147,12 @@
           </button>
         </form>
       </div>
-      <p class="mt-4 text-white/70">{{ venue.description }}</p>
+      <p
+        class="mt-4 max-w-full text-white/70 break-all whitespace-normal"
+        style="overflow-wrap: anywhere; word-break: break-word;"
+      >
+        {{ venue.description }}
+      </p>
       <div class="mt-6 grid gap-4 md:grid-cols-2">
         <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
           <h2 class="text-sm font-semibold text-white">Facilities</h2>

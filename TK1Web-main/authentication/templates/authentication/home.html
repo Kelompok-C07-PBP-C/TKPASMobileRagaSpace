@@ -443,7 +443,7 @@
     </div>
   </div>
 </div>
-  <div class="w-full px-6 py-16 sm:px-10" data-animate>
+  <div class="w-full px-3 py-16 sm:px-8 lg:px-10" data-animate>
     <div class="flex flex-col items-center gap-3 text-center">
       <h2 class="text-3xl font-semibold text-white drop-shadow-[0_8px_30px_rgba(14,165,233,0.4)]">Top 3 Venues</h2>
       <p class="text-sm text-white/70">Handpicked places loved by the RagaSpace community.</p>
@@ -456,47 +456,51 @@
       {% endfor %}
     </div>
   </div>
-  <div class="w-full px-6 pb-20 sm:px-10" data-animate>
-    <div class="mx-auto flex w-full max-w-6xl flex-col items-center gap-10">
-      <h2 class="text-3xl font-semibold text-white drop-shadow-[0_8px_30px_rgba(14,165,233,0.4)]">What They said about RagaSpace?</h2>
-      <div class="w-full overflow-hidden rounded-[3rem] bg-gradient-to-br from-white/10 via-white/5 to-cyan-500/10 p-[1px] shadow-2xl shadow-slate-950/50 backdrop-blur-2xl">
+  <div class="w-full px-3 pb-20 sm:px-8 lg:px-10" data-animate>
+    <div class="mx-auto flex w-full flex-col items-center gap-8 lg:max-w-6xl">
+      <h2 class="text-2xl font-semibold text-white drop-shadow-[0_8px_30px_rgba(14,165,233,0.4)] sm:text-3xl">What They said about RagaSpace?</h2>
+      <div class="w-full overflow-hidden rounded-3xl bg-gradient-to-br from-white/10 via-white/5 to-cyan-500/10 p-[1px] shadow-2xl shadow-slate-950/50 backdrop-blur-2xl sm:rounded-[3rem]">
         <div
           id="testimonial-card"
-          class="flex flex-col gap-8 rounded-[3rem] bg-slate-950/70 px-8 py-10 sm:px-12 lg:flex-row lg:items-center lg:gap-12"
+          class="flex flex-col gap-6 rounded-3xl bg-slate-950/80 px-5 py-7 sm:gap-8 sm:rounded-[3rem] sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:gap-12"
         >
-          <div class="flex justify-center lg:w-[40%]">
+          <div class="flex justify-center">
             {% if testimonials %}
             <img
               id="testimonial-image"
               src="{{ testimonials.0.image }}"
               alt="Foto testimoni {{ testimonials.0.name }}"
-              class="h-64 w-64 rounded-[3rem] object-cover shadow-xl shadow-cyan-500/30"
+              loading="lazy"
+              decoding="async"
+              class="h-40 w-40 rounded-3xl object-cover shadow-xl shadow-cyan-500/30 sm:h-56 sm:w-56 sm:rounded-[3rem]"
             />
             {% endif %}
           </div>
-          <div class="flex-1 space-y-6 text-white/90">
+          <div class="flex-1 space-y-4 text-white/90 sm:space-y-6">
             <div>
-              <p id="testimonial-name" class="text-2xl font-semibold text-white">{{ testimonials.0.name }}</p>
-              <p id="testimonial-role" class="text-sm uppercase tracking-[0.35em] text-cyan-200/80">{{ testimonials.0.role }}</p>
+              <p id="testimonial-name" class="text-xl font-semibold text-white sm:text-2xl">{{ testimonials.0.name }}</p>
+              <p id="testimonial-role" class="mt-1 text-[0.7rem] uppercase tracking-[0.25em] text-cyan-200/80 sm:text-xs sm:tracking-[0.35em]">
+                {{ testimonials.0.role }}
+              </p>
             </div>
-            <div id="testimonial-paragraphs" class="space-y-4">
+            <div id="testimonial-paragraphs" class="space-y-3 text-sm leading-relaxed text-white/80 sm:space-y-4 sm:text-base">
               {% for paragraph in testimonials.0.paragraphs %}
-              <p class="leading-relaxed text-white/80">{{ paragraph }}</p>
+              <p class="break-words">{{ paragraph }}</p>
               {% endfor %}
             </div>
-            <div class="flex items-center justify-between pt-4">
-              <div class="flex gap-2">
+            <div class="flex flex-col gap-3 pt-4">
+              <div class="flex w-full justify-center gap-2 sm:justify-start">
                 {% for testimonial in testimonials %}
-                <span class="h-2 w-8 rounded-full bg-white/20 transition-colors duration-300{% if forloop.first %} bg-cyan-400/80{% endif %}" data-indicator></span>
+                <span class="h-1.5 w-6 rounded-full bg-white/20 transition-colors duration-300{% if forloop.first %} bg-cyan-400/80{% endif %} sm:h-2 sm:w-8" data-indicator></span>
                 {% endfor %}
               </div>
-              <div class="flex gap-3">
-                <button id="testimonial-prev" type="button" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:border-cyan-400/70 hover:text-cyan-300" aria-label="Review sebelumnya">
+              <div class="flex w-full justify-center gap-3 sm:justify-end">
+                <button id="testimonial-prev" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:border-cyan-400/70 hover:text-cyan-300 sm:h-10 sm:w-10" aria-label="Review sebelumnya">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                   </svg>
                 </button>
-                <button id="testimonial-next" type="button" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:border-cyan-400/70 hover:text-cyan-300" aria-label="Review selanjutnya">
+                <button id="testimonial-next" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:border-cyan-400/70 hover:text-cyan-300 sm:h-10 sm:w-10" aria-label="Review selanjutnya">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -570,6 +574,12 @@
 
         // Update content
         if (imageEl) {
+          imageEl.onload = () => {
+            imageEl.classList.remove("hidden");
+          };
+          imageEl.onerror = () => {
+            imageEl.classList.add("hidden");
+          };
           imageEl.src = testimonial.image;
           imageEl.alt = `Foto testimoni ${testimonial.name}`;
         }
@@ -616,6 +626,12 @@
         if (!testimonial) return;
 
         if (imageEl) {
+          imageEl.onload = () => {
+            imageEl.classList.remove("hidden");
+          };
+          imageEl.onerror = () => {
+            imageEl.classList.add("hidden");
+          };
           imageEl.src = testimonial.image;
           imageEl.alt = `Foto testimoni ${testimonial.name}`;
         }

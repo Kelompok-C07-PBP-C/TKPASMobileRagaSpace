@@ -87,6 +87,51 @@ const onDocumentReady = (callback) => {
   }
 };
 
+// --- Global safety fallback for page reveal ---------------------------------
+// On some mobile browsers (notably Chrome on Android when under heavy load)
+// the entry animation for the main page shell can occasionally fail to
+// complete, leaving the content permanently hidden. We schedule a hard
+// fallback that will run a few seconds after JS starts: if the shell is still
+// not marked as "ready", we abandon the animation and fall back to the
+// non‑JS experience so the content is visible.
+let pageShellHardRevealTimer = null;
+
+const scheduleHardRevealFallback = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return;
+  }
+  // Always reset any previous timer so each navigation / animation gets its
+  // own safety window.
+  if (pageShellHardRevealTimer !== null) {
+    window.clearTimeout(pageShellHardRevealTimer);
+  }
+  pageShellHardRevealTimer = window.setTimeout(() => {
+    try {
+      const shell = document.querySelector('[data-page-shell]');
+      if (!shell) {
+        return;
+      }
+      if (!shell.classList.contains('is-ready')) {
+        // Drop back to the CSS-only path: remove "js-enabled" so the
+        // body:not(.js-enabled) rule in ragaspace.css makes the shell visible.
+        document.body.classList.remove('js-enabled');
+        shell.style.removeProperty('opacity');
+        shell.style.removeProperty('filter');
+        shell.style.removeProperty('transform');
+      }
+    } catch (error) {
+      // If this fails we do nothing; the worst case is the existing behaviour.
+      console.warn('Page reveal fallback encountered an error:', error);
+    } finally {
+      pageShellHardRevealTimer = null;
+    }
+  }, 250);
+};
+
+// Schedule an initial hard fallback as soon as this script runs. Subsequent
+// navigations will reschedule via runInitialReveal / navigateWithAjax.
+scheduleHardRevealFallback();
+
 const ensureToastRoot = () => {
   if (typeof document === 'undefined') {
     return null;
@@ -852,39 +897,58 @@ document.addEventListener('submit', (event) => {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.classList.add('js-enabled');
+  try {
+    document.body.classList.add('js-enabled');
 
-  const setupNavigationToggles = (scope = document) => {
-    const root = scope instanceof Element ? scope : document;
-    root.querySelectorAll('[data-nav-toggle]').forEach((button) => {
-      if (!button || button.dataset.navToggleBound === 'true') {
-        return;
-      }
-      const controls = button.getAttribute('aria-controls');
-      if (!controls) {
-        button.dataset.navToggleBound = 'true';
-        return;
-      }
-      const menu = document.getElementById(controls);
-      if (!menu) {
-        return;
-      }
-      button.addEventListener('click', () => {
-        const expanded = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-        if (menu.classList.contains('hidden')) {
-          menu.classList.remove('hidden');
-        } else {
-          menu.classList.add('hidden');
+    const setupNavigationToggles = (scope = document) => {
+      const root = scope instanceof Element ? scope : document;
+      root.querySelectorAll('[data-nav-toggle]').forEach((button) => {
+        if (!button || button.dataset.navToggleBound === 'true') {
+          return;
         }
+        const controls = button.getAttribute('aria-controls');
+        if (!controls) {
+          button.dataset.navToggleBound = 'true';
+          return;
+        }
+        const menu = document.getElementById(controls);
+        if (!menu) {
+          return;
+        }
+        button.addEventListener('click', () => {
+          const expanded = button.getAttribute('aria-expanded') === 'true';
+          button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          if (menu.classList.contains('hidden')) {
+            menu.classList.remove('hidden');
+          } else {
+            menu.classList.add('hidden');
+          }
+        });
+        button.dataset.navToggleBound = 'true';
       });
-      button.dataset.navToggleBound = 'true';
-    });
-  };
+    };
 
-  setupNavigationToggles();
+    const setupModals = (root = document) => {
+      const scope = root instanceof Element ? root : document;
+      scope.querySelectorAll('[data-modal]').forEach((modal) => {
+        // Avoid reinitialising modals we've already moved under <body>.
+        if (modal.dataset.modalInitialised === 'true') {
+          return;
+        }
+        if (modal.parentElement && modal.parentElement !== document.body) {
+          document.body.appendChild(modal);
+        }
+        if (!modal.hasAttribute('aria-hidden')) {
+          modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
+        }
+        modal.dataset.modalInitialised = 'true';
+      });
+    };
 
-  const modalStack = [];
+    setupNavigationToggles();
+    setupModals(document);
+
+    const modalStack = [];
 
   const openModal = (modal) => {
     if (!modal) return;
@@ -945,16 +1009,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.querySelectorAll('[data-modal]').forEach((modal) => {
-    if (!modal.hasAttribute('aria-hidden')) {
-      modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
-    }
-    const defaultOpen = modal.getAttribute('data-modal-default-open');
-    if (defaultOpen && defaultOpen !== 'false') {
-      openModal(modal);
-    }
-  });
-
   const animatedObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -964,7 +1018,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     },
-    { threshold: 0.2 }
+    // Trigger as soon as a small portion (≈5–10%) of the element is visible
+    // so animations start earlier on mobile viewports.
+    { threshold: 0.05 }
   );
 
   const observeAnimated = (element) => {
@@ -1011,6 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigationToggles(scope);
     scope.querySelectorAll('[data-animate]').forEach((element) => observeAnimated(element));
     scope.querySelectorAll('.interactive-glow, [data-ripple]').forEach((element) => attachRipple(element));
+    setupModals(scope);
   };
 
   let transitionOverlay = document.getElementById('page-transition');
@@ -1110,6 +1167,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const revealPageShell = () => {
     if (!pageShell) return;
+    if (pageShellHardRevealTimer !== null) {
+      window.clearTimeout(pageShellHardRevealTimer);
+      pageShellHardRevealTimer = null;
+    }
     pageShell.classList.remove('is-leaving');
     pageShell.classList.remove('opacity-0');
     window.requestAnimationFrame(() => {
@@ -1147,17 +1208,36 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const runInitialReveal = () => {
+    // Each time we attempt an entry animation, start a fresh safety timer so
+    // we never stay in a permanently hidden state on mobile.
+    scheduleHardRevealFallback();
     syncTransitionElements();
     const preset = pickTransitionPreset();
     if (pageShell) {
       pageShell.classList.remove('is-ready');
-      playPageShellAnimation(pageShell, preset.enterClass).then(() => {
+      if (prefersReducedMotion()) {
+        // Skip the animation but still reveal the shell immediately.
         revealPageShell();
-      });
+      } else {
+        playPageShellAnimation(pageShell, preset.enterClass).then(() => {
+          revealPageShell();
+        });
+      }
     } else {
       revealPageShell();
     }
     hideTransition({ reveal: false });
+
+    // Safety net for browsers where the animation event might not fire
+    // (or when the user has disabled motion). After a short delay,
+    // force the shell to be visible if it still isn't.
+    if (pageShell) {
+      window.setTimeout(() => {
+        if (!pageShell.classList.contains('is-ready')) {
+          revealPageShell();
+        }
+      }, 1000);
+    }
   };
 
   const canUseAjaxNavigation = () =>
@@ -1280,6 +1360,9 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingNavigation = targetUrl;
       return;
     }
+    // Fresh safety window for this navigation: if something goes wrong with
+    // the enter animation, the hard fallback will reveal the shell.
+    scheduleHardRevealFallback();
     const preset = pickTransitionPreset();
     isAjaxNavigating = true;
     setOverlayTransition(preset);
@@ -1403,8 +1486,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   runInitialReveal();
 
+  // Ensure the page shell is visible once the full page is loaded,
+  // even if an earlier animation or script step failed.
+  window.addEventListener('load', () => {
+    syncTransitionElements();
+    if (pageShell && !pageShell.classList.contains('is-ready')) {
+      revealPageShell();
+    }
+  });
+
   window.RagaSpace = window.RagaSpace || {};
   window.RagaSpace.refreshInteractive = refreshInteractive;
+  } catch (error) {
+    // If anything goes wrong during JS bootstrap, fall back to the
+    // non‑JS experience so content is still visible (important on mobile).
+    console.error('RagaSpace bootstrap failed', error);
+    document.body.classList.remove('js-enabled');
+  }
 });
 
 const filterForm = document.querySelector('#catalog-filter-form');
@@ -1482,6 +1580,7 @@ if (filterForm && typeof window.fetch === 'function') {
       const heartStroke = venue.wishlisted ? '#ef4444' : 'currentColor';
       const wishlistedState = venue.wishlisted ? 'true' : 'false';
       const priceDisplay = formatCurrency(venue.price);
+      const description = venue.description || '';
       card.innerHTML = `
         <div class="relative">
           <img src="${escapeHtml(venue.image_url)}" alt="${escapeHtml(venue.name)}" class="h-48 w-full rounded-2xl object-cover" />
@@ -1495,6 +1594,7 @@ if (filterForm && typeof window.fetch === 'function') {
           <p class="text-xs uppercase tracking-[0.4em] text-white/50">${escapeHtml(venue.category)}</p>
           <h3 class="text-xl font-semibold text-white">${escapeHtml(venue.name)}</h3>
           <p class="text-sm text-white/60">${escapeHtml(venue.city)}</p>
+          <p class="text-sm text-white/70 break-words">${escapeHtml(description)}</p>
         </div>
         <div class="mt-4 flex items-center justify-between">
           <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-widest text-white/70">Rp ${escapeHtml(priceDisplay)}</span>

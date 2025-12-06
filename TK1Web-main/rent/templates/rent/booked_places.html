@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Booked places • RagaSpace{% endblock %}
+{% block title %}Booked places ƒ?› RagaSpace{% endblock %}
 {% block content %}
 <section class="grid gap-8">
   <div class="rounded-[3rem] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-slate-950/50 backdrop-blur-2xl">
@@ -23,8 +23,8 @@
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-1">
           <h2 class="text-2xl font-semibold text-white">{{ booking.venue.name }}</h2>
-          <p class="text-sm text-white/60">{{ booking.venue.city }} • {{ booking.venue.location }}</p>
-          <a href="{% url 'venue-detail' slug=booking.venue.slug %}" class="inline-flex items-center text-sm font-semibold text-primary transition hover:text-primary/80">View venue details →</a>
+          <p class="text-sm text-white/60">{{ booking.venue.city }} ƒ?› {{ booking.venue.location }}</p>
+          <a href="{% url 'venue-detail' slug=booking.venue.slug %}" class="inline-flex items-center text-sm font-semibold text-primary transition hover:text-primary/80">View venue details ƒ+'</a>
         </div>
         <span class="self-start rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
           {{ booking.get_status_display }}
@@ -123,7 +123,7 @@
 {% if booking.status == 'pending' or booking.status == 'active' %}
 <div
   id="cancel-booking-{{ booking.pk }}"
-  class="fixed inset-0 z-50 hidden"
+  class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4 sm:p-6"
   data-modal
   role="dialog"
   aria-modal="true"
@@ -131,10 +131,10 @@
   tabindex="-1"
 >
   <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" data-modal-close></div>
-  <div class="relative mx-auto mt-24 w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-slate-950/60">
+  <div class="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-slate-950/60">
     <div class="flex items-center justify-between">
       <h2 id="cancel-booking-{{ booking.pk }}-title" class="text-xl font-semibold text-white">Cancel this booking?</h2>
-      <button type="button" class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-lg text-white transition hover:bg-white/20" data-modal-close aria-label="Close">×</button>
+      <button type="button" class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-lg text-white transition hover:bg-white/20" data-modal-close aria-label="Close">&times;</button>
     </div>
     <p class="mt-3 text-sm text-white/70">Cancelling will release the reservation slot and reset any pending payments. You can always book the venue again if it's still available.</p>
     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -149,3 +149,4 @@
 {% endif %}
 {% endfor %}
 {% endblock %}
+

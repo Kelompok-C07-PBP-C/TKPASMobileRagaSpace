@@ -455,8 +455,58 @@
     return fallbackA - fallbackB;
   }
 
+  function getFilteredRecords(section) {
+    const records = Array.isArray(state[section]) ? state[section] : [];
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim().toLowerCase();
+
+    if (!query) {
+      return records;
+    }
+
+    if (section === 'venues') {
+      return records.filter((venue) => {
+        const parts = [
+          getVenueTitleValue(venue),
+          getVenueLocationValue(venue),
+          getVenueFacilitiesValue(venue),
+          getVenueAddonsText(venue),
+          venue && venue.type,
+          venue && venue.description,
+          venue && venue.price != null ? String(venue.price) : '',
+        ];
+        return parts.some((value) => {
+          if (!value) return false;
+          return String(value).toLowerCase().includes(query);
+        });
+      });
+    }
+
+    if (section === 'bookings') {
+      return records.filter((booking) => {
+        const parts = [
+          getBookingGuestValue(booking),
+          getBookingPhoneValue(booking),
+          getBookingVenueValue(booking),
+          getBookingNotesValue(booking),
+          getBookingAddonsLabel(booking),
+          getBookingPaidLabel(booking),
+          getBookingDateLabel(booking),
+          getBookingCreatedValue(booking),
+        ];
+        return parts.some((value) => {
+          if (!value) return false;
+          return String(value).toLowerCase().includes(query);
+        });
+      });
+    }
+
+    return records;
+  }
+
   function getSortedRecords(section) {
-    const records = Array.isArray(state[section]) ? state[section].slice() : [];
+    const records = getFilteredRecords(section).slice();
     const sortState = state.sort && state.sort[section];
     if (!sortState || !sortState.key) {
       return records;
@@ -982,6 +1032,75 @@
     searchTimeouts[section] = window.setTimeout(() => {
       loadSection(section, { page: 1, pageSize, query });
     }, 220);
+  }
+
+  // Client-side search overrides: once the initial data page is loaded,
+  // filter the in-memory records instead of issuing a new request on
+  // every keystroke from the admin search boxes.
+  function toggleEmptyState(section) {
+    const emptyState = emptyStates[section];
+    if (!emptyState) {
+      return;
+    }
+    const items = getFilteredRecords(section);
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim();
+    const hasItems = Array.isArray(items) && items.length > 0;
+    const defaultMessage = emptyState.dataset.emptyDefault || emptyState.textContent;
+    const filteredMessage = emptyState.dataset.emptyFiltered || defaultMessage;
+    emptyState.textContent = query ? filteredMessage : defaultMessage;
+    emptyState.classList.toggle('is-visible', !hasItems);
+  }
+
+  function updateSummary(section) {
+    const summary = tableSummaries[section];
+    if (!summary) {
+      return;
+    }
+    const meta = state.pagination[section];
+    const items = getFilteredRecords(section);
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim();
+
+    if (!items || !items.length) {
+      summary.textContent = '';
+      return;
+    }
+
+    if (!meta || !meta.totalItems || !meta.pageSize) {
+      if (query) {
+        summary.textContent = `Showing ${items.length} result(s) matching "${query}".`;
+      } else {
+        summary.textContent = `Showing ${items.length} result(s).`;
+      }
+      return;
+    }
+
+    const startIndex = (meta.page - 1) * meta.pageSize + 1;
+    const endIndex = Math.min(meta.totalItems, startIndex + items.length - 1);
+    const queryText =
+      query || meta.query ? ` matching "${query || meta.query}"` : '';
+    summary.textContent = `Showing ${startIndex}–${endIndex} of ${meta.totalItems}${queryText} results.`;
+  }
+
+  function handleSearchChange(section, rawValue) {
+    if (!(section in searchTimeouts)) {
+      return;
+    }
+    const query = typeof rawValue === 'string' ? rawValue.trim() : '';
+    state.search[section] = query;
+    window.clearTimeout(searchTimeouts[section]);
+    searchTimeouts[section] = window.setTimeout(() => {
+      if (section === 'venues') {
+        renderVenues();
+      } else if (section === 'bookings') {
+        renderBookings();
+      }
+      toggleEmptyState(section);
+      updateSummary(section);
+    }, 160);
   }
 
   function createAutocompleteController(fieldElement, options = {}) {
