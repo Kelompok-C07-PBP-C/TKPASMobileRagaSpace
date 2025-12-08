@@ -26,6 +26,7 @@ class BookingDate(models.Model):
 
 class Venue(models.Model):
   class VenueType(models.TextChoices):
+      PADEL = "Padel", "Padel"
       TENNIS = "Tennis", "Tennis"
       BADMINTON = "Badminton", "Badminton"
       BASKET = "Basket", "Basket"

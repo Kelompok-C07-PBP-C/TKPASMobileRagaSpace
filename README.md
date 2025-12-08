@@ -1,55 +1,139 @@
-# marco
+# Aplikasi Penyewaan Lapangan Olahraga
 
-Flutter client + Django backend for venue booking.
+## Anggota Kelompok :
 
-The repository contains:
+1. Tirta Rendy Siahaan (2406355621)
+2. Rindu Aurellia Zahra (2406439002)
+3. Shafa Aurelia Permata Basuki (2406432236)
+4. Bilqis Nisrina Dzahabiyah Mulyadi (2406432141)
+5. Raden Pandji Mohammad Dimaz Bagus Hayyii Dausti Surya (2406439343)
+6. Haekal Alexander Dinova (2406352424)
 
-- `lib/` – Flutter app (Android/iOS/web/desktop).
-- `backend/` – Django project with REST API and admin UI.
+---
 
-## Getting Started
+## Deskripsi Aplikasi
 
-### 1. Start the Django backend
+Aplikasi mobile ini merupakan platform penyewaan lapangan olahraga yang menghubungkan penyewa (user) dengan pemilik tempat (admin).
+Melalui aplikasi mobile ini, pengguna dapat dengan mudah mencari, membandingkan, dan menyewa berbagai jenis lapangan olahraga di kota-kota besar di Indonesia.
 
-From the repo root:
+Fitur utama aplikasi mobile ini mencakup pencarian **berdasarkan kategori olahraga, filter harga, like dan review, serta integrasi dengan pembayaran digital**.
+Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas, jadwal ketersediaan, serta aturan yang berlaku.
 
-```bash
-cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
-```
+## Kebermanfaatan:
 
-On Windows you can run the same commands from PowerShell.
+* Mempermudah masyarakat untuk menemukan dan menyewa lapangan olahraga.
+* Membantu pemilik lapangan dalam memasarkan fasilitas olahraga mereka secara online.
+* Meningkatkan aksesibilitas olahraga di kota besar maupun daerah.
 
-### 2. Run the Flutter app
+---
 
-Make sure you have Flutter installed and in your `PATH`, then from the repo root:
+## Daftar Modul yang Akan Diimplementasikan
 
-```bash
-flutter pub get
-flutter run
-```
+1. Modul Admin by Alexander Haekal Dinova
 
-## Run on a USB-connected Android device
+   * Tambah dan hapus data lapangan
+   * Tambah fasilitas, deskripsi, aturan venue, lokasi
+   * Tambah jadwal ketersediaan
+   * Menyimpan list venue, kategori, kota, dan daftar jadwal
+   * Membuat Home Screen
 
-1. Boot your Django backend bound to all interfaces so the phone can reach it
-   (from the repo root):
-   ```bash
-   cd backend
-   python manage.py runserver 0.0.0.0:8000
-   ```
-2. Plug in the device, enable developer mode, and confirm it shows up:
-   ```powershell
-   adb devices
-   ```
-3. Tunnel the backend port through the USB cable (rerun after unplugging):
-   ```powershell
-   adb reverse tcp:8000 tcp:8000
-   ```
-4. Launch Flutter with the USB loopback flag so Android uses `127.0.0.1:8000`:
-   ```powershell
-   flutter run --dart-define=USE_USB_DEVICE_LOOPBACK=true
-   ```
+2. Modul Autentifikasi by Tirta Rendy Siahaan
 
-Pointing at another host/port? Pass `--dart-define=API_BASE_URL=http://192.168.0.5:9000` instead (works for mobile, web, desktop). Cleartext HTTP is already enabled in the Android manifest, so you can iterate without extra config.
+   * Login, Register (Gmail)
+   * Validasi email unik
+   * State loading/error
+   * Simpan token/session
+
+3. Modul Katalog Lapangan (User) by Shafa Aurelia
+
+   * Lihat daftar lapangan berdasarkan kota dan kategori
+   * Filter berdasarkan harga
+   * Sortir berdasarkan harga
+
+4. Modul Booking dan Product Detail (User) by RPM Dimaz
+
+   * Pemesanan lapangan
+   * Pembayaran
+
+5. Modul Wishlist (User) by Rindu Aurellia Zahra
+
+   * Like lapangan
+   * Page wishlist user
+     
+6. Modul Account Setting by Bilqis Nisrina Dzahabiyah Mulyadi
+   * Edit username, email, phone number, dan password
+   * Page Setting
+   * Integrasi dengan autentifikasi
+
+---
+
+## Sumber Initial Dataset
+https://docs.google.com/spreadsheets/d/1V5WDI6bk9W4e-xLFGekK7lzSh3USWyDNecmrQcqFUrw/edit?gid=0#gid=0 
+
+Dataset awal berisi sekitar 100 entri lapangan olahraga di *10 kota besar di Indonesia*.
+Kategori utama produk (lapangan) mencakup:
+
+* Padel
+* Tennis
+* Badminton
+* Basket
+* Sepak Bola
+* Mini Soccer
+* Futsal
+* Billiard
+* Tenis Meja
+* Volly Ball
+
+Setiap data mencakup:
+
+* Nama lapangan
+* Kota/lokasi
+* Kategori olahraga
+* Rentang harga
+* Fasilitas tambahan
+
+---
+
+## Role atau Peran Pengguna
+
+1. User (Penyewa / Menyewa)
+
+   * Melihat daftar lapangan berdasarkan kategori & lokasi
+   * Menyewa lapangan
+   * Melakukan pembayaran
+   * Memberikan like & review
+   * Menyewa alat olahraga tambahan
+
+2. Pemilik Tempat (Admin)
+
+   * Menambahkan atau menghapus data lapangan
+   * Mengatur deskripsi, fasilitas, aturan venue, lokasi
+   * Menentukan jadwal ketersediaan lapangan
+   * Mengelola informasi harga
+
+---
+
+## Desain
+
+* *Link Design (Figma/Prototype)*: https://www.figma.com/design/jXh9W3tagXfWVRxPSbpGmP/DESIGN-MOBILE?m=auto&t=bbgBl0vK2AYZvu3Z-1 (view only)
+
+---
+
+
+
+
+
+
+Langkah-langkah Integrasi Aplikasi dengan Website :
+
+Membangun Wrapper Class untuk HTTP Request
+Membuat sebuah wrapper class yang memanfaatkan library HTTP dan MAP guna mendukung mekanisme cookie-based authentication pada aplikasi.
+
+Mengimplementasikan REST API di Django
+Mengembangkan endpoint API pada Django melalui views.py dengan menggunakan JsonResponse atau Django JSON Serializer untuk memastikan data dikirim dalam format JSON yang konsisten.
+
+Mengembangkan Desain Front-End
+Mengimplementasikan tampilan antarmuka aplikasi berdasarkan desain website yang telah ada, sehingga memastikan keselarasan UI/UX.
+
+Integrasi Front-End dan Back-End secara Asinkron
+Menghubungkan front-end dengan API back-end menggunakan konsep asynchronous HTTP request agar komunikasi data lebih efisien dan responsif.
