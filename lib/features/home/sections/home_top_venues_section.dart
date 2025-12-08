@@ -114,11 +114,11 @@ mixin _HomeTopVenuesSection on _HomeScreenCore {
       final response = topVenuesHttpGetOverride != null
           ? await topVenuesHttpGetOverride!(uri)
           : await http
-                .get(uri)
-                // This endpoint does some synchronization work on the server
-                // and can legitimately take a few seconds. Give it a more
-                // generous timeout so real users don’t see spurious failures.
-                .timeout(const Duration(seconds: 15));
+              .get(uri)
+              // This endpoint does some synchronization work on the server
+              // and can legitimately take a few seconds. Give it a more
+              // generous timeout so real users don’t see spurious failures.
+              .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         throw Exception('Failed to load venues');
       }
@@ -165,7 +165,8 @@ mixin _HomeTopVenuesSection on _HomeScreenCore {
       setState(() {
         _venues = [];
         _loadingVenues = false;
-        _venuesError = 'Tidak bisa memuat data. Detail: $friendly';
+        _venuesError =
+            'Tidak bisa memuat data. Detail: $friendly';
         _venuesCanRetry = true;
       });
     }

@@ -1,6 +1,9 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+/// Shared background for auth-related screens (register, login, etc).
+/// Renders a dark, animated golden wave motif inspired by flowing lights.
 class AuthBackground extends StatefulWidget {
   const AuthBackground({super.key, required this.child});
 
@@ -32,7 +35,10 @@ class _AuthBackgroundState extends State<AuthBackground>
         return DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF020308), Color(0xFF050608)],
+              colors: [
+                Color(0xFF020308),
+                Color(0xFF050608),
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -58,7 +64,9 @@ class _AuthBackgroundState extends State<AuthBackground>
                 ),
               ),
               Positioned.fill(
-                child: CustomPaint(painter: _GoldWavePainter(progress: t)),
+                child: CustomPaint(
+                  painter: _GoldWavePainter(progress: t),
+                ),
               ),
               Positioned.fill(
                 child: DecoratedBox(
@@ -89,6 +97,7 @@ class _AuthBackgroundState extends State<AuthBackground>
 class _GoldWavePainter extends CustomPainter {
   _GoldWavePainter({required this.progress});
 
+  /// 0–1 repeating animation progress.
   final double progress;
   @override
   void paint(Canvas canvas, Size size) {

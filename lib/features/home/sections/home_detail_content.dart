@@ -215,9 +215,14 @@ Widget buildAddonInfoCardForTests({
   required int price,
   String description = '',
 }) {
-  final addon = _VenueAddon(name: name, price: price, description: description);
+  final addon = _VenueAddon(
+    name: name,
+    price: price,
+    description: description,
+  );
   return _AddonInfoCard(addon: addon);
 }
 
 @visibleForTesting
-String resolveMediaUrlGlobalForTests(String url) => _resolveMediaUrlGlobal(url);
+String resolveMediaUrlGlobalForTests(String url) =>
+    _resolveMediaUrlGlobal(url);

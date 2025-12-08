@@ -138,7 +138,10 @@ class _AddonCheckboxTile extends StatelessWidget {
 }
 
 class _DetailBottomBar extends StatelessWidget {
-  const _DetailBottomBar({required this.onTapBook, required this.category});
+  const _DetailBottomBar({
+    required this.onTapBook,
+    required this.category,
+  });
 
   final VoidCallback onTapBook;
   final String category;

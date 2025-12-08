@@ -4,12 +4,11 @@ part of 'package:tk2ragaspace/features/home/home_screen.dart';
 typedef VenueDetailHttpGet = Future<http.Response> Function(Uri uri);
 
 @visibleForTesting
-typedef VenueDetailHttpPost =
-    Future<http.Response> Function(
-      Uri uri, {
-      Map<String, String>? headers,
-      Object? body,
-    });
+typedef VenueDetailHttpPost = Future<http.Response> Function(
+  Uri uri, {
+  Map<String, String>? headers,
+  Object? body,
+});
 
 @visibleForTesting
 VenueDetailHttpGet? venueDetailHttpGetOverride;
@@ -21,12 +20,11 @@ VenueDetailHttpPost? venueDetailHttpPostOverride;
 bool homeDetailSkipReviewsNetworkForTests = false;
 
 @visibleForTesting
-typedef VenueReviewSubmitOverride =
-    Future<http.Response> Function(
-      Uri uri,
-      Map<String, dynamic> body, {
-      required bool isUpdate,
-    });
+typedef VenueReviewSubmitOverride = Future<http.Response> Function(
+  Uri uri,
+  Map<String, dynamic> body, {
+  required bool isUpdate,
+});
 
 @visibleForTesting
 typedef VenueReviewDeleteOverride = Future<http.Response> Function(Uri uri);
@@ -44,8 +42,10 @@ VenueReviewDeleteOverride? venueReviewDeleteOverride;
 VenueReviewsFetchOverride? venueReviewsFetchOverride;
 
 @visibleForTesting
-typedef VenueAccountFetchOverride =
-    Future<Map<String, dynamic>> Function(Api api, int userId);
+typedef VenueAccountFetchOverride = Future<Map<String, dynamic>> Function(
+  Api api,
+  int userId,
+);
 
 @visibleForTesting
 VenueAccountFetchOverride? venueAccountFetchOverride;
@@ -64,7 +64,11 @@ Widget buildVenueDetailTestShell({
       price: 50000,
       description: 'Test add-on',
     ),
-    const _VenueAddon(name: 'Coach', price: 75000, description: 'Test coach'),
+    const _VenueAddon(
+      name: 'Coach',
+      price: 75000,
+      description: 'Test coach',
+    ),
   ];
   final venue = _VenueCardData(
     category: 'Futsal',
@@ -288,12 +292,14 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   @visibleForTesting
   Map<int, List<_DailyHourRange>> debugBuildBookedHoursByDayForTests(
     List<_BookedDateRange> ranges,
-  ) => _buildBookedHoursByDay(ranges);
+  ) =>
+      _buildBookedHoursByDay(ranges);
 
   @visibleForTesting
   Set<int> debugComputeBlockedDayKeysForTests(
     Map<int, List<_DailyHourRange>> hourMap,
-  ) => _computeBlockedDayKeys(hourMap);
+  ) =>
+      _computeBlockedDayKeys(hourMap);
 
   @visibleForTesting
   bool debugIsDayFullyBookedForTests(List<_DailyHourRange> ranges) =>
@@ -303,7 +309,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   void debugApplyBookedRangesForTests(
     List<_BookedDateRange> ranges, {
     bool markLoaded = false,
-  }) => _applyBookedRanges(ranges, markLoaded: markLoaded);
+  }) =>
+      _applyBookedRanges(ranges, markLoaded: markLoaded);
 
   @visibleForTesting
   List<_VenueAddon> debugDetailSelectedAddonsForTests() =>
@@ -336,26 +343,32 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
     DateTime end,
     String phone,
     List<Object?> selectedAddons,
-  ) => _submitBookingRequest(
-    start,
-    end,
-    phone,
-    selectedAddons.cast<_VenueAddon>(),
-  );
+  ) =>
+      _submitBookingRequest(
+        start,
+        end,
+        phone,
+        selectedAddons.cast<_VenueAddon>(),
+      );
 
   @visibleForTesting
   Future<void> debugOpenBookingDialogForTests(BuildContext context) =>
       _openBookingDialog(context);
 
   @visibleForTesting
-  Future<_ReviewDraft?> debugShowReviewDialogForTests() => _showReviewDialog();
+  Future<_ReviewDraft?> debugShowReviewDialogForTests() =>
+      _showReviewDialog();
 
   @visibleForTesting
   Widget debugBuildStarSelectorForTests({required int currentRating}) =>
-      _buildStarSelector(currentRating: currentRating, onChanged: (_) {});
+      _buildStarSelector(
+        currentRating: currentRating,
+        onChanged: (_) {},
+      );
 
   @visibleForTesting
-  Widget debugBuildStarRowForTests(int rating) => _buildStarRow(rating);
+  Widget debugBuildStarRowForTests(int rating) =>
+      _buildStarRow(rating);
 
   @visibleForTesting
   Future<void> debugOpenReviewComposerForTests() => _openReviewComposer();
@@ -569,9 +582,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
       'phone_number': phone,
       'notes': 'Booking dibuat via aplikasi mobile',
       if (selectedAddons.isNotEmpty)
-        'selected_addons': selectedAddons
-            .map((addon) => addon.toMap())
-            .toList(),
+        'selected_addons': selectedAddons.map((addon) => addon.toMap()).toList(),
       if (username != null && username.isNotEmpty) 'username': username,
     };
     final bodyJson = jsonEncode(payload);
@@ -602,7 +613,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final background = const Color(0xFF060C18);
-    // final highlight = const Color(0xFF12213D);
+    final highlight = const Color(0xFF12213D);
     final amenities = [
       'Locker rooms',
       'Premium lighting',
@@ -660,8 +671,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                           ),
                                           child: Center(
                                             child: Icon(
-                                              Icons
-                                                  .image_not_supported_outlined,
+                                              Icons.image_not_supported_outlined,
                                               color: Colors.white70,
                                             ),
                                           ),
@@ -727,9 +737,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                     _toggleFavorite();
                                     Feedback.forTap(context);
                                   },
-                                  backgroundColor: Colors.black.withValues(
-                                    alpha: 0.6,
-                                  ),
+                                  backgroundColor:
+                                      Colors.black.withValues(alpha: 0.6),
                                 ),
                               ],
                             ),
@@ -768,9 +777,8 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                                 radius: 26,
                                 // Match the subtle glass effect of the
                                 // description card for a more unified look.
-                                overlayColor: Colors.white.withValues(
-                                  alpha: 0.05,
-                                ),
+                                overlayColor:
+                                    Colors.white.withValues(alpha: 0.05),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 22,
                                   vertical: 18,
@@ -802,14 +810,14 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: _GlassPanel(
-                                overlayColor: Colors.white.withValues(
-                                  alpha: 0.05,
-                                ),
+                                overlayColor:
+                                    Colors.white.withValues(alpha: 0.05),
                                 padding: const EdgeInsets.all(20),
                                 child: Text(
                                   data.description,
                                   style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white.withValues(alpha: 0.85),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.85),
                                     height: 1.5,
                                   ),
                                 ),

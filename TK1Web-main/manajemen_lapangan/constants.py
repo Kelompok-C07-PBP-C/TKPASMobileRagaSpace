@@ -14,7 +14,7 @@ CATEGORY_DEFINITIONS: list[tuple[str, str]] = [
     ("futsal", "Futsal"),
     ("billiard", "Billiard"),
     ("tenis-meja", "Tenis Meja"),
-    ("volley-ball", "Volley Ball"),
+    ("volly-ball", "Volly Ball"),
 ]
 
 

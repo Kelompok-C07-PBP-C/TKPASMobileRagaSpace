@@ -12,12 +12,7 @@ class _DialogShell extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Center(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            padding.top + 16,
-            16,
-            padding.bottom + 16,
-          ),
+          padding: EdgeInsets.fromLTRB(16, padding.top + 16, 16, padding.bottom + 16),
           child: child,
         ),
       ),
@@ -32,13 +27,12 @@ bool bookingDialogFailNextSubmitForTests = false;
 bool bookingDialogSkipNavigatorPopForTests = false;
 
 @visibleForTesting
-typedef BookingDatePickerOverride =
-    Future<DateTime?> Function(
-      BuildContext context,
-      DateTime initialDate,
-      DateTime firstDate,
-      DateTime lastDate,
-    );
+typedef BookingDatePickerOverride = Future<DateTime?> Function(
+  BuildContext context,
+  DateTime initialDate,
+  DateTime firstDate,
+  DateTime lastDate,
+);
 
 @visibleForTesting
 BookingDatePickerOverride? bookingStartDatePickerOverrideForTests;
@@ -48,14 +42,18 @@ BookingDatePickerOverride? bookingEndDatePickerOverrideForTests;
 
 @visibleForTesting
 Widget buildBookingDialogTestShell() {
-  final disabledDays = <int>{_dayKeyFromDate(DateTime(2025, 1, 5))};
+  final disabledDays = <int>{
+    _dayKeyFromDate(DateTime(2025, 1, 5)),
+  };
   final sampleRange = _BookedDateRange(
     start: DateTime(2025, 1, 10, 9),
     end: DateTime(2025, 1, 10, 11),
   );
   final sampleDayKey = _dayKeyFromDate(DateTime(2025, 1, 10));
   final sampleDailyBlocks = <int, List<_DailyHourRange>>{
-    sampleDayKey: const [_DailyHourRange(startHour: 9, endHour: 11)],
+    sampleDayKey: const [
+      _DailyHourRange(startHour: 9, endHour: 11),
+    ],
   };
 
   return _DialogShell(
@@ -64,7 +62,11 @@ Widget buildBookingDialogTestShell() {
       venueName: 'Test Venue',
       disabledDayKeys: disabledDays,
       selectedAddons: const <_VenueAddon>[
-        _VenueAddon(name: 'Massage', price: 50000, description: 'Test add-on'),
+        _VenueAddon(
+          name: 'Massage',
+          price: 50000,
+          description: 'Test add-on',
+        ),
       ],
       onSubmit: (start, end, phone, addons) async {
         if (bookingDialogFailNextSubmitForTests) {
@@ -72,12 +74,12 @@ Widget buildBookingDialogTestShell() {
           throw ApiError('submit failed');
         }
         return _BookingSummary.localMock(
-          venueName: 'Test Venue',
-          venuePrice: 100000,
-          startDate: start,
-          endDate: end,
-          phoneNumber: phone,
-          selectedAddons: addons,
+        venueName: 'Test Venue',
+        venuePrice: 100000,
+        startDate: start,
+        endDate: end,
+        phoneNumber: phone,
+        selectedAddons: addons,
         );
       },
       bookedRanges: <_BookedDateRange>[sampleRange],
@@ -108,8 +110,7 @@ class _BookingDialog extends StatefulWidget {
     DateTime endDate,
     String phoneNumber,
     List<_VenueAddon> selectedAddons,
-  )
-  onSubmit;
+  ) onSubmit;
   final List<_BookedDateRange> bookedRanges;
   final Map<int, List<_DailyHourRange>> bookedHoursByDay;
   final String phoneNumber;
@@ -296,7 +297,11 @@ class _BookingDialogState extends State<_BookingDialog> {
   DateTime debugNormalizeDate(DateTime value) => _normalizeDate(value);
 
   @visibleForTesting
-  DateTime debugClampDate(DateTime value, DateTime min, DateTime max) =>
+  DateTime debugClampDate(
+    DateTime value,
+    DateTime min,
+    DateTime max,
+  ) =>
       _clampDate(value, min, max);
 
   @visibleForTesting
@@ -304,11 +309,9 @@ class _BookingDialogState extends State<_BookingDialog> {
       _nextSelectableDate(start, lastDate);
 
   @visibleForTesting
-  DateTime debugCombineDateAndHour(
-    DateTime date,
-    int hour, {
-    bool isEnd = false,
-  }) => _combineDateAndHour(date, hour, isEnd: isEnd);
+  DateTime debugCombineDateAndHour(DateTime date, int hour,
+          {bool isEnd = false}) =>
+      _combineDateAndHour(date, hour, isEnd: isEnd);
 
   @visibleForTesting
   bool debugIsRangeAvailable(DateTime start, DateTime end) =>
@@ -362,10 +365,7 @@ class _BookingDialogState extends State<_BookingDialog> {
 
   Future<void> _pickStartDate() async {
     final now = DateTime.now();
-    final initial =
-        _startDate ??
-        _nextSelectableDate(now, now.add(const Duration(days: 365))) ??
-        now;
+    final initial = _startDate ?? _nextSelectableDate(now, now.add(const Duration(days: 365))) ?? now;
     final last = now.add(const Duration(days: 365));
     final picked = bookingStartDatePickerOverrideForTests != null
         ? await bookingStartDatePickerOverrideForTests!(
@@ -542,7 +542,9 @@ class _BookingDialogState extends State<_BookingDialog> {
               const SizedBox(height: 4),
               Text(
                 '${_formatPriceLabel(widget.pricePerSession)} · ${widget.venueName}',
-                style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white70,
+                ),
               ),
               const SizedBox(height: 20),
               LayoutBuilder(
@@ -631,7 +633,10 @@ class _BookingDialogState extends State<_BookingDialog> {
                 ),
               ],
               const SizedBox(height: 22),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: actions,
+              ),
             ],
           ),
         ),
@@ -928,7 +933,9 @@ class _DateTimeRangePill extends StatelessWidget {
         children: [
           _DateBadge(date: start),
           const SizedBox(width: 12),
-          Expanded(child: _TimeOnlyRow(timeText: '$startTime - $endTime')),
+          Expanded(
+            child: _TimeOnlyRow(timeText: '$startTime - $endTime'),
+          ),
         ],
       );
     }
@@ -1139,7 +1146,13 @@ class _ConfirmationRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(child: customValue ?? Text(value, style: style)),
+        Expanded(
+          child: customValue ??
+              Text(
+                value,
+                style: style,
+              ),
+        ),
       ],
     );
   }

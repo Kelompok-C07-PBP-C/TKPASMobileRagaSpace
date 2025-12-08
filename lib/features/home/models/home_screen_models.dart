@@ -252,5 +252,5 @@ class _CatalogProduct {
   final int price;
   final double rating;
   final String imageUrl;
-  final List<_VenueAddon> addons;
+   final List<_VenueAddon> addons;
 }

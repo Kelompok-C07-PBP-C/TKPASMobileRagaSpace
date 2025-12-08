@@ -11,6 +11,8 @@ class _WishlistScreen extends StatefulWidget {
   final List<_VenueCardData> items;
   final Future<void> Function(_VenueCardData) onRemove;
   final ValueChanged<_VenueCardData> onSelect;
+  // Optional async loader used to refresh the wishlist from the server after
+  // the screen has been opened.
   final Future<List<_VenueCardData>> Function()? loader;
 
   @override

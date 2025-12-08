@@ -1,14 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tk2ragaspace/theme/aurora_palette.dart';
 import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
 import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api.dart';
-import '../../services/base_url_resolver.dart';
 import '../../widgets/gradient_button.dart';
 import 'account_settings_screen.dart';
 
@@ -29,8 +25,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _email;
   String? _avatarUrl;
 
-  static const _cachedAvatarStorageKey = 'cached_avatar_url';
-
   final _currentPassCtrl = TextEditingController();
   final _newPassCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
@@ -38,7 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _restoreCachedAvatar();
     _loadProfile();
   }
 
@@ -72,12 +65,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _firstName = (data['first_name'] ?? '').toString();
         _lastName = (data['last_name'] ?? '').toString();
         _email = (data['email'] ?? '').toString();
-        _avatarUrl = _coerceAvatarFromPayload(data) ?? '';
+        _avatarUrl = (data['avatar_url'] ?? '').toString();
         _loading = false;
       });
-      if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
-        unawaited(_persistCachedAvatar(_avatarUrl!));
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -163,6 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       extendBodyBehindAppBar: true,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const Positioned.fill(
             child: DecoratedBox(
@@ -282,33 +273,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: const Icon(Icons.person_rounded, color: Colors.white, size: 44),
     );
 
-    final provider = _resolveAvatarProvider();
-    if (provider == null) return placeholder;
-
-    return CircleAvatar(
-      radius: 52,
-      backgroundColor: Colors.transparent,
-      child: ClipOval(
-        child: Image(
-          image: provider,
-          width: 104,
-          height: 104,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => placeholder,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return placeholder;
-          },
-        ),
-      ),
-    );
-  }
-
-  ImageProvider<Object>? _resolveAvatarProvider() {
-    if (_avatarUrl == null || _avatarUrl!.isEmpty) return null;
-    return accountAvatarImageFactoryOverride != null
-        ? accountAvatarImageFactoryOverride!(null, _avatarUrl)
-        : NetworkImage(_avatarUrl!);
+    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 52,
+        backgroundImage: accountAvatarImageFactoryOverride != null
+            ? accountAvatarImageFactoryOverride!(null, _avatarUrl)
+            : NetworkImage(_avatarUrl!) as ImageProvider,
+        backgroundColor: Colors.transparent,
+      );
+    }
+    return placeholder;
   }
 
   Widget _buildPasswordCard() {
@@ -380,17 +354,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: GradientButton(
               label: 'Account settings',
               onPressed: () async {
-                final result = await Navigator.of(context).push<String?>(
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const AccountSettingsScreen(),
                   ),
                 );
-                if (!mounted) return;
-                if (result != null && result.isNotEmpty) {
-                  setState(() => _avatarUrl = result);
-                  unawaited(_persistCachedAvatar(result));
-                }
-                _loadProfile();
+                if (mounted) _loadProfile();
               },
               colors: const [Color(0xFF45B1FF), Color(0xFF4BE2C7)],
             ),
@@ -426,77 +395,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-  }
-
-  String? _coerceAvatarFromPayload(Map<String, dynamic>? data) {
-    final raw = _extractAvatarRaw(data);
-    final resolved = _resolveAvatarUrl(raw);
-    if (resolved.isEmpty) return _avatarUrl;
-    return resolved;
-  }
-
-  String? _extractAvatarRaw(Map<String, dynamic>? data) {
-    if (data == null) return null;
-    final nested = data['data'];
-    final profile = data['profile'];
-    final candidates = [
-      data['avatar_url'],
-      data['avatarUrl'],
-      data['avatar'],
-      data['avatar_path'],
-      data['avatarPath'],
-      if (nested is Map<String, dynamic>) ...[
-        nested['avatar_url'],
-        nested['avatar'],
-        nested['avatar_path'],
-        nested['avatarPath'],
-      ],
-      if (profile is Map<String, dynamic>) ...[
-        profile['avatar_url'],
-        profile['avatar'],
-        profile['avatar_path'],
-        profile['avatarPath'],
-      ],
-    ];
-    for (final value in candidates) {
-      if (value == null) continue;
-      final text = value.toString().trim();
-      if (text.isNotEmpty && text.toLowerCase() != 'null') {
-        return text;
-      }
-    }
-    return null;
-  }
-
-  String _resolveAvatarUrl(String? rawUrl) {
-    final value = (rawUrl ?? '').trim();
-    if (value.isEmpty || value.toLowerCase() == 'null') return '';
-    if (value.startsWith('http')) return value;
-    final baseHost = resolveBaseApiHost().replaceFirst(RegExp(r'/api/?$'), '');
-    if (value.startsWith('/')) return '$baseHost$value';
-    return '$baseHost/$value';
-  }
-
-  Future<void> _restoreCachedAvatar() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getString(_cachedAvatarStorageKey);
-      if (cached != null && cached.isNotEmpty && mounted) {
-        setState(() {
-          _avatarUrl = cached;
-        });
-      }
-    } catch (_) {
-      // ignore cache failures
-    }
-  }
-
-  Future<void> _persistCachedAvatar(String avatarUrl) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_cachedAvatarStorageKey, avatarUrl);
-    } catch (_) {
-      // ignore cache failures
-    }
   }
 }

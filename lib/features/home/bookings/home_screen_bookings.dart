@@ -61,7 +61,8 @@ class _BookingsScreenState extends State<_BookingsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Tidak bisa memuat riwayat booking. Detail: $detail';
+        _error =
+            'Tidak bisa memuat riwayat booking. Detail: $detail';
       });
     }
   }
@@ -73,26 +74,11 @@ class _BookingsScreenState extends State<_BookingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF13244E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Batalkan booking?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'Tindakan ini akan menghapus booking yang belum dibayar.',
-          style: TextStyle(color: Colors.white70),
-        ),
+        title: const Text('Batalkan booking?', style: TextStyle(color: Colors.white)),
+        content: const Text('Tindakan ini akan menghapus booking yang belum dibayar.', style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Kembali'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Batalkan',
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Kembali')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Batalkan', style: TextStyle(color: Colors.redAccent))),
         ],
       ),
     );
@@ -108,9 +94,9 @@ class _BookingsScreenState extends State<_BookingsScreen> {
           _cancellingId = null;
         });
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Booking dibatalkan.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking dibatalkan.')),
+          );
         }
       } else {
         throw Exception('Gagal membatalkan');
@@ -119,9 +105,7 @@ class _BookingsScreenState extends State<_BookingsScreen> {
       setState(() => _cancellingId = null);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tidak bisa membatalkan booking saat ini.'),
-        ),
+        const SnackBar(content: Text('Tidak bisa membatalkan booking saat ini.')),
       );
     }
   }
@@ -153,8 +137,8 @@ class _BookingsScreenState extends State<_BookingsScreen> {
   List<_BookingCategoryData> get _bookingCategories {
     final grouped = <String, List<String>>{};
     for (final booking in _bookings) {
-      final label = (booking.venueType.isEmpty ? 'Lainnya' : booking.venueType)
-          .trim();
+      final label =
+          (booking.venueType.isEmpty ? 'Lainnya' : booking.venueType).trim();
       grouped.putIfAbsent(label, () => []).add(booking.venueImageUrl);
     }
     final labels = grouped.keys.toList()..sort();
@@ -182,7 +166,9 @@ class _BookingsScreenState extends State<_BookingsScreen> {
               decoration: BoxDecoration(gradient: _backgroundGradient),
             ),
           ),
-          const Positioned.fill(child: TwinkleOverlay(opacity: 0.22)),
+          const Positioned.fill(
+            child: TwinkleOverlay(opacity: 0.22),
+          ),
           const Positioned.fill(child: _StaticAuroraBackdrop()),
           SafeArea(
             child: Column(
@@ -324,9 +310,8 @@ class _BookingsScreenState extends State<_BookingsScreen> {
           child: _BookingCard(
             booking: booking,
             onTap: () => widget.onSelectBooking(booking),
-            onCancel: booking.hasBeenPaid
-                ? null
-                : () => _cancelBooking(booking),
+            onCancel:
+                booking.hasBeenPaid ? null : () => _cancelBooking(booking),
             cancelling: _cancellingId == booking.id,
           ),
         );
@@ -336,7 +321,10 @@ class _BookingsScreenState extends State<_BookingsScreen> {
 }
 
 class _BookingsHeader extends StatelessWidget {
-  const _BookingsHeader({required this.onBack, required this.totalBookings});
+  const _BookingsHeader({
+    required this.onBack,
+    required this.totalBookings,
+  });
 
   final VoidCallback onBack;
   final int totalBookings;
@@ -350,10 +338,8 @@ class _BookingsHeader extends StatelessWidget {
           CircleAvatar(
             backgroundColor: Colors.white.withValues(alpha: 0.14),
             child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white),
               onPressed: onBack,
             ),
           ),
@@ -491,12 +477,7 @@ class _BookingFilterBar extends StatelessWidget {
 }
 
 class _BookingCard extends StatelessWidget {
-  const _BookingCard({
-    required this.booking,
-    required this.onTap,
-    this.onCancel,
-    this.cancelling = false,
-  });
+  const _BookingCard({required this.booking, required this.onTap, this.onCancel, this.cancelling = false});
 
   final _BookingSummary booking;
   final VoidCallback onTap;
@@ -515,12 +496,10 @@ class _BookingCard extends StatelessWidget {
     return _GlassPanel(
       radius: 30,
       padding: const EdgeInsets.all(20),
-      overlayColor: paid
-          ? const Color(0x1A37E1A4)
-          : Colors.white.withValues(alpha: 0.04),
-      borderColor: paid
-          ? const Color(0x3337E1A4)
-          : Colors.white.withValues(alpha: 0.28),
+      overlayColor:
+          paid ? const Color(0x1A37E1A4) : Colors.white.withValues(alpha: 0.04),
+      borderColor:
+          paid ? const Color(0x3337E1A4) : Colors.white.withValues(alpha: 0.28),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
@@ -556,10 +535,8 @@ class _BookingCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     color: accent.withValues(alpha: 0.15),
@@ -575,15 +552,14 @@ class _BookingCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Icon(
-                  Icons.schedule_rounded,
-                  size: 18,
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
+                Icon(Icons.schedule_rounded,
+                    size: 18, color: Colors.white.withValues(alpha: 0.7)),
                 const SizedBox(width: 6),
                 Text(
                   '${booking.sessions} sesi',
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
@@ -607,11 +583,8 @@ class _BookingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 16,
-                  color: Colors.white.withValues(alpha: 0.65),
-                ),
+                Icon(Icons.calendar_today_rounded,
+                    size: 16, color: Colors.white.withValues(alpha: 0.65)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -689,7 +662,9 @@ class _BookingCard extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.cancel_rounded, size: 18),
-                      label: Text(cancelling ? 'Membatalkan...' : 'Batalkan'),
+                      label: Text(
+                        cancelling ? 'Membatalkan...' : 'Batalkan',
+                      ),
                     ),
                   ],
                 ],
@@ -864,10 +839,7 @@ class _BookingCategoryPreview extends StatelessWidget {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Icon(
-              Icons.sports_kabaddi_rounded,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.sports_kabaddi_rounded, color: Colors.white),
           ),
         ),
       );
@@ -895,38 +867,32 @@ class _BookingCategoryPreview extends StatelessWidget {
         final children = <Widget>[];
         final size = constraints.biggest;
         if (display.length == 1) {
-          children.add(
-            Positioned.fill(
-              child: _buildNetworkImage(display.first, fit: BoxFit.cover),
-            ),
-          );
+          children.add(Positioned.fill(
+            child: _buildNetworkImage(display.first, fit: BoxFit.cover),
+          ));
         } else if (display.length == 2) {
           final halfHeight = size.height / 2;
           for (var i = 0; i < 2; i++) {
-            children.add(
-              Positioned(
-                top: i * halfHeight,
-                left: 0,
-                right: 0,
-                height: halfHeight,
-                child: _buildNetworkImage(display[i], fit: BoxFit.cover),
-              ),
-            );
+            children.add(Positioned(
+              top: i * halfHeight,
+              left: 0,
+              right: 0,
+              height: halfHeight,
+              child: _buildNetworkImage(display[i], fit: BoxFit.cover),
+            ));
           }
         } else {
           final half = size.width / 2;
           for (var i = 0; i < display.length; i++) {
             final row = i < 2 ? 0 : 1;
             final col = i % 2;
-            children.add(
-              Positioned(
-                left: col * half,
-                top: row * half,
-                width: half,
-                height: half,
-                child: _buildNetworkImage(display[i], fit: BoxFit.cover),
-              ),
-            );
+            children.add(Positioned(
+              left: col * half,
+              top: row * half,
+              width: half,
+              height: half,
+              child: _buildNetworkImage(display[i], fit: BoxFit.cover),
+            ));
           }
         }
         return Stack(children: children);
@@ -937,9 +903,7 @@ class _BookingCategoryPreview extends StatelessWidget {
 
 String _formatBookingDateTimeRange(DateTime start, DateTime end) {
   final sameDay =
-      start.year == end.year &&
-      start.month == end.month &&
-      start.day == end.day;
+      start.year == end.year && start.month == end.month && start.day == end.day;
   if (sameDay) {
     return '${_formatReadableDate(start)} • ${_formatTimeCompact(start)} - ${_formatTimeCompact(end)}';
   }
@@ -953,7 +917,10 @@ String _formatTimeCompact(DateTime value) {
 }
 
 class _BookingDropdownVisual {
-  const _BookingDropdownVisual({required this.icon, required this.color});
+  const _BookingDropdownVisual({
+    required this.icon,
+    required this.color,
+  });
 
   final IconData icon;
   final Color color;
@@ -1015,7 +982,10 @@ class _BookingIconDropdown extends StatelessWidget {
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      Text(item, style: labelStyle),
+                      Text(
+                        item,
+                        style: labelStyle,
+                      ),
                     ],
                   ),
                 ),
@@ -1026,9 +996,16 @@ class _BookingIconDropdown extends StatelessWidget {
                 .map(
                   (item) => Row(
                     children: [
-                      Icon(visual.icon, color: visual.color, size: 18),
+                      Icon(
+                        visual.icon,
+                        color: visual.color,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
-                      Text(value, style: labelStyle),
+                      Text(
+                        value,
+                        style: labelStyle,
+                      ),
                     ],
                   ),
                 )
@@ -1114,3 +1091,10 @@ Widget buildBookingsTestApp({
     ),
   );
 }
+
+
+
+
+
+
+

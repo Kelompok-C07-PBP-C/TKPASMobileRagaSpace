@@ -12,9 +12,7 @@ class Api {
 
   final String baseUrl;
 
-  static final String defaultBaseUrl = _ensureTrailingSlash(
-    '${resolveBaseApiHost()}/api/',
-  );
+  static final String defaultBaseUrl = _ensureTrailingSlash('${resolveBaseApiHost()}/api/');
 
   // Keys for persisting "remember me" behaviour.
   static const String _rememberKey = 'auth_remember_me';
@@ -100,8 +98,7 @@ class Api {
     }
   }
 
-  static String _ensureTrailingSlash(String value) =>
-      value.endsWith('/') ? value : '$value/';
+  static String _ensureTrailingSlash(String value) => value.endsWith('/') ? value : '$value/';
 
   Uri _u(String path) => Uri.parse(baseUrl + path);
 
@@ -141,11 +138,8 @@ class Api {
     }
   }
 
-  Future<Map<String, dynamic>> register(
-    String username,
-    String password, {
-    String? email,
-  }) async {
+  Future<Map<String, dynamic>> register(String username, String password,
+      {String? email}) async {
     final res = await _sendRequest(
       () => http.post(
         _u('register/'),
@@ -269,9 +263,7 @@ class Api {
         http.MultipartFile.fromBytes(
           'avatar',
           resolvedBytes,
-          filename:
-              avatarFilename ??
-              (avatarFile?.path.split('/').last ?? 'avatar.jpg'),
+          filename: avatarFilename ?? (avatarFile?.path.split('/').last ?? 'avatar.jpg'),
         ),
       );
     }
@@ -307,9 +299,7 @@ class Api {
     _decode(res);
   }
 
-  Future<List<Map<String, dynamic>>> fetchWishlist({
-    required int userId,
-  }) async {
+  Future<List<Map<String, dynamic>>> fetchWishlist({required int userId}) async {
     final uri = _u('wishlist/?user_id=$userId');
     final res = await _sendRequest(() => http.get(uri));
     final decoded = _decode(res);
@@ -427,8 +417,7 @@ class Api {
       if (uri == null) return value;
       final base = _baseUri;
       final matchesBaseHost = uri.host.toLowerCase() == base.host.toLowerCase();
-      final shouldUpgradeScheme =
-          matchesBaseHost && base.scheme == 'https' && uri.scheme != 'https';
+      final shouldUpgradeScheme = matchesBaseHost && base.scheme == 'https' && uri.scheme != 'https';
       if (shouldUpgradeScheme) {
         return uri.replace(scheme: 'https').toString();
       }
@@ -459,10 +448,12 @@ class Api {
 
   String _mergeWithBase(String path, {String? query}) {
     final base = _baseUri;
-    final normalizedPath = path.startsWith('/')
-        ? path
-        : '/${path.replaceFirst(RegExp(r'^/+'), '')}';
-    final merged = base.replace(path: normalizedPath, query: query ?? '');
+    final normalizedPath =
+        path.startsWith('/') ? path : '/${path.replaceFirst(RegExp(r'^/+'), '')}';
+    final merged = base.replace(
+      path: normalizedPath,
+      query: query ?? '',
+    );
     return merged.toString();
   }
 }

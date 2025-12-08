@@ -301,7 +301,7 @@ CATEGORY_ADDONS: dict[str, list[tuple[str, str, Decimal]]] = {
             Decimal("400000"),
         ),
     ],
-    "volley-ball": [
+    "volly-ball": [
         (
             "Bola voli (sewa)",
             "Sewa bola voli standar turnamen.",

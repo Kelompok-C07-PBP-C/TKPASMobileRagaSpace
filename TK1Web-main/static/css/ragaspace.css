@@ -888,7 +888,7 @@ body::after {
   --icon-bg: linear-gradient(135deg, rgba(248, 113, 113, 0.55), rgba(244, 63, 94, 0.45));
 }
 
-.sports-marquee__icon--volley {
+.sports-marquee__icon--volly {
   --icon-bg: linear-gradient(135deg, rgba(147, 197, 253, 0.55), rgba(59, 130, 246, 0.45));
 }
 

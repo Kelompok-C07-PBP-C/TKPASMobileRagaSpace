@@ -1,5 +1,4 @@
 part of 'package:tk2ragaspace/features/home/home_screen.dart';
-// ignore_for_file: unused_element, unused_element_parameter
 
 const List<String> _filterCities = [
   'All cities',
@@ -43,7 +42,10 @@ bool homeDisableNetworkImagesForTests = false;
 bool homeSkipNetworkForTests = false;
 
 final String _apiBaseUrl = resolveBaseApiHost();
-final String _apiHostBase = _apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+final String _apiHostBase = _apiBaseUrl.replaceFirst(
+  RegExp(r'/api/?$'),
+  '',
+);
 const List<_CategoryChipData> _categories = [
   _CategoryChipData(label: 'Tennis', icon: Icons.sports_tennis),
   _CategoryChipData(label: 'Badminton', icon: Icons.sports),
@@ -171,8 +173,7 @@ abstract class _HomeScreenCore extends State<HomeScreen>
     _highlightTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!_highlightController.hasClients) return;
       final current =
-          _highlightController.page?.round() ??
-          _highlightController.initialPage;
+          _highlightController.page?.round() ?? _highlightController.initialPage;
       final next = (current + 1) % _highlightPageCount;
       _highlightController.animateToPage(
         next,

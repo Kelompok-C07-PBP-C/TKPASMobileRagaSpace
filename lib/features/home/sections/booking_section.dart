@@ -29,16 +29,18 @@ class _BookedDateRange {
 
   bool overlaps(DateTime otherStart, DateTime otherEnd) {
     // Treat ranges as half-open [start, end): end is exclusive.
-    final candidateStart = otherStart.isBefore(otherEnd)
-        ? otherStart
-        : otherEnd;
-    final candidateEnd = otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
+    final candidateStart =
+        otherStart.isBefore(otherEnd) ? otherStart : otherEnd;
+    final candidateEnd =
+        otherStart.isBefore(otherEnd) ? otherEnd : otherStart;
     // No overlap if candidate ends on/before this.start,
     // or starts on/after this.end.
-    if (candidateEnd.isBefore(start) || candidateEnd.isAtSameMomentAs(start)) {
+    if (candidateEnd.isBefore(start) ||
+        candidateEnd.isAtSameMomentAs(start)) {
       return false;
     }
-    if (candidateStart.isAfter(end) || candidateStart.isAtSameMomentAs(end)) {
+    if (candidateStart.isAfter(end) ||
+        candidateStart.isAtSameMomentAs(end)) {
       return false;
     }
     return true;
@@ -125,7 +127,9 @@ class _HourDropdownField extends StatelessWidget {
                   hint,
                   maxLines: maxLines,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white54),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white54,
+                  ),
                 ),
               ),
               onChanged: disabled ? null : onChanged,
@@ -212,9 +216,9 @@ class _BookingSummary {
     final resolvedImageUrl = _resolveMediaUrlGlobal(rawImageUrl);
     final selectedAddons = (json['selected_addons'] is List)
         ? (json['selected_addons'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map(_VenueAddon.fromMap)
-              .toList()
+            .whereType<Map<String, dynamic>>()
+            .map(_VenueAddon.fromMap)
+            .toList()
         : const <_VenueAddon>[];
     final venueAddons = _VenueCardData._parseAddons(venue['addons']);
     final addonsTotal =
@@ -271,15 +275,15 @@ class _BookingSummary {
       startDate: startDate,
       endDate: endDate,
       sessions: sessions,
-      subtotal:
-          sessions * venuePrice +
+      subtotal: sessions * venuePrice +
           selectedAddons.fold(0, (sum, addon) => sum + addon.price),
       phoneNumber: phoneNumber,
       hasBeenPaid: false,
       datePaid: null,
       createdAt: now,
       selectedAddons: selectedAddons,
-      addonsTotal: selectedAddons.fold(0, (sum, addon) => sum + addon.price),
+      addonsTotal:
+          selectedAddons.fold(0, (sum, addon) => sum + addon.price),
       venueAddons: const [],
       notes: 'Booking demo tanpa backend',
     );
@@ -348,8 +352,8 @@ String _formatReadableDate(DateTime date) {
 
 @visibleForTesting
 _BookedDateRange? debugTryParseBookedDateRangeForTests(
-  Map<String, dynamic> map,
-) => _BookedDateRange.tryParse(map);
+        Map<String, dynamic> map) =>
+    _BookedDateRange.tryParse(map);
 
 @visibleForTesting
 bool debugBookedDateRangeOverlapsForTests(
@@ -363,7 +367,9 @@ bool debugBookedDateRangeOverlapsForTests(
 }
 
 @visibleForTesting
-Iterable<DateTime> debugBookedDateRangeDaysForTests(Map<String, dynamic> map) {
+Iterable<DateTime> debugBookedDateRangeDaysForTests(
+  Map<String, dynamic> map,
+) {
   final range = _BookedDateRange.tryParse(map);
   return range?.days() ?? const <DateTime>[];
 }
@@ -383,10 +389,9 @@ bool debugDailyHourOverlapForTests(
   double endHour,
   double otherStart,
   double otherEnd,
-) => _DailyHourRange(
-  startHour: startHour,
-  endHour: endHour,
-).overlaps(otherStart, otherEnd);
+) =>
+    _DailyHourRange(startHour: startHour, endHour: endHour)
+        .overlaps(otherStart, otherEnd);
 
 @visibleForTesting
 String debugFormatHourLabelForTests(int hour) => _formatHourLabel(hour);

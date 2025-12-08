@@ -208,7 +208,10 @@ class _TestimonialCard extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    child: Icon(Icons.person_outline, color: Colors.white70),
+                    child: Icon(
+                      Icons.person_outline,
+                      color: Colors.white70,
+                    ),
                   ),
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
