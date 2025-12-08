@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:marco/features/home/home_screen.dart';
-import 'package:marco/services/api.dart';
+import 'package:tk2ragaspace/features/home/home_screen.dart';
+import 'package:tk2ragaspace/services/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 

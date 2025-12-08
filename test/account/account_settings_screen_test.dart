@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:marco/features/account_settings/account_settings_screen.dart';
-import 'package:marco/services/api.dart';
+import 'package:tk2ragaspace/features/account_settings/account_settings_screen.dart';
+import 'package:tk2ragaspace/services/api.dart';
 
 class _FakePicker extends ImagePicker {
   @override
@@ -69,9 +69,9 @@ void main() {
       (tester) async {
     accountUserIdOverride = () => 42;
     accountFetchOverride = (api, userId) async => {
-          'username': 'marco',
-          'email': 'marco@example.com',
-          'first_name': 'Marco',
+          'username': 'tk2ragaspace',
+          'email': 'tk2ragaspace@example.com',
+          'first_name': 'tk2ragaspace',
           'last_name': 'Polo',
           'phone_number': '08123',
           'avatar_url': '',
@@ -113,8 +113,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Form fields are populated from fetchAccount.
-    expect(find.text('marco'), findsOneWidget);
-    expect(find.text('marco@example.com'), findsOneWidget);
+    expect(find.text('tk2ragaspace'), findsOneWidget);
+    expect(find.text('tk2ragaspace@example.com'), findsOneWidget);
 
     // Grab the state so we can invoke debug helpers directly (avoids off-screen taps).
     final dynamic state =
@@ -151,12 +151,12 @@ void main() {
     await tester.pump();
 
     // Empty phone number branch.
-    state.debugSetProfileFieldsForTests(username: 'marco', phoneNumber: '');
+    state.debugSetProfileFieldsForTests(username: 'tk2ragaspace', phoneNumber: '');
     await state.debugSaveProfileForTests();
     await tester.pump();
 
     // Valid data -> updateAccount success path.
-    state.debugSetProfileFieldsForTests(username: 'marco', phoneNumber: '08123');
+    state.debugSetProfileFieldsForTests(username: 'tk2ragaspace', phoneNumber: '08123');
     await state.debugSaveProfileForTests();
     await tester.pumpAndSettle();
 
@@ -191,9 +191,9 @@ void main() {
         throw ApiError('network error');
       }
       return {
-        'username': 'marco',
-        'email': 'marco@example.com',
-        'first_name': 'Marco',
+        'username': 'tk2ragaspace',
+        'email': 'tk2ragaspace@example.com',
+        'first_name': 'tk2ragaspace',
         'last_name': 'Polo',
         'phone_number': '08123',
         'avatar_url': '',

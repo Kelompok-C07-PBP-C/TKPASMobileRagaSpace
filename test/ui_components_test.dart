@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco/widgets/aurora_backdrop.dart';
-import 'package:marco/widgets/aurora_route.dart';
-import 'package:marco/widgets/gradient_button.dart';
-import 'package:marco/widgets/hero_slideshow.dart';
-import 'package:marco/widgets/twinkle_overlay.dart';
+import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
+import 'package:tk2ragaspace/widgets/aurora_route.dart';
+import 'package:tk2ragaspace/widgets/gradient_button.dart';
+import 'package:tk2ragaspace/widgets/hero_slideshow.dart';
+import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
 
 void main() {
   testWidgets('AuroraBackdrop renders bands for both variants', (tester) async {
