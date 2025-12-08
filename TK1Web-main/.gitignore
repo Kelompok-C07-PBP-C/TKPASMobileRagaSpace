@@ -1,0 +1,13 @@
+# Virtual Environment
+env/
+
+# Database lokal
+db.sqlite3
+
+# File rahasia (API keys, password)
+.env
+.env.*
+
+# Cache Python
+__pycache__/
+*.pyc

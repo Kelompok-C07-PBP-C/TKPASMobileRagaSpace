@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _VenueCard extends StatelessWidget {
   const _VenueCard({
@@ -297,8 +297,10 @@ class _ErrorNotice extends StatelessWidget {
               onPressed: onRetry,
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
               ),
               child: Text(actionLabel!),
             ),

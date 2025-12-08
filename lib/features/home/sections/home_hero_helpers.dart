@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _HighlightInfoCard extends StatelessWidget {
   const _HighlightInfoCard({required this.data});
@@ -219,9 +219,9 @@ class _CategoryChip extends StatelessWidget {
 }
 
 TextStyle _categoryChipTextStyle() => GoogleFonts.plusJakartaSans(
-      fontWeight: FontWeight.w600,
-      color: Colors.white,
-    );
+  fontWeight: FontWeight.w600,
+  color: Colors.white,
+);
 
 double _calculateChipWidth(String label) {
   final painter = TextPainter(
@@ -293,7 +293,7 @@ class _AuroraRibbon {
   final double blur;
 }
 
-  List<_AuroraRibbon> _buildRibbons(_AuroraBackdropStyle style) {
+List<_AuroraRibbon> _buildRibbons(_AuroraBackdropStyle style) {
   final bright = style == _AuroraBackdropStyle.detail
       ? const [Color(0xFF5EECFF), Color(0x8826FFC8)]
       : const [Color(0xFF60F3FF), Color(0x6624FFD5)];
@@ -407,7 +407,7 @@ void _paintStarfield(Canvas canvas, Size size) {
   }
 }
 
-  void _paintHorizonGlow(Canvas canvas, Size size) {
+void _paintHorizonGlow(Canvas canvas, Size size) {
   final rect = Rect.fromLTWH(0, size.height * 0.4, size.width, size.height);
   final gradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -538,8 +538,7 @@ Widget buildExploreVenuesCardForTests() => const _ExploreVenuesCard();
 @visibleForTesting
 Widget buildStaticAuroraBackdropForTests({bool detail = false}) {
   return _StaticAuroraBackdrop(
-    style:
-        detail ? _AuroraBackdropStyle.detail : _AuroraBackdropStyle.standard,
+    style: detail ? _AuroraBackdropStyle.detail : _AuroraBackdropStyle.standard,
   );
 }
 
@@ -560,4 +559,5 @@ bool debugStaticAuroraShouldRepaintForTests() {
   final repaintSame = a.shouldRepaint(a);
   return repaintDifferent && !repaintSame;
 }
+
 // coverage:ignore-end

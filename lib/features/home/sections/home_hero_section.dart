@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 mixin _HomeHeroSection on _HomeScreenCore {
   Widget _buildHeroHeading() {
@@ -97,9 +97,10 @@ mixin _HomeHeroSection on _HomeScreenCore {
           InkWell(
             onTap: _showProfileMenu,
             borderRadius: BorderRadius.circular(24),
-          child: CircleAvatar(
+            child: CircleAvatar(
               radius: 16,
-              backgroundImage: !homeDisableNetworkImagesForTests &&
+              backgroundImage:
+                  !homeDisableNetworkImagesForTests &&
                       _avatarUrl != null &&
                       _avatarUrl!.isNotEmpty
                   ? NetworkImage(_avatarUrl!)
@@ -145,9 +146,9 @@ mixin _HomeHeroSection on _HomeScreenCore {
             final int itemsPerRow = extraWide ? 5 : 4;
             final double chipWidth =
                 ((width - 16 * (itemsPerRow - 1)) / itemsPerRow).clamp(
-              140.0,
-              220.0,
-            );
+                  140.0,
+                  220.0,
+                );
             return Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -238,8 +239,9 @@ mixin _HomeHeroSection on _HomeScreenCore {
             Wrap(
               spacing: spacing,
               runSpacing: 18,
-              alignment:
-                  singleColumn ? WrapAlignment.center : WrapAlignment.start,
+              alignment: singleColumn
+                  ? WrapAlignment.center
+                  : WrapAlignment.start,
               children: [
                 for (final filter in filters)
                   SizedBox(width: itemWidth, child: filter),
@@ -252,9 +254,9 @@ mixin _HomeHeroSection on _HomeScreenCore {
           ];
           final bool showEmptyHint =
               !_loadingVenues &&
-                  _venuesError == null &&
-                  _filteredVenues.isEmpty &&
-                  _venues.isNotEmpty;
+              _venuesError == null &&
+              _filteredVenues.isEmpty &&
+              _venues.isNotEmpty;
           if (showEmptyHint) {
             children.add(const SizedBox(height: 12));
             children.add(
@@ -310,8 +312,9 @@ mixin _HomeHeroSection on _HomeScreenCore {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final bool compact = constraints.maxWidth < 280;
-                final double horizontalPadding =
-                    constraints.maxWidth < 240 ? 20 : 32;
+                final double horizontalPadding = constraints.maxWidth < 240
+                    ? 20
+                    : 32;
                 return Padding(
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Row(
@@ -679,8 +682,8 @@ mixin _HomeHeroSection on _HomeScreenCore {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const AccountSettingsScreen()))
         .then((_) {
-      _loadProfileSummary();
-    });
+          _loadProfileSummary();
+        });
   }
 
   Future<void> _performLogout() async {
@@ -717,8 +720,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
     final response = await http.get(uri);
     if (response.statusCode != 200) {
       // ignore: avoid_print
-      print(
-          'Bookings fetch failed (${response.statusCode}): ${response.body}');
+      print('Bookings fetch failed (${response.statusCode}): ${response.body}');
       throw Exception('Status code ${response.statusCode}');
     }
     final payload = jsonDecode(response.body) as List<dynamic>;

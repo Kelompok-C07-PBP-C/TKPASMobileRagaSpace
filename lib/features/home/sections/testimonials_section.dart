@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 mixin _HomeTestimonialsSection on _HomeScreenCore {
   Widget _buildTestimonialsSection() {
@@ -197,7 +197,38 @@ class _TestimonialCard extends StatelessWidget {
         child: ClipOval(
           child: homeDisableNetworkImagesForTests
               ? const SizedBox.shrink()
-              : Image.network(data.avatarUrl, fit: BoxFit.cover),
+              : Image.network(
+                  data.avatarUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Icon(Icons.person_outline, color: Colors.white70),
+                  ),
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white70),
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ),
     );
