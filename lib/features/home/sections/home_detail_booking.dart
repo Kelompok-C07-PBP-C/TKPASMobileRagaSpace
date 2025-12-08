@@ -798,8 +798,7 @@ class _BookingConfirmationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateRange =
-        '${_formatReadableDate(summary.startDate)} \u2022 ${_formatReadableDate(summary.endDate)}';
+    final timeRange = _formatTimeRange(summary.startDate, summary.endDate);
     return _GlassPanel(
       radius: 36,
       padding: const EdgeInsets.fromLTRB(28, 32, 28, 30),
@@ -846,7 +845,15 @@ class _BookingConfirmationCard extends StatelessWidget {
             value: '#${summary.id.toString().padLeft(4, '0')}',
           ),
           const SizedBox(height: 8),
-          _ConfirmationRow(label: 'Rentang tanggal', value: dateRange),
+          _ConfirmationRow(
+            label: 'Rentang waktu',
+            value: '',
+            customValue: _DateTimeRangePill(
+              start: summary.startDate,
+              end: summary.endDate,
+              timeRange: timeRange,
+            ),
+          ),
           const SizedBox(height: 8),
           _ConfirmationRow(label: 'Total sesi', value: '${summary.sessions}x'),
           const SizedBox(height: 8),
@@ -899,16 +906,213 @@ class _BookingConfirmationCard extends StatelessWidget {
   }
 }
 
+class _DateTimeRangePill extends StatelessWidget {
+  const _DateTimeRangePill({
+    required this.start,
+    required this.end,
+    required this.timeRange,
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final String timeRange;
+
+  @override
+  Widget build(BuildContext context) {
+    final sameDay = _isSameDay(start, end);
+    final startTime = _formatTime(start);
+    final endTime = _formatTime(end);
+    if (sameDay) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _DateBadge(date: start),
+          const SizedBox(width: 12),
+          Expanded(child: _TimeOnlyRow(timeText: '$startTime - $endTime')),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _DateRangeBadge(start: start, end: end),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _TimeOnlyRow(timeText: startTime),
+            const SizedBox(height: 10),
+            _TimeOnlyRow(timeText: endTime),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+String _formatTimeRange(DateTime start, DateTime end) =>
+    '${_formatTime(start)} - ${_formatTime(end)}';
+
+String _formatTime(DateTime value) {
+  final hours = value.hour.toString().padLeft(2, '0');
+  final minutes = value.minute.toString().padLeft(2, '0');
+  return '$hours:$minutes';
+}
+
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _monthLabel(DateTime value) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ];
+  return months[value.month - 1];
+}
+
+class _DateBadge extends StatelessWidget {
+  const _DateBadge({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = _monthLabel(date);
+    final year = date.year.toString();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            day,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            month,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white70,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            year,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white38,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DateRangeBadge extends StatelessWidget {
+  const _DateRangeBadge({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _DateBadge(date: start),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              '−',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white38,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _DateBadge(date: end),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimeOnlyRow extends StatelessWidget {
+  const _TimeOnlyRow({required this.timeText});
+
+  final String timeText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120, maxWidth: 220),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.schedule_rounded, color: Color(0xFF78A7FF)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  timeText,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ConfirmationRow extends StatelessWidget {
   const _ConfirmationRow({
     required this.label,
     required this.value,
     this.emphasize = false,
+    this.customValue,
   });
 
   final String label;
   final String value;
   final bool emphasize;
+  final Widget? customValue;
 
   @override
   Widget build(BuildContext context) {
@@ -935,7 +1139,7 @@ class _ConfirmationRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(value, style: style)),
+        Expanded(child: customValue ?? Text(value, style: style)),
       ],
     );
   }

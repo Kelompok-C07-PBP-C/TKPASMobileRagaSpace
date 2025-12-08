@@ -12,7 +12,9 @@ class Api {
 
   final String baseUrl;
 
-  static final String defaultBaseUrl = _ensureTrailingSlash('${resolveBaseApiHost()}/api/');
+  static final String defaultBaseUrl = _ensureTrailingSlash(
+    '${resolveBaseApiHost()}/api/',
+  );
 
   // Keys for persisting "remember me" behaviour.
   static const String _rememberKey = 'auth_remember_me';
@@ -98,7 +100,8 @@ class Api {
     }
   }
 
-  static String _ensureTrailingSlash(String value) => value.endsWith('/') ? value : '$value/';
+  static String _ensureTrailingSlash(String value) =>
+      value.endsWith('/') ? value : '$value/';
 
   Uri _u(String path) => Uri.parse(baseUrl + path);
 
@@ -138,8 +141,11 @@ class Api {
     }
   }
 
-  Future<Map<String, dynamic>> register(String username, String password,
-      {String? email}) async {
+  Future<Map<String, dynamic>> register(
+    String username,
+    String password, {
+    String? email,
+  }) async {
     final res = await _sendRequest(
       () => http.post(
         _u('register/'),
@@ -202,7 +208,10 @@ class Api {
     final uri = _u('account/?user_id=$userId');
     final res = await _sendRequest(() => http.get(uri));
     final decoded = _decode(res);
-    final data = _unwrapData(decoded);
+    final rawData = _unwrapData(decoded);
+    final data = rawData is Map<String, dynamic>
+        ? _normalizeAvatarPayload(Map<String, dynamic>.from(rawData))
+        : <String, dynamic>{};
     return data;
   }
 
@@ -260,14 +269,19 @@ class Api {
         http.MultipartFile.fromBytes(
           'avatar',
           resolvedBytes,
-          filename: avatarFilename ?? (avatarFile?.path.split('/').last ?? 'avatar.jpg'),
+          filename:
+              avatarFilename ??
+              (avatarFile?.path.split('/').last ?? 'avatar.jpg'),
         ),
       );
     }
     final streamed = await _sendStreamedRequest(() => request.send());
     final response = await http.Response.fromStream(streamed);
     final decoded = _decode(response);
-    final data = _unwrapData(decoded);
+    final rawData = _unwrapData(decoded);
+    final data = rawData is Map<String, dynamic>
+        ? _normalizeAvatarPayload(Map<String, dynamic>.from(rawData))
+        : <String, dynamic>{};
     _updateSession(data);
     return data;
   }
@@ -293,7 +307,9 @@ class Api {
     _decode(res);
   }
 
-  Future<List<Map<String, dynamic>>> fetchWishlist({required int userId}) async {
+  Future<List<Map<String, dynamic>>> fetchWishlist({
+    required int userId,
+  }) async {
     final uri = _u('wishlist/?user_id=$userId');
     final res = await _sendRequest(() => http.get(uri));
     final decoded = _decode(res);
@@ -360,6 +376,94 @@ class Api {
       return data;
     }
     return decoded;
+  }
+
+  Map<String, dynamic> _normalizeAvatarPayload(Map<String, dynamic> payload) {
+    final resolved = _resolveAvatarUrl(_extractAvatarRaw(payload));
+    if (resolved.isEmpty) return payload;
+    final normalized = Map<String, dynamic>.from(payload);
+    normalized['avatar_url'] = resolved;
+    return normalized;
+  }
+
+  String? _extractAvatarRaw(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final nested = data['data'];
+    final profile = data['profile'];
+    final candidates = [
+      data['avatar_url'],
+      data['avatarUrl'],
+      data['avatar'],
+      data['avatar_path'],
+      data['avatarPath'],
+      if (nested is Map<String, dynamic>) ...[
+        nested['avatar_url'],
+        nested['avatar'],
+        nested['avatar_path'],
+        nested['avatarPath'],
+      ],
+      if (profile is Map<String, dynamic>) ...[
+        profile['avatar_url'],
+        profile['avatar'],
+        profile['avatar_path'],
+        profile['avatarPath'],
+      ],
+    ];
+    for (final value in candidates) {
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty && text.toLowerCase() != 'null') {
+        return text;
+      }
+    }
+    return null;
+  }
+
+  String _resolveAvatarUrl(String? rawUrl) {
+    final value = (rawUrl ?? '').trim();
+    if (value.isEmpty || value.toLowerCase() == 'null') return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      final uri = Uri.tryParse(value);
+      if (uri == null) return value;
+      final base = _baseUri;
+      final matchesBaseHost = uri.host.toLowerCase() == base.host.toLowerCase();
+      final shouldUpgradeScheme =
+          matchesBaseHost && base.scheme == 'https' && uri.scheme != 'https';
+      if (shouldUpgradeScheme) {
+        return uri.replace(scheme: 'https').toString();
+      }
+      final shouldRebase = _isLoopbackHost(uri.host);
+      if (!shouldRebase) return value;
+      return _mergeWithBase(uri.path, query: uri.hasQuery ? uri.query : null);
+    }
+    return _mergeWithBase(value);
+  }
+
+  String get _apiHostBase {
+    final withoutApi = baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    if (withoutApi.endsWith('/')) {
+      return withoutApi.substring(0, withoutApi.length - 1);
+    }
+    return withoutApi;
+  }
+
+  Uri get _baseUri => Uri.parse(_apiHostBase);
+
+  bool _isLoopbackHost(String host) {
+    final normalized = host.toLowerCase();
+    return normalized == 'localhost' ||
+        normalized == '127.0.0.1' ||
+        normalized == '::1' ||
+        normalized == '0.0.0.0';
+  }
+
+  String _mergeWithBase(String path, {String? query}) {
+    final base = _baseUri;
+    final normalizedPath = path.startsWith('/')
+        ? path
+        : '/${path.replaceFirst(RegExp(r'^/+'), '')}';
+    final merged = base.replace(path: normalizedPath, query: query ?? '');
+    return merged.toString();
   }
 }
 
