@@ -231,11 +231,42 @@ def _resolve_category_for_app_venue(app_venue: "Venue"):
 
   venue_type = (app_venue.type or "").strip()
   if venue_type:
+      normalized_type = venue_type.lower()
+
+      # Handle legacy/new spelling mismatch for volley/volly so venues don't drop to "Imported".
+      if normalized_type in {"volly ball", "volley ball", "volly-ball", "volley-ball", "volleyball"}:
+          category = (
+              Category.objects.filter(slug__iexact="volly-ball").first()
+              or Category.objects.filter(slug__iexact="volley-ball").first()
+              or Category.objects.filter(name__iexact="Volly Ball").first()
+              or Category.objects.filter(name__iexact="Volley Ball").first()
+          )
+          if category is None:
+              category, _ = Category.objects.get_or_create(slug="volly-ball", defaults={"name": "Volly Ball"})
+          else:
+              updated_fields: list[str] = []
+              if category.slug != "volly-ball":
+                  category.slug = "volly-ball"
+                  updated_fields.append("slug")
+              if category.name != "Volly Ball":
+                  category.name = "Volly Ball"
+                  updated_fields.append("name")
+              if updated_fields:
+                  category.save(update_fields=updated_fields)
+          return category
+
       # Try a case-insensitive name match first so that "Tennis" in the
       # admin UI maps to the Tennis category used by the catalog filters.
       category = Category.objects.filter(name__iexact=venue_type).first()
       if category:
           return category
+
+      # As a secondary attempt, try matching by slugified name to catch near-matches.
+      slug_candidate = slugify(venue_type)
+      if slug_candidate:
+          category = Category.objects.filter(slug=slug_candidate).first()
+          if category:
+              return category
 
   # As a safe fallback, keep using / creating the generic "Imported" bucket.
   return _get_or_create_import_category()
