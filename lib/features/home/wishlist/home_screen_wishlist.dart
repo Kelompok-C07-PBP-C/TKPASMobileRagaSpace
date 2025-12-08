@@ -73,10 +73,8 @@ class _WishlistScreenState extends State<_WishlistScreen> {
     });
   }
 
-  void _seedWishlistTimestamps(
-    List<_VenueCardData> source, {
-    bool reset = false,
-  }) {
+  void _seedWishlistTimestamps(List<_VenueCardData> source,
+      {bool reset = false}) {
     if (reset) {
       _timestamps.clear();
     }
@@ -100,12 +98,9 @@ class _WishlistScreenState extends State<_WishlistScreen> {
     final filteredByCategory = _selectedCategory == 'Semua'
         ? List<_VenueCardData>.from(_items)
         : _items
-              .where(
-                (item) =>
-                    item.category.toLowerCase() ==
-                    _selectedCategory.toLowerCase(),
-              )
-              .toList();
+            .where((item) =>
+                item.category.toLowerCase() == _selectedCategory.toLowerCase())
+            .toList();
 
     int compareRating(_VenueCardData a, _VenueCardData b) {
       final direction = _ratingOrder == 'Terendah' ? 1 : -1;
@@ -113,10 +108,8 @@ class _WishlistScreenState extends State<_WishlistScreen> {
     }
 
     int compareTimestamp(_VenueCardData a, _VenueCardData b) {
-      final timeA =
-          _timestamps[a.storageKey] ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final timeB =
-          _timestamps[b.storageKey] ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final timeA = _timestamps[a.storageKey] ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final timeB = _timestamps[b.storageKey] ?? DateTime.fromMillisecondsSinceEpoch(0);
       final direction = _sortOrder == 'Terlama' ? 1 : -1;
       return timeA.compareTo(timeB) * direction;
     }
@@ -196,18 +189,14 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
+                        horizontal: 20, vertical: 12),
                     child: Row(
                       children: [
                         CircleAvatar(
                           backgroundColor: Colors.white.withValues(alpha: 0.08),
                           child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                            ),
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                         ),
@@ -227,9 +216,7 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 6,
-                    ),
+                        horizontal: 20, vertical: 6),
                     child: Column(
                       children: [
                         Row(
@@ -281,11 +268,7 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                                     color: Colors.redAccent,
                                   ),
                                 },
-                                items: const [
-                                  'Ratings',
-                                  'Tertinggi',
-                                  'Terendah',
-                                ],
+                                items: const ['Ratings', 'Tertinggi', 'Terendah'],
                                 onChanged: (value) {
                                   if (value == null) return;
                                   setState(() {
@@ -340,7 +323,8 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                     hasScrollBody: false,
                     child: Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
                   )
@@ -375,36 +359,37 @@ class _WishlistScreenState extends State<_WishlistScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        if (index.isOdd) {
-                          return const SizedBox(height: 16);
-                        }
-                        final itemIndex = index ~/ 2;
-                        final venue = _filteredItems[itemIndex];
-                        return Dismissible(
-                          key: ValueKey(venue.storageKey),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 24),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(28),
-                              color: Colors.redAccent.withValues(alpha: 0.4),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index.isOdd) {
+                            return const SizedBox(height: 16);
+                          }
+                          final itemIndex = index ~/ 2;
+                          final venue = _filteredItems[itemIndex];
+                          return Dismissible(
+                            key: ValueKey(venue.storageKey),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 24),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(28),
+                                color: Colors.redAccent.withValues(alpha: 0.4),
+                              ),
+                              child:
+                                  const Icon(Icons.delete, color: Colors.white),
                             ),
-                            child: const Icon(
-                              Icons.delete,
-                              color: Colors.white,
+                            onDismissed: (_) => _removeItem(venue),
+                            child: _VenueCard(
+                              data: venue,
+                              onTap: () => widget.onSelect(venue),
+                              isFavorite: true,
+                              onToggleFavorite: () => _removeItem(venue),
                             ),
-                          ),
-                          onDismissed: (_) => _removeItem(venue),
-                          child: _VenueCard(
-                            data: venue,
-                            onTap: () => widget.onSelect(venue),
-                            isFavorite: true,
-                            onToggleFavorite: () => _removeItem(venue),
-                          ),
-                        );
-                      }, childCount: _filteredItems.length * 2 - 1),
+                          );
+                        },
+                        childCount: _filteredItems.length * 2 - 1,
+                      ),
                     ),
                   ),
               ],
@@ -417,7 +402,10 @@ class _WishlistScreenState extends State<_WishlistScreen> {
 }
 
 class _DropdownVisual {
-  const _DropdownVisual({required this.icon, required this.color});
+  const _DropdownVisual({
+    required this.icon,
+    required this.color,
+  });
 
   final IconData icon;
   final Color color;
@@ -480,7 +468,10 @@ class _WishlistIconDropdown extends StatelessWidget {
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      Text(item, style: labelStyle),
+                      Text(
+                        item,
+                        style: labelStyle,
+                      ),
                     ],
                   ),
                 ),
@@ -546,7 +537,9 @@ class _CategoryFilterChip extends StatelessWidget {
                     )
                   : null,
               border: Border.all(color: borderColor),
-              color: selected ? null : Colors.white.withValues(alpha: 0.04),
+              color: selected
+                  ? null
+                  : Colors.white.withValues(alpha: 0.04),
               boxShadow: selected
                   ? [
                       BoxShadow(
@@ -619,10 +612,7 @@ class _CategoryPreview extends StatelessWidget {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Icon(
-              Icons.sports_kabaddi_rounded,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.sports_kabaddi_rounded, color: Colors.white),
           ),
         ),
       );
@@ -649,38 +639,32 @@ class _CategoryPreview extends StatelessWidget {
         final children = <Widget>[];
         final size = constraints.biggest;
         if (display.length == 1) {
-          children.add(
-            Positioned.fill(
-              child: _buildNetworkImage(display.first, fit: BoxFit.cover),
-            ),
-          );
+          children.add(Positioned.fill(
+            child: _buildNetworkImage(display.first, fit: BoxFit.cover),
+          ));
         } else if (display.length == 2) {
           final halfHeight = size.height / 2;
           for (var i = 0; i < 2; i++) {
-            children.add(
-              Positioned(
-                top: i * halfHeight,
-                left: 0,
-                right: 0,
-                height: halfHeight,
-                child: _buildNetworkImage(display[i], fit: BoxFit.cover),
-              ),
-            );
+            children.add(Positioned(
+              top: i * halfHeight,
+              left: 0,
+              right: 0,
+              height: halfHeight,
+              child: _buildNetworkImage(display[i], fit: BoxFit.cover),
+            ));
           }
         } else {
           final half = size.width / 2;
           for (var i = 0; i < display.length; i++) {
             final row = i < 2 ? 0 : 1;
             final col = i % 2;
-            children.add(
-              Positioned(
-                left: col * half,
-                top: row * half,
-                width: half,
-                height: half,
-                child: _buildNetworkImage(display[i], fit: BoxFit.cover),
-              ),
-            );
+            children.add(Positioned(
+              left: col * half,
+              top: row * half,
+              width: half,
+              height: half,
+              child: _buildNetworkImage(display[i], fit: BoxFit.cover),
+            ));
           }
         }
         return Stack(children: children);
@@ -689,6 +673,7 @@ class _CategoryPreview extends StatelessWidget {
   }
 }
 
+/// Test-only helper to render the wishlist screen in isolation.
 Widget buildWishlistTestApp({
   required List<Map<String, dynamic>> items,
   required Future<void> Function(Map<String, dynamic>) onRemove,
