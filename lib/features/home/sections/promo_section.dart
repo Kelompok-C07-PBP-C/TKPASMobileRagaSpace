@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 mixin _HomePromoSection on _HomeScreenCore {
   static const List<_PromoCardData> _promoCards = [

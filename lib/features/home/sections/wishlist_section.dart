@@ -1,24 +1,22 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 const _wishlistStorageBaseKey = 'wishlist_venues';
 const _cachedAvatarStorageKey = 'cached_avatar_url';
 
 @visibleForTesting
-typedef WishlistFetchOverride = Future<List<Map<String, dynamic>>> Function({
-  required int userId,
-});
+typedef WishlistFetchOverride =
+    Future<List<Map<String, dynamic>>> Function({required int userId});
 
 @visibleForTesting
-typedef WishlistAddOverride = Future<Map<String, dynamic>> Function({
-  required int userId,
-  required int venueId,
-});
+typedef WishlistAddOverride =
+    Future<Map<String, dynamic>> Function({
+      required int userId,
+      required int venueId,
+    });
 
 @visibleForTesting
-typedef WishlistRemoveOverride = Future<void> Function({
-  required int userId,
-  required int venueId,
-});
+typedef WishlistRemoveOverride =
+    Future<void> Function({required int userId, required int venueId});
 
 @visibleForTesting
 typedef WishlistHttpGetOverride = Future<http.Response> Function(Uri uri);
@@ -39,7 +37,6 @@ WishlistHttpGetOverride? wishlistHttpGetOverride;
 int? wishlistUserIdOverride;
 
 mixin _HomeWishlistSection on _HomeScreenCore {
-
   String _resolveWishlistStorageKey() {
     final userId = Api.currentUserId;
     if (userId != null) return '$_wishlistStorageBaseKey:$userId';
@@ -288,10 +285,7 @@ mixin _HomeWishlistSection on _HomeScreenCore {
           final api = Api();
           final payload = wishlistAddOverride != null
               ? await wishlistAddOverride!(userId: userId, venueId: data.id!)
-              : await api.addWishlistItem(
-                  userId: userId,
-                  venueId: data.id!,
-                );
+              : await api.addWishlistItem(userId: userId, venueId: data.id!);
           final synced = _VenueCardData.fromWishlistPayload(payload);
           if (mounted) {
             setState(() {
@@ -303,15 +297,9 @@ mixin _HomeWishlistSection on _HomeScreenCore {
         } else {
           final api = Api();
           if (wishlistRemoveOverride != null) {
-            await wishlistRemoveOverride!(
-              userId: userId,
-              venueId: data.id!,
-            );
+            await wishlistRemoveOverride!(userId: userId, venueId: data.id!);
           } else {
-            await api.removeWishlistItem(
-              userId: userId,
-              venueId: data.id!,
-            );
+            await api.removeWishlistItem(userId: userId, venueId: data.id!);
           }
         }
       }
