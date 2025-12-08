@@ -4,19 +4,21 @@ const _wishlistStorageBaseKey = 'wishlist_venues';
 const _cachedAvatarStorageKey = 'cached_avatar_url';
 
 @visibleForTesting
-typedef WishlistFetchOverride =
-    Future<List<Map<String, dynamic>>> Function({required int userId});
+typedef WishlistFetchOverride = Future<List<Map<String, dynamic>>> Function({
+  required int userId,
+});
 
 @visibleForTesting
-typedef WishlistAddOverride =
-    Future<Map<String, dynamic>> Function({
-      required int userId,
-      required int venueId,
-    });
+typedef WishlistAddOverride = Future<Map<String, dynamic>> Function({
+  required int userId,
+  required int venueId,
+});
 
 @visibleForTesting
-typedef WishlistRemoveOverride =
-    Future<void> Function({required int userId, required int venueId});
+typedef WishlistRemoveOverride = Future<void> Function({
+  required int userId,
+  required int venueId,
+});
 
 @visibleForTesting
 typedef WishlistHttpGetOverride = Future<http.Response> Function(Uri uri);
@@ -37,6 +39,7 @@ WishlistHttpGetOverride? wishlistHttpGetOverride;
 int? wishlistUserIdOverride;
 
 mixin _HomeWishlistSection on _HomeScreenCore {
+
   String _resolveWishlistStorageKey() {
     final userId = Api.currentUserId;
     if (userId != null) return '$_wishlistStorageBaseKey:$userId';
@@ -159,12 +162,34 @@ mixin _HomeWishlistSection on _HomeScreenCore {
   String _resolveAvatarUrl(String? rawUrl) {
     final value = (rawUrl ?? '').trim();
     if (value.isEmpty || value.toLowerCase() == 'null') return '';
-    if (value.startsWith('http')) return value;
-    final host = _apiHostBase.endsWith('/')
-        ? _apiHostBase.substring(0, _apiHostBase.length - 1)
-        : _apiHostBase;
-    if (value.startsWith('/')) return '$host$value';
-    return '$host/$value';
+    final baseUri = Uri.parse(_apiHostBase);
+    if (value.startsWith('http')) {
+      final uri = Uri.tryParse(value);
+      final host = uri?.host.toLowerCase() ?? '';
+      final isLoopback =
+          host == 'localhost' || host == '127.0.0.1' || host == '::1' || host == '0.0.0.0';
+      final matchesBaseHost = host.isNotEmpty && host == baseUri.host.toLowerCase();
+      final shouldUpgradeScheme =
+          uri != null && matchesBaseHost && baseUri.scheme == 'https' && uri.scheme != 'https';
+      if (shouldUpgradeScheme) {
+        return uri!.replace(scheme: 'https').toString();
+      }
+      if (!isLoopback) return value;
+      final path = uri?.path ?? '';
+      final query = (uri?.hasQuery ?? false) ? uri?.query : null;
+      return _mergeWithBase(path, baseUri: baseUri, query: query);
+    }
+    return _mergeWithBase(value, baseUri: baseUri);
+  }
+
+  String _mergeWithBase(String path, {String? query, Uri? baseUri}) {
+    final base = baseUri ?? Uri.parse(_apiHostBase);
+    final normalizedPath =
+        path.startsWith('/') ? path : '/${path.replaceFirst(RegExp(r'^/+'), '')}';
+    if (query != null && query.isNotEmpty) {
+      return base.replace(path: normalizedPath, query: query).toString();
+    }
+    return base.replace(path: normalizedPath).toString();
   }
 
   Future<void> _restoreCachedAvatar() async {
@@ -285,7 +310,10 @@ mixin _HomeWishlistSection on _HomeScreenCore {
           final api = Api();
           final payload = wishlistAddOverride != null
               ? await wishlistAddOverride!(userId: userId, venueId: data.id!)
-              : await api.addWishlistItem(userId: userId, venueId: data.id!);
+              : await api.addWishlistItem(
+                  userId: userId,
+                  venueId: data.id!,
+                );
           final synced = _VenueCardData.fromWishlistPayload(payload);
           if (mounted) {
             setState(() {
@@ -297,9 +325,15 @@ mixin _HomeWishlistSection on _HomeScreenCore {
         } else {
           final api = Api();
           if (wishlistRemoveOverride != null) {
-            await wishlistRemoveOverride!(userId: userId, venueId: data.id!);
+            await wishlistRemoveOverride!(
+              userId: userId,
+              venueId: data.id!,
+            );
           } else {
-            await api.removeWishlistItem(userId: userId, venueId: data.id!);
+            await api.removeWishlistItem(
+              userId: userId,
+              venueId: data.id!,
+            );
           }
         }
       }
