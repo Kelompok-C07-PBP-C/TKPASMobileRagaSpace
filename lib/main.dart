@@ -15,10 +15,6 @@ bool _isRenderFlexOverflow(FlutterErrorDetails details) {
 }
 
 void main() {
-  // Work around TLS chain issues on the course deployment host by relaxing
-  // certificate validation only for that specific domain. This prevents
-  // CERTIFICATE_VERIFY_FAILED handshake errors on real devices while keeping
-  // other HTTPS traffic validated normally.
   HttpOverrides.global = _RagaHttpOverrides();
 
   WidgetsFlutterBinding.ensureInitialized();

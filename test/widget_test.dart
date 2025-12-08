@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:marco/main.dart';
+import 'package:tk2ragaspace/main.dart';
 
 Future<void> _pumpBriefly(WidgetTester tester, {int millis = 400}) async {
   await tester.pump(const Duration(milliseconds: 16));

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco/widgets/auth_background.dart';
+import 'package:tk2ragaspace/widgets/auth_background.dart';
 
 void main() {
   testWidgets('AuthBackground wraps child with aurora layers',

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco/features/home/home_screen.dart';
+import 'package:tk2ragaspace/features/home/home_screen.dart';
 
 void main() {
   testWidgets('buildDetailChipForTests renders provided text', (tester) async {

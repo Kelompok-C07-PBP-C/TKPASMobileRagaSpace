@@ -1,4 +1,4 @@
-part of 'package:marco/features/home/home_screen.dart';
+part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 class _HighlightInfoCard extends StatelessWidget {
   const _HighlightInfoCard({required this.data});
