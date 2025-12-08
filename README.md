@@ -35,6 +35,7 @@ Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas
    * Tambah fasilitas, deskripsi, aturan venue, lokasi
    * Tambah jadwal ketersediaan
    * Menyimpan list venue, kategori, kota, dan daftar jadwal
+   * Membuat Home Screen
 
 2. Modul Autentifikasi by Tirta Rendy Siahaan
 

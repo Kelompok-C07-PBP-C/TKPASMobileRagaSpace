@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marco/widgets/aurora_backdrop.dart';
-import 'package:marco/widgets/twinkle_overlay.dart';
+import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
+import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
 
 void main() {
   testWidgets('AuroraBackdrop renders bands for dense variant', (tester) async {
