@@ -87,7 +87,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                           ),
                           const SizedBox(width: 16),
                           Text(
-                            'Product Catalog',
+                            'Venue catalog',
                             style: GoogleFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 20,
@@ -171,7 +171,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
-                                  backgroundColor: const Color(0xFF1FA2FF),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -233,7 +234,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                 ElevatedButton.icon(
                                   onPressed: _fetchProducts,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1FA2FF),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 20,
@@ -285,7 +287,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                               ElevatedButton.icon(
                                 onPressed: _resetFilters,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1FA2FF),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20,
@@ -352,7 +355,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
     try {
       final uri = Uri.parse('${widget.apiBaseUrl}/api/venues/');
       final getFn = catalogHttpGetOverride ?? http.get;
-      final res = await getFn(uri).timeout(const Duration(seconds: 8));
+      final res = await getFn(uri).timeout(const Duration(seconds: 15));
       if (res.statusCode != 200) {
         throw Exception('Failed to load venues');
       }

@@ -491,27 +491,47 @@ def delete_wishlist_from_tk1web(sender, instance: WishlistEntry, **kwargs):
 @receiver(post_save, sender=Comment)
 def sync_comment_to_tk1web(sender, instance: Comment, **kwargs):
   """Mirror comments to TK1Web's interaksi.Review for visibility across apps."""
-  Review = apps.get_model("interaksi", "Review")
-  link = instance.venue_links.select_related("venue").first()
-  if not link or not instance.user:
+  _sync_comment_to_tk1web_review(instance)
+
+
+def _sync_comment_to_tk1web_review(comment: Comment, *, app_venue: Venue | None = None) -> None:
+  """Upsert an interaksi.Review entry for the given app Comment."""
+  if not comment.user:
       return
-  venue = _resolve_main_venue(link.venue)
+
+  if app_venue is None:
+      link = comment.venue_links.select_related("venue").first()
+      if not link:
+          return
+      app_venue = link.venue
+
+  venue = _resolve_main_venue(app_venue)
   if venue is None:
       return
+
+  Review = apps.get_model("interaksi", "Review")
   review, created = Review.objects.get_or_create(
-      user=instance.user,
+      user=comment.user,
       venue=venue,
-      defaults={"rating": instance.rating, "comment": instance.comment},
+      defaults={"rating": comment.rating, "comment": comment.comment},
   )
   if not created:
       changed = False
-      if review.rating != instance.rating:
-          review.rating = instance.rating
+      if review.rating != comment.rating:
+          review.rating = comment.rating
           changed = True
-      if review.comment != instance.comment:
-          review.comment = instance.comment
+      if review.comment != comment.comment:
+          review.comment = comment.comment
           changed = True
       if changed:
           review.save(update_fields=["rating", "comment", "updated_at"])
-  if instance.linked_review_id != review.pk:
-      _update_instance_link(Comment, instance.pk, "linked_review_id", review.pk)
+  if comment.linked_review_id != review.pk:
+      _update_instance_link(Comment, comment.pk, "linked_review_id", review.pk)
+
+
+@receiver(post_save, sender=CommentVenue)
+def sync_comment_venue_to_tk1web(sender, instance: CommentVenue, created: bool, **kwargs):
+  """Ensure newly-linked comments are mirrored to the web Review model."""
+  if not created:
+      return
+  _sync_comment_to_tk1web_review(instance.comment, app_venue=instance.venue)

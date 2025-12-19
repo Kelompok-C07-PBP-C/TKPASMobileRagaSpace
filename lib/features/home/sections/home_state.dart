@@ -80,36 +80,52 @@ const List<_HighlightCardData> _highlightCards = [
 ];
 const List<_TestimonialData> _testimonials = [
   _TestimonialData(
+    name: 'Rindu Aurellia',
+    role: 'Koordinator Tim Futsal Anak Padi',
+    quote:
+        "Jujur, sebagai koordinator tim futsal 'Anak Padi', dulu saya yang paling stres setiap mau ngatur jadwal main. Prosesnya manual sekali: harus cari rekomendasi lapangan di Google, telepon atau WhatsApp adminnya satu-satu, lalu menunggu balasan mereka yang seringkali lama.\n\nSejak menemukan RagaSpace, semua masalah itu selesai. Aplikasinya benar-benar game-changer buat kami. Saya bisa lihat semua jadwal lapangan yang tersedia di sekitar kami secara real-time. Tinggal pilih jam, bayar, dan langsung dapat konfirmasi instan.",
+    avatarUrl:
+        'https://blogger.googleusercontent.com/img/a/AVvXsEha0jebkzt4VdaSYEd7LkT-ti2-zrf2MC5h6VjkSQNIf8x_6MgiJU6Qe3F7qF5F7mxXFXzTkSJoYhrf_YBy0rMEM-Hm8lg7iD063VW9TUvYaIhLVW5w_F5yUkZOfyPwG_gKp8ZEBKyyNLHDHrXXRuc5iEyTL4gUUIbdKHnenH50xaaPT6YmERUXZtneZlM',
+  ),
+  _TestimonialData(
+    name: 'Tirta Siahaan',
+    role: 'Pelatih Basket SMA Bima',
+    quote:
+        'RagaSpace bikin koordinasi latihan jadi jauh lebih gampang. Jadwalnya jelas dan bisa langsung saya bagi ke semua anak asuh lewat satu tautan.\n\nSebelumnya saya sering batalin latihan mendadak karena lapangan double booking. Sekarang semua terkontrol dengan notifikasi otomatisnya.',
+    avatarUrl:
+        'https://media.licdn.com/dms/image/v2/D4D03AQFor0aXg96udw/profile-displayphoto-scale_200_200/B4DZlQXhWGGQAY-/0/1757989968230?e=2147483647&v=beta&t=UM9XUoFuSC0-yfgjVC8ASzxQ-XrizT4Ru3hFCg9N6A0',
+  ),
+  _TestimonialData(
+    name: 'Shafa Aurelia',
+    role: 'Founder Komunitas Yoga Senja',
+    quote:
+        'Komunitas kami sering pindah venue, dan itu biasanya makan waktu untuk survei satu per satu. Lewat RagaSpace, saya bisa bandingkan fasilitas dengan cepat sebelum booking.\n\nPembayarannya praktis, ada invoice resmi, dan tim venue juga responsif karena sudah terintegrasi di sistem.',
+    avatarUrl:
+        'https://media.licdn.com/dms/image/v2/D4E03AQHvn66GQSiAXA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1724491188800?e=1762992000&v=beta&t=OI7oxBqbH9YG8_ZxuzZsfoFfFa8QdH2i2fHIOhMVVjA',
+  ),
+  _TestimonialData(
+    name: 'Bilqis Nisrina',
+    role: 'Marketing Manager Event Lokal',
+    quote:
+        'Kami sering gelar event komunitas, dan butuh venue yang bisa di-book jauh hari. RagaSpace kasih visibilitas penuh soal ketersediaan dan harga.\n\nTim supportnya juga proaktif, bantu negosiasi kebutuhan tambahan seperti sound system dan dekorasi.',
+    avatarUrl:
+        'https://media.licdn.com/dms/image/v2/D5603AQELb2yGe_q0JQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1724513244165?e=1762992000&v=beta&t=oGa9zAMXOcfxUd-hO3N2lBfYPh9OUZ54lklyGbagTik',
+  ),
+  _TestimonialData(
     name: 'RPM Dimaz',
     role: 'Manajer Operasional Klub Badminton Orion',
     quote:
-        'Dulu kami kesulitan memonitor jam sewa di semua lapangan. Sekarang jadwal terpusat dan anggota klub bisa booking sesuai slot yang kami buka. Laporan transaksi bulanan rapi, jadi mudah untuk evaluasi promo membership.',
+        'Dulu kami kesulitan memonitor jam sewa di semua lapangan. Sekarang, jadwal terpusat dan anggota klub bisa booking sesuai slot yang kami buka.\n\nLaporan transaksi bulanannya rapi, jadi mudah untuk evaluasi performa lapangan dan promo membership.',
     avatarUrl:
-        'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=600&q=80',
+        'https://media.licdn.com/dms/image/v2/D4E03AQHOOsQevd2tfA/profile-displayphoto-crop_800_800/B4EZh.F_LjGoAM-/0/1754462158131?e=1762992000&v=beta&t=M5UyV43yFFtaWP5q8NRyznSVA4WHuN1K5FcKtQMsnP4',
   ),
   _TestimonialData(
-    name: 'Gita Hardiman',
-    role: 'Founder Urban Volley Hub',
+    name: 'Haekal Dinova',
+    role: 'Manajer Operasional Klub Badminton Orion',
     quote:
-        'Dashboard occupancy yang real-time bikin kami gampang mengisi slot low season dengan promo kilat. Tim marketing juga suka karena semua materi tersedia otomatis.',
+        'Dulu kami kesulitan memonitor jam sewa di semua lapangan. Sekarang, jadwal terpusat dan anggota klub bisa booking sesuai slot yang kami buka.\n\nLaporan transaksi bulanannya rapi, jadi mudah untuk evaluasi performa lapangan dan promo membership.',
     avatarUrl:
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
-  ),
-  _TestimonialData(
-    name: 'Darius Mahendra',
-    role: 'Head Coach Ironclad Futsal Academy',
-    quote:
-        'RagaSpace mengurangi pekerjaan admin hampir 40%. Orang tua bisa cek jadwal latihan sendiri dan pembayaran tercatat jelas, jadi kami fokus ke program latihan.',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1502767040390-9db91f1e91c9?auto=format&fit=crop&w=600&q=80',
-  ),
-  _TestimonialData(
-    name: 'Nina Lesmana',
-    role: 'Event Lead Sphere Badminton Club',
-    quote:
-        'Automasi notifikasi reminder benar-benar menolong saat kami mengelola turnamen komunitas. Semua peserta dapat info timeslot tanpa harus dihubungi manual satu-satu.',
-    avatarUrl:
-        'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+        'https://media.licdn.com/dms/image/v2/D5603AQHMK1Sfeqx7TQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1724483982997?e=1762992000&v=beta&t=1-NFzYQQLxZbqPJP-UVUaAcNqYJUl1w1vlJEYGgeoZs',
   ),
 ];
 
@@ -135,7 +151,7 @@ abstract class _HomeScreenCore extends State<HomeScreen>
   late final ScrollController _scrollController;
   int _navIndex = 0;
   int _testimonialPage = 0;
-  bool _stickyNavVisible = false;
+  bool _stickyNavVisible = true;
   bool _highlightAutoplayEnabled = true;
   final UniqueKey _highlightVisibilityKey = UniqueKey();
   bool _testimonialAutoplayEnabled = true;
@@ -211,13 +227,6 @@ abstract class _HomeScreenCore extends State<HomeScreen>
     _testimonialTimer = null;
   }
 
-  void _handleScroll() {
-    if (!_scrollController.hasClients) return;
-    final shouldShow = _scrollController.offset > 120;
-    if (shouldShow != _stickyNavVisible) {
-      setState(() => _stickyNavVisible = shouldShow);
-    }
-  }
 }
 
 class _HomeScreenState extends _HomeScreenCore
@@ -238,7 +247,7 @@ class _HomeScreenState extends _HomeScreenCore
     )..repeat();
     _startHighlightAutoScroll();
     _startTestimonialAutoScroll();
-    _scrollController = ScrollController()..addListener(_handleScroll);
+    _scrollController = ScrollController();
     if (!homeSkipNetworkForTests) {
       _fetchTopVenues();
       _loadWishlist();
@@ -252,7 +261,6 @@ class _HomeScreenState extends _HomeScreenCore
     _testimonialTimer?.cancel();
     _highlightController.dispose();
     _categoryMarqueeController.dispose();
-    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -299,12 +307,12 @@ class _HomeScreenState extends _HomeScreenCore
                   const SizedBox(height: 48),
                   _buildSectionHeader(
                     'Top 3 Venues',
-                    'Handpicked places loved by the RagaSpace community.',
+                    'Most booked venues on RagaSpace.',
                   ),
                   const SizedBox(height: 20),
                   _buildTopVenuesList(),
                   const SizedBox(height: 48),
-                  _buildSectionHeader('What they said about RagaSpace?', null),
+                  _buildSectionHeader('What They said about RagaSpace?', null),
                   const SizedBox(height: 16),
                   _FadeSlideIn(
                     delay: const Duration(milliseconds: 900),
@@ -359,7 +367,6 @@ class _HomeScreenState extends _HomeScreenCore
   @visibleForTesting
   void debugHandleScrollForTests(num offset) {
     _scrollController.jumpTo(offset.toDouble());
-    _handleScroll();
   }
 
   @visibleForTesting

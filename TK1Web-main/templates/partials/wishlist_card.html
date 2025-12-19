@@ -40,7 +40,7 @@
   <p class="mt-2 text-sm text-white/70">{{ description }}</p>
   <div class="mt-4 flex items-center justify-between">
     <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-widest text-white/70">Rp {{ venue.price_per_hour }}</span>
-    <a href="{% url 'venue-detail' slug=venue.slug %}" class="interactive-glow rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" data-ripple>View product</a>
+    <a href="{% url 'venue-detail' slug=venue.slug %}" class="interactive-glow rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" data-ripple>View detail</a>
   </div>
 </article>
 {% endwith %}

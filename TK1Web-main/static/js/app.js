@@ -651,7 +651,7 @@ const createWishlistCard = (venueData) => {
   link.href = venueData.url || '#';
   link.className =
     'interactive-glow rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20';
-  link.textContent = 'View product';
+  link.textContent = 'View detail';
   link.setAttribute('data-ripple', '');
   footer.appendChild(link);
 
@@ -1598,7 +1598,7 @@ if (filterForm && typeof window.fetch === 'function') {
         </div>
         <div class="mt-4 flex items-center justify-between">
           <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-widest text-white/70">Rp ${escapeHtml(priceDisplay)}</span>
-          <a href="${escapeHtml(venue.url)}" class="interactive-glow rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" data-ripple>View product</a>
+          <a href="${escapeHtml(venue.url)}" class="interactive-glow rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" data-ripple>View detail</a>
         </div>
       `;
       fragment.appendChild(card);
@@ -1716,5 +1716,27 @@ if (filterForm && typeof window.fetch === 'function') {
   filterForm.addEventListener('submit', (event) => {
     event.preventDefault();
     submitFilters();
+  });
+
+  // Keep behaviour consistent with the mobile app: update results immediately
+  // when the user changes filters, while still allowing the explicit Search button.
+  let autoSubmitTimer = null;
+  const scheduleAutoSubmit = () => {
+    if (autoSubmitTimer) {
+      window.clearTimeout(autoSubmitTimer);
+    }
+    autoSubmitTimer = window.setTimeout(() => {
+      submitFilters();
+    }, 250);
+  };
+
+  filterForm.querySelectorAll('select, input').forEach((field) => {
+    if (!(field instanceof HTMLElement)) {
+      return;
+    }
+    if (submitButton && field === submitButton) {
+      return;
+    }
+    field.addEventListener('change', scheduleAutoSubmit);
   });
 }

@@ -167,7 +167,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_REDIRECT_URL = "home"
-LOGOUT_REDIRECT_URL = "authentication:login"
+LOGOUT_REDIRECT_URL = "home"
 LOGIN_URL = "authentication:login"
 
 CSRF_COOKIE_SECURE = os.getenv("DJANGO_CSRF_COOKIE_SECURE", "0") == "1"

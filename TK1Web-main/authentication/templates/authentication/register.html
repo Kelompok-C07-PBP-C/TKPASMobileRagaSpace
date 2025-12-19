@@ -14,7 +14,7 @@
       <img src="{% static 'images/ragaspace-logo.svg' %}" alt="RagaSpace" class="h-full w-full object-contain" />
     </span>
   </div>
-  <h1 class="mb-2 text-center text-[36px] font-bold text-white">Register to Ragaspace</h1>
+  <h1 class="mb-2 text-center text-[36px] font-bold text-white">Register to RagaSpace</h1>
   <p class="mb-6 text-center text-[20px] font-normal text-white/80">Create your account</p>
   <form method="post" class="space-y-6">
     {% csrf_token %}
@@ -23,6 +23,11 @@
       <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-white/80">Username:</label>
       {{ form.username }}
       {{ form.username.errors }}
+    </div>
+    <div class="space-y-2">
+      <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-white/80">Email (optional):</label>
+      {{ form.email }}
+      {{ form.email.errors }}
     </div>
     <div class="space-y-2">
       <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-white/80">Password:</label>
@@ -38,7 +43,7 @@
   </form>
   <p class="mt-6 text-center text-sm text-white/70">
     Already have an account?
-    <a href="{% url 'authentication:login' %}" class="font-semibold text-primary hover:underline">Sign in</a>
+    <a href="{% url 'authentication:login' %}" class="font-semibold text-primary hover:underline">Login</a>
   </p>
 </div>
 {% endblock %}

@@ -13,8 +13,8 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await _pumpBriefly(tester);
 
+    expect(find.text('Login to RagaSpace'), findsOneWidget);
     expect(find.text('Login'), findsWidgets);
-    expect(find.text('Sign In'), findsOneWidget);
 
     final passwordToggle = find.byIcon(Icons.visibility_off_outlined);
     expect(passwordToggle, findsOneWidget);
@@ -29,7 +29,7 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await _pumpBriefly(tester);
 
-    final registerLink = find.text("Don't have an account? Sign Up");
+    final registerLink = find.text("Don't have an account? Register now");
 
     await tester.ensureVisible(registerLink);
     await _pumpBriefly(tester, millis: 250);
@@ -37,7 +37,7 @@ void main() {
     await tester.tap(registerLink);
     await _pumpBriefly(tester, millis: 500);
 
+    expect(find.text('Register to RagaSpace'), findsOneWidget);
     expect(find.text('Register'), findsWidgets);
-    expect(find.text('Sign Up'), findsWidgets);
   });
 }

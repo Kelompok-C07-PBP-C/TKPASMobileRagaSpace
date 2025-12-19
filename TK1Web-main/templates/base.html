@@ -92,7 +92,7 @@
         </div>
         <div class="hidden flex-1 items-center justify-end gap-4 text-base font-medium md:flex">
           {% if user.is_authenticated %}
-          <span class="text-base font-medium text-slate-900">{{ request.user.username }}</span>
+          <a href="{% url 'authentication:profile' %}" class="text-base font-medium text-slate-900 transition hover:text-[#1B89AE]">{{ request.user.username }}</a>
           <span aria-hidden="true" class="text-slate-300">|</span>
           <a href="{% url 'authentication:logout' %}" class="font-medium text-red-500 transition hover:text-red-600">Logout</a>
           {% else %}
@@ -127,7 +127,7 @@
           </div>
           <div class="flex flex-col gap-2 border-t border-slate-200 pt-3">
             {% if user.is_authenticated %}
-            <span class="text-base font-medium text-slate-900">{{ request.user.username }}</span>
+            <a href="{% url 'authentication:profile' %}" class="text-base font-medium text-slate-900 transition hover:text-[#1B89AE]">{{ request.user.username }}</a>
             <a href="{% url 'authentication:logout' %}" class="font-medium text-red-500 transition hover:text-red-600">Logout</a>
             {% else %}
             <a href="{% url 'authentication:login' %}" class="transition hover:text-[#1B89AE]">Login</a>

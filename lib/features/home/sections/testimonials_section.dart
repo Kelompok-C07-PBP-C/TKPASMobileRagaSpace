@@ -232,8 +232,14 @@ class _TestimonialCard extends StatelessWidget {
                     );
                   },
                 ),
-        ),
       ),
+      ),
+    );
+    final shouldShowMore = data.quote.trim().length > 220;
+    final quoteStyle = GoogleFonts.plusJakartaSans(
+      fontSize: 15,
+      height: 1.6,
+      color: Colors.white.withValues(alpha: 0.88),
     );
     final textBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,12 +266,48 @@ class _TestimonialCard extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           data.quote,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            height: 1.6,
-            color: Colors.white.withValues(alpha: 0.88),
-          ),
+          style: quoteStyle,
+          maxLines: shouldShowMore ? (stacked ? 6 : 7) : null,
+          overflow: shouldShowMore ? TextOverflow.ellipsis : TextOverflow.visible,
         ),
+        if (shouldShowMore) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                backgroundColor: const Color(0xFF020617),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                title: Text(
+                  data.name,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                content: SingleChildScrollView(
+                  child: Text(data.quote, style: quoteStyle),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: const Color(0xFF1B89AE),
+              textStyle: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Read more'),
+          ),
+        ],
       ],
     );
     final child = stacked

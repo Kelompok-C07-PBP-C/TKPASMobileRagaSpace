@@ -7,6 +7,7 @@ BookingHttpDelete? bookingHttpDeleteOverride;
 
 class _BookingsScreen extends StatefulWidget {
   const _BookingsScreen({
+    super.key,
     required this.loadBookings,
     required this.onSelectBooking,
   });
@@ -349,7 +350,7 @@ class _BookingsHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Booked Venues',
+                  'Booked places',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 20,
@@ -690,10 +691,11 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 80),
-      children: [
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
         Icon(icon, color: Colors.white.withValues(alpha: 0.6), size: 54),
         const SizedBox(height: 18),
         Text(
@@ -715,6 +717,7 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -745,7 +748,7 @@ class _BookingCategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = selected
-        ? const Color(0xFF2CD5FF).withValues(alpha: 0.65)
+        ? const Color(0xFF0EA5E9).withValues(alpha: 0.65)
         : Colors.white.withValues(alpha: 0.14);
     return GestureDetector(
       onTap: onTap,
@@ -756,27 +759,27 @@ class _BookingCategoryChip extends StatelessWidget {
             width: 96,
             height: 96,
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: selected
-                  ? const LinearGradient(
-                      colors: [Color(0xFF1FA2FF), Color(0xFF2CD5FF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              border: Border.all(color: borderColor),
-              color: selected ? null : Colors.white.withValues(alpha: 0.04),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: const Color(0x331FA2FF),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ]
-                  : null,
-            ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: selected
+                    ? const LinearGradient(
+                        colors: [Color(0xFF1B89AE), Color(0xFF0EA5E9)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                border: Border.all(color: borderColor),
+                color: selected ? null : Colors.white.withValues(alpha: 0.04),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0x331B89AE),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ]
+                    : null,
+              ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: _BookingCategoryPreview(
@@ -1038,7 +1041,7 @@ class _CategoryPill extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  colors: [Color(0xFF1FA2FF), Color(0xFF4BE2C7)],
+                  colors: [Color(0xFF1B89AE), Color(0xFF4BE2C7)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -1053,7 +1056,7 @@ class _CategoryPill extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF1FA2FF).withValues(alpha: 0.28),
+                    color: const Color(0xFF1B89AE).withValues(alpha: 0.28),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -1086,15 +1089,11 @@ Widget buildBookingsTestApp({
 
   return MaterialApp(
     home: _BookingsScreen(
+      key: ValueKey(loadBookings),
       loadBookings: mappedLoader,
       onSelectBooking: (booking) => onSelect(booking),
     ),
   );
 }
-
-
-
-
-
 
 

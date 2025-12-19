@@ -68,7 +68,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Header and filter panel.
-    expect(find.text('Product Catalog'), findsOneWidget);
+    expect(find.text('Venue catalog'), findsOneWidget);
     expect(find.text('Filter venues'), findsOneWidget);
 
     // Change each dropdown to exercise onChanged handlers.

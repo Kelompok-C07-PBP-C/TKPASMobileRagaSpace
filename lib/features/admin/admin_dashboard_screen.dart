@@ -421,7 +421,7 @@ class AdminDrawer extends StatelessWidget {
                   onPressed: onLogout,
                   icon: const Icon(Icons.logout_rounded, color: AdminPalette.danger),
                   label: Text(
-                    'Log out',
+                    'Logout',
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w700,
                       color: AdminPalette.danger,

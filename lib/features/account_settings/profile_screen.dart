@@ -22,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _firstName;
   String? _lastName;
+  String? _username;
   String? _email;
   String? _avatarUrl;
 
@@ -64,6 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _firstName = (data['first_name'] ?? '').toString();
         _lastName = (data['last_name'] ?? '').toString();
+        final resolvedUsername = (data['username'] ?? '').toString();
+        _username = resolvedUsername.isNotEmpty
+            ? resolvedUsername
+            : (Api.currentUsername ?? '');
         _email = (data['email'] ?? '').toString();
         _avatarUrl = (data['avatar_url'] ?? '').toString();
         _loading = false;
@@ -96,6 +101,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_newPassCtrl.text != _confirmPassCtrl.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('New password confirmation does not match.')),
+      );
+      return;
+    }
+    if (_newPassCtrl.text.trim().length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 8 characters.')),
       );
       return;
     }
@@ -235,8 +246,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if ((_firstName ?? '').trim().isNotEmpty) _firstName!.trim(),
       if ((_lastName ?? '').trim().isNotEmpty) _lastName!.trim(),
     ];
-    final displayName = nameParts.isNotEmpty ? nameParts.join(' ') : 'Unknown';
-    final displayEmail = (_email ?? '').trim().isNotEmpty ? _email!.trim() : 'Unknown';
+    final username = (_username ?? '').trim();
+    final displayName =
+        nameParts.isNotEmpty ? nameParts.join(' ') : (username.isNotEmpty ? username : 'Unknown');
+    final displayEmail = (_email ?? '').trim().isNotEmpty ? _email!.trim() : '-';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),

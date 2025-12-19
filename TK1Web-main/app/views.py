@@ -7,6 +7,8 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.apps import apps
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
@@ -278,6 +280,68 @@ def _sync_legacy_wishlist_for_user(user):
         WishlistEntry.objects.get_or_create(user=user, venue=app_venue)
 
 
+def _sync_legacy_reviews_for_venue(app_venue: Venue) -> None:
+    """
+    Ensure TK1Web's interaksi.Review rows are mirrored into the app-level
+    Comment table so the mobile API and the web venue detail page stay aligned.
+    """
+    if not app_venue.linked_venue_id:
+        return
+
+    Review = apps.get_model("interaksi", "Review")
+    legacy_reviews = (
+        Review.objects.filter(venue_id=app_venue.linked_venue_id)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+    if not legacy_reviews.exists():
+        return
+
+    for review in legacy_reviews:
+        # Reviews always have a user, but stay defensive.
+        if not getattr(review, "user_id", None):
+            continue
+        desired_date = None
+        created_at = getattr(review, "created_at", None)
+        if created_at:
+            try:
+                desired_date = created_at.date()
+            except Exception:
+                desired_date = None
+        desired_date = desired_date or timezone.localdate()
+
+        comment = Comment.objects.filter(linked_review_id=review.pk).first()
+        if comment is None:
+            comment = Comment.objects.create(
+                user=review.user,
+                rating=int(review.rating),
+                comment=str(review.comment or ""),
+                date=desired_date,
+                linked_review_id=review.pk,
+            )
+        else:
+            updates: list[str] = []
+            if comment.user_id != review.user_id:
+                comment.user = review.user
+                updates.append("user")
+            if comment.rating != int(review.rating):
+                comment.rating = int(review.rating)
+                updates.append("rating")
+            if comment.comment != str(review.comment or ""):
+                comment.comment = str(review.comment or "")
+                updates.append("comment")
+            if comment.date != desired_date:
+                comment.date = desired_date
+                updates.append("date")
+            if comment.linked_review_id != review.pk:
+                comment.linked_review_id = review.pk
+                updates.append("linked_review_id")
+            if updates:
+                comment.save(update_fields=updates)
+
+        CommentVenue.objects.get_or_create(comment=comment, venue=app_venue)
+
+
 DEFAULT_PAGE_SIZE = 6
 MAX_PAGE_SIZE = 50
 DEMO_USERNAME_PREFIX = "demo."
@@ -312,6 +376,17 @@ def register_view(request: HttpRequest):
 
     if User.objects.filter(username=username).exists():
         return JsonResponse({"detail": "username already exists"}, status=409)
+
+    try:
+        validate_password(password)
+    except ValidationError as exc:
+        return JsonResponse(
+            {
+                "detail": "Password does not meet security requirements.",
+                "errors": list(exc.messages),
+            },
+            status=400,
+        )
 
     user = User.objects.create_user(username=username, password=password, email=email)
     login(request, user)
@@ -397,15 +472,17 @@ def top_venues_view(request: HttpRequest):
 
     queryset = (
         Venue.objects.annotate(
+            bookings_count=Count("bookings", distinct=True),
             avg_rating=Avg("comments__rating"),
-            rating_count=Count("comments"),
+            rating_count=Count("comments", distinct=True),
         )
-        .order_by("-avg_rating", "-rating_count", "-created_at")[:limit]
+        .order_by("-bookings_count", "-id")[:limit]
     )
 
     data = []
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
+        bookings_count = getattr(venue, "bookings_count", 0) or 0
         image_url = venue.image_url
         if not image_url and venue.image:
             try:
@@ -426,6 +503,7 @@ def top_venues_view(request: HttpRequest):
                 "image_url": image_url,
                 "avg_rating": round(float(avg_rating), 2),
                 "rating_count": venue.rating_count,
+                "bookings_count": int(bookings_count),
             }
         )
     return JsonResponse(data, safe=False)
@@ -533,6 +611,17 @@ def account_password_view(request: HttpRequest):
     if not user.check_password(current_password):
         return JsonResponse({"detail": "Current password is incorrect"}, status=400)
 
+    try:
+        validate_password(new_password, user=user)
+    except ValidationError as exc:
+        return JsonResponse(
+            {
+                "detail": "Password does not meet security requirements.",
+                "errors": list(exc.messages),
+            },
+            status=400,
+        )
+
     user.set_password(new_password)
     user.save()
     return JsonResponse({"success": True})
@@ -581,8 +670,6 @@ def booking_create_view(request: HttpRequest):
 
     if not venue_id:
         return JsonResponse({"detail": "venue_id is required"}, status=400)
-    if not phone_number:
-        return JsonResponse({"detail": "phone_number is required"}, status=400)
     if not start_date or not end_date:
         return JsonResponse({"detail": "start_date and end_date required"}, status=400)
     if end_date <= start_date:
@@ -764,6 +851,7 @@ def wishlist_view(request: HttpRequest):
 def venue_reviews_view(request: HttpRequest, venue_id: int):
     venue = get_object_or_404(Venue, pk=venue_id)
     if request.method == "GET":
+        _sync_legacy_reviews_for_venue(venue)
         comments = (
             Comment.objects.filter(venue_links__venue=venue)
             .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
@@ -1356,5 +1444,3 @@ def admin_users_search_api(request: HttpRequest):
             "meta": {"has_users": UserModel.objects.exists()},
         }
     )
-
-

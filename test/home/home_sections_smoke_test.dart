@@ -27,7 +27,7 @@ void main() {
 
     // Testimonials section header.
     expect(
-      find.text('What they said about RagaSpace?'),
+      find.text('What They said about RagaSpace?'),
       findsOneWidget,
     );
 

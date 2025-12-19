@@ -398,7 +398,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 bottom: 0,
                 right: MediaQuery.of(context).size.width * 0.5 - 48 - 6,
                 child: Material(
-                  color: const Color(0xFF1FA2FF),
+                  color: Theme.of(context).colorScheme.primary,
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),

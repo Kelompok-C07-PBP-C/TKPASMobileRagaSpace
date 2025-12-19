@@ -42,7 +42,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
     final bar = Container(
       decoration: const BoxDecoration(
         color: Color(0xFF0B152C),
-        border: Border(bottom: BorderSide(color: Color(0x221FA2FF), width: 1)),
+        border: Border(bottom: BorderSide(color: Color(0x221B89AE), width: 1)),
       ),
       padding: EdgeInsets.fromLTRB(
         fullBleed ? 20 : 0,
@@ -288,9 +288,9 @@ mixin _HomeHeroSection on _HomeScreenCore {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x331FA2FF),
+           boxShadow: const [
+             BoxShadow(
+              color: Color(0x331B89AE),
               blurRadius: 40,
               spreadRadius: 2,
               offset: Offset(0, 12),
@@ -640,30 +640,10 @@ mixin _HomeHeroSection on _HomeScreenCore {
                     color: Colors.redAccent,
                   ),
                   title: Text(
-                    'Log out',
+                    'Logout',
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.redAccent,
                       fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.redAccent.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: Text(
-                      'Sign out',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.w700,
-                      ),
                     ),
                   ),
                   onTap: () {

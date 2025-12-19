@@ -101,7 +101,7 @@ class _VenueCard extends StatelessWidget {
                               offset: const Offset(0, 8),
                             ),
                             BoxShadow(
-                              color: const Color(0x331FA2FF),
+                              color: const Color(0x331B89AE),
                               blurRadius: 24,
                               offset: const Offset(0, 10),
                             ),

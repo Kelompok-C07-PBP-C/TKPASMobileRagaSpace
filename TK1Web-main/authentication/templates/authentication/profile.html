@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Profile ƒ?› RagaSpace{% endblock %}
+{% block content %}
+<section class="space-y-10" data-animate>
+  <header class="rounded-[3rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/50 backdrop-blur-2xl">
+    <h1 class="text-3xl font-semibold text-white">Profile</h1>
+    <p class="mt-2 max-w-2xl text-white/70">Manage your account details and security settings.</p>
+  </header>
+
+  <div class="grid gap-8 lg:grid-cols-2">
+    <div class="rounded-[2.75rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/50 backdrop-blur-2xl">
+      <h2 class="text-xl font-semibold text-white">Account details</h2>
+      <form method="post" class="mt-6 space-y-6" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="update_profile" value="1" />
+        {{ profile_form.non_field_errors }}
+
+        <div class="space-y-2">
+          <label for="{{ profile_form.username.id_for_label }}" class="block text-sm font-medium text-white/80">Username</label>
+          {{ profile_form.username }}
+          {{ profile_form.username.errors }}
+        </div>
+
+        <div class="space-y-2">
+          <label for="{{ profile_form.email.id_for_label }}" class="block text-sm font-medium text-white/80">Email (optional)</label>
+          {{ profile_form.email }}
+          {{ profile_form.email.errors }}
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-2">
+            <label for="{{ profile_form.first_name.id_for_label }}" class="block text-sm font-medium text-white/80">First name (optional)</label>
+            {{ profile_form.first_name }}
+            {{ profile_form.first_name.errors }}
+          </div>
+          <div class="space-y-2">
+            <label for="{{ profile_form.last_name.id_for_label }}" class="block text-sm font-medium text-white/80">Last name (optional)</label>
+            {{ profile_form.last_name }}
+            {{ profile_form.last_name.errors }}
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="{{ profile_form.phone_number.id_for_label }}" class="block text-sm font-medium text-white/80">Phone number (optional)</label>
+          {{ profile_form.phone_number }}
+          {{ profile_form.phone_number.errors }}
+        </div>
+
+        <button type="submit" class="w-full rounded-2xl bg-[#1B89AE] px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#15647F]">Save changes</button>
+      </form>
+    </div>
+
+    <div class="rounded-[2.75rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/50 backdrop-blur-2xl">
+      <h2 class="text-xl font-semibold text-white">Security</h2>
+      <p class="mt-2 text-sm text-white/70">Use a strong password (minimum 8 characters).</p>
+      <form method="post" class="mt-6 space-y-6" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="change_password" value="1" />
+        {{ password_form.non_field_errors }}
+
+        <div class="space-y-2">
+          <label for="{{ password_form.old_password.id_for_label }}" class="block text-sm font-medium text-white/80">Current password</label>
+          {{ password_form.old_password }}
+          {{ password_form.old_password.errors }}
+        </div>
+
+        <div class="space-y-2">
+          <label for="{{ password_form.new_password1.id_for_label }}" class="block text-sm font-medium text-white/80">New password</label>
+          {{ password_form.new_password1 }}
+          {{ password_form.new_password1.errors }}
+        </div>
+
+        <div class="space-y-2">
+          <label for="{{ password_form.new_password2.id_for_label }}" class="block text-sm font-medium text-white/80">Confirm new password</label>
+          {{ password_form.new_password2 }}
+          {{ password_form.new_password2.errors }}
+        </div>
+
+        <button type="submit" class="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">Update password</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

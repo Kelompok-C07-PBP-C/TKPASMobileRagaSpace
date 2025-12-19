@@ -22,7 +22,7 @@ class AuthLogoutViewTests(TestCase):
 
         response = self.client.get(reverse("authentication:logout"), follow=True)
 
-        self.assertRedirects(response, reverse("authentication:login"))
+        self.assertRedirects(response, reverse("home"))
         self.assertFalse(response.context["user"].is_authenticated)
         messages = list(response.context["messages"])
         self.assertTrue(any("logged out" in str(message) for message in messages))
@@ -32,7 +32,7 @@ class AuthLogoutViewTests(TestCase):
 
         response = self.client.post(reverse("authentication:logout"), follow=True)
 
-        self.assertRedirects(response, reverse("authentication:login"))
+        self.assertRedirects(response, reverse("home"))
         self.assertFalse(response.context["user"].is_authenticated)
 
     def test_logout_requires_authentication(self) -> None:

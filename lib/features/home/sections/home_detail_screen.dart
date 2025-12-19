@@ -441,20 +441,6 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   }
 
   Future<void> _openBookingDialog(BuildContext context) async {
-    final phone = (_accountPhoneNumber ?? '').trim();
-    if (phone.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Tambahkan nomor telepon di Account settings sebelum booking.',
-            ),
-          ),
-        );
-      }
-      _openAccountSettings();
-      return;
-    }
     await _loadBookedRanges();
     if (!context.mounted) return;
     final summary = await _showBookingDialog(context);
@@ -1067,7 +1053,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
               ).pop(_ReviewDraft(rating: rating, comment: text));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1FA2FF),
+              backgroundColor: const Color(0xFF1B89AE),
               foregroundColor: Colors.white,
             ),
             child: const Text('Simpan'),

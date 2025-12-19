@@ -56,19 +56,19 @@ mixin _HomeTopVenuesSection on _HomeScreenCore {
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _openCatalog(
-                initialCity: _selectedCity,
-                initialCategory: _selectedCategory,
-                initialPrice: _selectedPrice,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1FA2FF),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+              ElevatedButton.icon(
+                onPressed: () => _openCatalog(
+                  initialCity: _selectedCity,
+                  initialCategory: _selectedCategory,
+                  initialPrice: _selectedPrice,
                 ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B89AE),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),

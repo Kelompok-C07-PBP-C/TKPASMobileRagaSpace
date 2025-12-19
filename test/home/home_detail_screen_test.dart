@@ -163,7 +163,7 @@ void main() {
     );
   });
 
-  testWidgets('openBookingDialog without phone opens account settings',
+  testWidgets('openBookingDialog without phone opens booking dialog',
       (tester) async {
     accountUserIdOverride = () => 1;
     accountFetchOverride = (api, userId) async => {
@@ -178,17 +178,22 @@ void main() {
     final state =
         await _pumpDetailScreen(tester, withPhoneNumber: false) as dynamic;
 
-    await state.debugOpenBookingDialogForTests(
+    final openDialog = state.debugOpenBookingDialogForTests(
       tester.element(find.text('Test Venue')),
     );
-    await tester.pumpAndSettle();
+    // Avoid pumpAndSettle here because other widgets in the tree can have
+    // ongoing animations (e.g. progress indicators) that prevent settling.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
-    // SnackBar shown and account settings screen pushed.
-    expect(
-      find.textContaining('Tambahkan nomor telepon'),
-      findsOneWidget,
-    );
-    expect(find.byType(AccountSettingsScreen), findsOneWidget);
+    // Booking dialog opens even if the stored phone number is empty.
+    expect(find.text('Konfirmasi'), findsOneWidget);
+    expect(find.byType(AccountSettingsScreen), findsNothing);
+
+    // Close the dialog to avoid leaking overlays into other tests.
+    await tester.tap(find.text('Batal'));
+    await tester.pump();
+    await openDialog;
   });
 
   testWidgets('review dialog and star widgets can be interacted with',
