@@ -1,0 +1,3321 @@
+﻿(function () {
+  const reduceMotionQuery =
+    typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+  const reduceMotion = reduceMotionQuery && reduceMotionQuery.matches;
+  if (reduceMotion || typeof anime === 'undefined') {
+    return;
+  }
+
+  const sidebar = document.querySelector('.sidebar');
+  const navButtons = document.querySelectorAll('.sidebar-nav .nav-link');
+  const contentHeader = document.querySelector('.content-header');
+  const surfaceCards = document.querySelectorAll('.surface-card');
+
+  if (!sidebar && !navButtons.length && !contentHeader && !surfaceCards.length) {
+    return;
+  }
+
+  if (sidebar) {
+    anime.set(sidebar, { opacity: 0, translateX: -32 });
+  }
+  if (navButtons.length) {
+    anime.set(navButtons, { opacity: 0, translateX: -12 });
+  }
+  if (contentHeader) {
+    anime.set(contentHeader, { opacity: 0, translateY: -16 });
+  }
+  if (surfaceCards.length) {
+    anime.set(surfaceCards, { opacity: 0, translateY: 24 });
+  }
+
+  const timeline = anime.timeline({ easing: 'easeOutQuad', duration: 620, autoplay: false });
+
+  if (sidebar) {
+    timeline.add({ targets: sidebar, opacity: 1, translateX: 0 });
+  }
+
+  if (navButtons.length) {
+    timeline.add(
+      {
+        targets: navButtons,
+        opacity: 1,
+        translateX: 0,
+        delay: anime.stagger(80),
+      },
+      sidebar ? '-=320' : 0,
+    );
+  }
+
+  if (contentHeader) {
+    timeline.add(
+      {
+        targets: contentHeader,
+        opacity: 1,
+        translateY: 0,
+      },
+      sidebar || navButtons.length ? '-=360' : 0,
+    );
+  }
+
+  if (surfaceCards.length) {
+    timeline.add(
+      {
+        targets: surfaceCards,
+        opacity: 1,
+        translateY: 0,
+        delay: anime.stagger(140),
+      },
+      '-=260',
+    );
+  }
+
+  if (timeline.children && timeline.children.length) {
+    timeline.play();
+  }
+})();
+
+(function () {
+  const app = document.getElementById('admin-app');
+  if (!app) {
+    return;
+  }
+
+  const sidebarToggle = app.querySelector('[data-action="toggle-sidebar"]');
+  const sidebarToggleKey = 'admin.sidebar.collapsed';
+
+  const endpoints = {
+    venues: {
+      list: '/api/admin/venues/',
+      create: '/api/admin/venues/create/',
+      update: (id) => `/api/admin/venues/${id}/update/`,
+      delete: (id) => `/api/admin/venues/${id}/delete/`,
+    },
+    bookings: {
+      list: '/api/admin/bookings/',
+      create: '/api/admin/bookings/create/',
+      update: (id) => `/api/admin/bookings/${id}/update/`,
+      delete: (id) => `/api/admin/bookings/${id}/delete/`,
+    },
+    users: {
+      search: '/api/admin/users/search/',
+    },
+  };
+
+  const DEFAULT_PAGE_SIZE = 6;
+
+  const sectionConfig = {
+    venues: {
+      title: 'Venues',
+      description: 'Manage your venues, pricing, facilities, and imagery in real time.',
+      buttonLabel: 'Add venue',
+      emptyMessage: 'No venues available yet.',
+    },
+    bookings: {
+      title: 'Bookings',
+      description: 'Review reservations, payment status, and stay details instantly.',
+      buttonLabel: 'Add booking',
+      emptyMessage: 'No bookings recorded yet.',
+    },
+  };
+
+  const state = {
+    venues: [],
+    bookings: [],
+    currentSection: 'venues',
+    modalMode: 'create',
+    editingId: null,
+    hasUsers: app.dataset.hasUsers === 'true',
+    sort: {
+      venues: { key: null, direction: 'asc' },
+      bookings: { key: 'created', direction: 'desc' },
+    },
+    pagination: {
+      venues: {
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+        totalPages: 1,
+        totalItems: 0,
+        hasPrevious: false,
+        hasNext: false,
+        query: '',
+      },
+      bookings: {
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+        totalPages: 1,
+        totalItems: 0,
+        hasPrevious: false,
+        hasNext: false,
+        query: '',
+      },
+    },
+    search: {
+      venues: '',
+      bookings: '',
+    },
+  };
+
+  function parseInitialData(id) {
+    const script = document.getElementById(id);
+    if (!script) {
+      return null;
+    }
+    try {
+      return JSON.parse(script.textContent);
+    } catch (error) {
+      console.error(`Failed to parse initial data for ${id}`, error);
+      return null;
+    }
+  }
+
+  function parseInitialPayload(id) {
+    const raw = parseInitialData(id);
+    if (Array.isArray(raw)) {
+      return { data: raw, meta: {} };
+    }
+    if (raw && typeof raw === 'object') {
+      const data = Array.isArray(raw.data) ? raw.data : [];
+      const meta = raw.meta && typeof raw.meta === 'object' ? raw.meta : {};
+      return { data, meta };
+    }
+    return { data: [], meta: {} };
+  }
+
+  function normalizeSeries(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const rawLabels = Array.isArray(source.labels) ? source.labels : [];
+    const rawData = Array.isArray(source.data) ? source.data : [];
+    const length = Math.min(rawLabels.length, rawData.length);
+    const labels = [];
+    const data = [];
+    for (let index = 0; index < length; index += 1) {
+      labels.push(String(rawLabels[index]));
+      const numeric = Number(rawData[index]);
+      data.push(Number.isFinite(numeric) ? numeric : 0);
+    }
+    return { labels, data };
+  }
+
+  function formatDateTimeLocal(value) {
+    /*
+     * Normalize incoming ISO strings for <input type="datetime-local">.
+     * We snap minutes/seconds to :00 so that the picker effectively
+     * works with hourly slots (hours only, no minute precision).
+     */
+    if (!value) {
+      return '';
+    }
+    const date = new Date(String(value));
+    if (!Number.isNaN(date.getTime())) {
+      date.setMinutes(0, 0, 0);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hour = String(date.getHours()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hour}:00`;
+    }
+    const stringValue = String(value);
+    if (stringValue.length >= 16) {
+      // Fallback: keep date + hour, zero out minutes
+      const base = stringValue.slice(0, 13).replace(' ', 'T');
+      return `${base}:00`;
+    }
+    return stringValue.replace(' ', 'T');
+  }
+
+  const initialVenues = parseInitialPayload('initial-venues');
+  const initialBookings = parseInitialPayload('initial-bookings');
+  const initialSalesData = parseInitialData('sales-chart-data');
+  const initialPopularityData = parseInitialData('popularity-chart-data');
+  const analyticsData = {
+    sales: normalizeSeries(initialSalesData),
+    popularity: normalizeSeries(initialPopularityData),
+  };
+
+  state.venues = initialVenues.data;
+  state.bookings = initialBookings.data;
+  state.pagination.venues = normalizePaginationMeta(
+    initialVenues.meta,
+    state.pagination.venues,
+  );
+  state.pagination.bookings = normalizePaginationMeta(
+    initialBookings.meta,
+    state.pagination.bookings,
+  );
+  state.search.venues = state.pagination.venues.query;
+  state.search.bookings = state.pagination.bookings.query;
+
+  if (initialBookings.meta && typeof initialBookings.meta.has_users === 'boolean') {
+    state.hasUsers = initialBookings.meta.has_users;
+  }
+
+  const navButtons = app.querySelectorAll('.nav-link');
+  const contentSections = app.querySelectorAll('.data-section');
+  const sectionTitle = app.querySelector('[data-section-title]');
+  const sectionDescription = app.querySelector('[data-section-description]');
+  const actionButton = app.querySelector('[data-action="open-modal"]');
+  const venuesTableBody = document.getElementById('venues-table-body');
+  const bookingsTableBody = document.getElementById('bookings-table-body');
+  const emptyStates = {
+    venues: document.querySelector('[data-empty="venues"]'),
+    bookings: document.querySelector('[data-empty="bookings"]'),
+  };
+  const tableWrappers = {
+    venues: document.querySelector('[data-table-wrapper="venues"]'),
+    bookings: document.querySelector('[data-table-wrapper="bookings"]'),
+  };
+  const searchInputs = {
+    venues: document.querySelector('[data-search-input="venues"]'),
+    bookings: document.querySelector('[data-search-input="bookings"]'),
+  };
+  const paginationContainers = {
+    venues: document.querySelector('[data-pagination="venues"]'),
+    bookings: document.querySelector('[data-pagination="bookings"]'),
+  };
+  const tableSummaries = {
+    venues: document.querySelector('[data-summary="venues"]'),
+    bookings: document.querySelector('[data-summary="bookings"]'),
+  };
+  const tableFooters = {
+    venues: document.querySelector('[data-table-footer="venues"]'),
+    bookings: document.querySelector('[data-table-footer="bookings"]'),
+  };
+  const sortableHeaders = {
+    venues: Array.from(
+      app.querySelectorAll('[data-sort-section="venues"][data-sort-key]'),
+    ),
+    bookings: Array.from(
+      app.querySelectorAll('[data-sort-section="bookings"][data-sort-key]'),
+    ),
+  };
+  const chartElements = {
+    sales: {
+      canvas: document.getElementById('venue-sales-chart'),
+      empty: document.querySelector('[data-chart-empty="sales"]'),
+    },
+    popularity: {
+      canvas: document.getElementById('venue-popularity-chart'),
+      empty: document.querySelector('[data-chart-empty="popularity"]'),
+    },
+  };
+  const chartInstances = {
+    sales: null,
+    popularity: null,
+  };
+  const modalBackdrop = document.querySelector('[data-modal]');
+  const modalElement = modalBackdrop ? modalBackdrop.querySelector('.modal') : null;
+  const modalTitle = document.getElementById('modal-title');
+  const entityForm = document.getElementById('entity-form');
+  const modalErrors = document.querySelector('[data-modal-errors]');
+  const submitLabel = entityForm.querySelector('[data-submit-label]');
+  const toast = document.getElementById('toast');
+  const formSections = {
+    venues: entityForm.querySelector('[data-form="venues"]'),
+    bookings: entityForm.querySelector('[data-form="bookings"]'),
+  };
+  const autocompleteControllers = {};
+  let userSearchController = null;
+  const fetchControllers = {
+    venues: null,
+    bookings: null,
+  };
+  const searchTimeouts = {
+    venues: null,
+    bookings: null,
+  };
+
+  const reduceMotionQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const prefersReducedMotion = reduceMotionQuery ? reduceMotionQuery.matches : false;
+  const canAnimate = typeof anime !== 'undefined' && !prefersReducedMotion;
+  let modalAnimation = null;
+
+  function toggleFormSection(section, isActive) {
+    if (!section) {
+      return;
+    }
+    const fields = section.querySelectorAll('input, select, textarea');
+    fields.forEach((field) => {
+      field.disabled = !isActive;
+    });
+  }
+
+  function setActiveFormSection(section) {
+    Object.entries(formSections).forEach(([key, element]) => {
+      const isActive = key === section;
+      if (element) {
+        element.classList.toggle('is-hidden', !isActive);
+        toggleFormSection(element, isActive);
+      }
+    });
+  }
+
+  setActiveFormSection('venues');
+
+  function resetModalStyles() {
+    if (modalBackdrop) {
+      modalBackdrop.style.removeProperty('opacity');
+    }
+    if (modalElement) {
+      modalElement.style.removeProperty('opacity');
+      modalElement.style.removeProperty('transform');
+    }
+  }
+
+  function showModalBackdrop() {
+    if (!modalBackdrop) {
+      return;
+    }
+    modalBackdrop.hidden = false;
+    modalBackdrop.setAttribute('aria-hidden', 'false');
+    if (document.body) {
+      document.body.classList.add('modal-open');
+    }
+  }
+
+  function hideModalBackdrop() {
+    if (!modalBackdrop) {
+      return;
+    }
+    modalBackdrop.hidden = true;
+    modalBackdrop.setAttribute('aria-hidden', 'true');
+    if (document.body) {
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  function animateActiveNavButton(button) {
+    if (!canAnimate || !button) {
+      return;
+    }
+    anime.remove(button);
+    anime.set(button, { scale: 0.94 });
+    anime({
+      targets: button,
+      scale: 1,
+      duration: 220,
+      easing: 'easeOutQuad',
+      complete: () => {
+        button.style.removeProperty('transform');
+      },
+    });
+  }
+
+  function animateSectionEntry(sectionElement) {
+    if (!canAnimate || !sectionElement) {
+      return;
+    }
+    anime.remove(sectionElement);
+    anime.set(sectionElement, { opacity: 0, translateY: 18 });
+    requestAnimationFrame(() => {
+      anime({
+        targets: sectionElement,
+        opacity: 1,
+        translateY: 0,
+        duration: 360,
+        easing: 'easeOutQuad',
+        complete: () => {
+          sectionElement.style.removeProperty('opacity');
+          sectionElement.style.removeProperty('transform');
+        },
+      });
+    });
+  }
+
+  function animateTableRows(container) {
+    if (!canAnimate || !container) {
+      return;
+    }
+    const rows = Array.from(container.querySelectorAll('tr'));
+    if (!rows.length) {
+      return;
+    }
+    anime.remove(rows);
+    anime.set(rows, { opacity: 0, translateY: 12 });
+    requestAnimationFrame(() => {
+      anime({
+        targets: rows,
+        opacity: 1,
+        translateY: 0,
+        duration: 320,
+        easing: 'easeOutQuad',
+        delay: anime.stagger(40),
+        complete: () => {
+          rows.forEach((row) => {
+            row.style.removeProperty('opacity');
+            row.style.removeProperty('transform');
+          });
+        },
+      });
+    });
+  }
+
+  function animateRowRemoval(section, recordId) {
+    if (!canAnimate) {
+      return Promise.resolve();
+    }
+    const container = section === 'venues' ? venuesTableBody : bookingsTableBody;
+    if (!container) {
+      return Promise.resolve();
+    }
+    const row = container.querySelector(`tr[data-record-id="${recordId}"]`);
+    if (!row) {
+      return Promise.resolve();
+    }
+    anime.remove(row);
+    return new Promise((resolve) => {
+      anime({
+        targets: row,
+        opacity: 0,
+        translateX: 28,
+        duration: 220,
+        easing: 'easeInQuad',
+        complete: () => {
+          row.remove();
+          resolve();
+        },
+      });
+    });
+  }
+
+  function normalizePaginationMeta(meta = {}, fallback = {}) {
+    const resolved = meta && typeof meta === 'object' ? meta : {};
+    const fallbackMeta = fallback && typeof fallback === 'object' ? fallback : {};
+    const parseNumber = (value, defaultValue) => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return defaultValue;
+      }
+      return parsed;
+    };
+
+    let page = parseNumber(resolved.page ?? fallbackMeta.page, fallbackMeta.page ?? 1);
+    let pageSize = parseNumber(resolved.page_size ?? resolved.pageSize ?? fallbackMeta.pageSize, fallbackMeta.pageSize ?? DEFAULT_PAGE_SIZE);
+    let totalPages = parseNumber(resolved.total_pages ?? resolved.totalPages ?? fallbackMeta.totalPages, fallbackMeta.totalPages ?? 1);
+    let totalItems = parseNumber(resolved.total_items ?? resolved.totalItems ?? fallbackMeta.totalItems, fallbackMeta.totalItems ?? 0);
+
+    if (!Number.isFinite(page) || page < 1) {
+      page = 1;
+    }
+    if (!Number.isFinite(pageSize) || pageSize < 1) {
+      pageSize = DEFAULT_PAGE_SIZE;
+    }
+    if (!Number.isFinite(totalPages) || totalPages < 1) {
+      totalPages = 1;
+    }
+    if (!Number.isFinite(totalItems) || totalItems < 0) {
+      totalItems = 0;
+    }
+    if (page > totalPages) {
+      page = totalPages;
+    }
+
+    const rawHasPrevious = resolved.has_previous ?? resolved.hasPrevious ?? fallbackMeta.hasPrevious ?? fallbackMeta.has_previous;
+    const rawHasNext = resolved.has_next ?? resolved.hasNext ?? fallbackMeta.hasNext ?? fallbackMeta.has_next;
+
+    const normalized = {
+      page,
+      pageSize,
+      totalPages,
+      totalItems,
+      hasPrevious: typeof rawHasPrevious === 'boolean' ? rawHasPrevious : page > 1 && totalPages > 1,
+      hasNext: typeof rawHasNext === 'boolean' ? rawHasNext : page < totalPages,
+      query: typeof resolved.query === 'string' ? resolved.query.trim() : typeof fallbackMeta.query === 'string' ? fallbackMeta.query.trim() : '',
+    };
+
+    const ignoredKeys = new Set([
+      'page',
+      'page_size',
+      'pageSize',
+      'total_pages',
+      'totalPages',
+      'total_items',
+      'totalItems',
+      'has_previous',
+      'hasPrevious',
+      'has_next',
+      'hasNext',
+      'query',
+    ]);
+
+    [fallbackMeta, resolved].forEach((source) => {
+      if (!source || typeof source !== 'object') {
+        return;
+      }
+      Object.entries(source).forEach(([key, value]) => {
+        if (!ignoredKeys.has(key) && !(key in normalized)) {
+          normalized[key] = value;
+        }
+      });
+    });
+
+    return normalized;
+  }
+
+  function getAddonElements() {
+    if (!entityForm) {
+      return { field: null, list: null, input: null, empty: null };
+    }
+    const activeSectionKey = entityForm.dataset.section || 'venues';
+    const container =
+      (formSections && formSections[activeSectionKey]) || entityForm;
+    return {
+      field: container.querySelector('[data-addons-field]'),
+      list: container.querySelector('[data-addons-list]'),
+      input: container.querySelector('[data-addons-input]'),
+      empty: container.querySelector('[data-addons-empty]'),
+    };
+  }
+
+  function getAddonsButtonForSection(section) {
+    if (!entityForm) {
+      return null;
+    }
+    const container =
+      (formSections && formSections[section]) || entityForm;
+    if (!container) {
+      return null;
+    }
+    return container.querySelector('[data-addons-add]');
+  }
+
+  function getCurrentVenueId() {
+    if (!entityForm) {
+      return null;
+    }
+    const hiddenInput = entityForm.querySelector('input[name="venue"]');
+    if (hiddenInput && hiddenInput.value) {
+      const parsed = Number.parseInt(hiddenInput.value, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    if (
+      autocompleteControllers.venue
+      && autocompleteControllers.venue.hiddenInput
+      && autocompleteControllers.venue.hiddenInput.value
+    ) {
+      const parsed = Number.parseInt(
+        autocompleteControllers.venue.hiddenInput.value,
+        10,
+      );
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  function getAddonRows() {
+    const { list } = getAddonElements();
+    if (!list) {
+      return [];
+    }
+    return Array.from(list.querySelectorAll('[data-addon-row]'));
+  }
+
+  function updateAddonLabels() {
+    const rows = getAddonRows();
+    rows.forEach((row, index) => {
+      const label = row.querySelector('[data-addon-label]');
+      if (label) {
+        label.textContent = `Addon #${index + 1}`;
+      }
+    });
+  }
+
+  function updateAddonEmptyState() {
+    const { empty } = getAddonElements();
+    if (!empty) {
+      return;
+    }
+    empty.classList.toggle('is-hidden', getAddonRows().length > 0);
+  }
+
+  function createAddonRow(addon = {}) {
+    const row = document.createElement('div');
+    row.className = 'addon-card';
+    row.dataset.addonRow = 'true';
+
+    const isBookingContext =
+      entityForm && entityForm.dataset.section === 'bookings';
+
+    if (isBookingContext) {
+      row.innerHTML = 
+        `<div class="addon-card__header">
+          <p class="addon-card__title" data-addon-label>Addon #1</p>
+          <button class="icon-btn" type="button" data-action="remove-addon" aria-label="Remove add-on">Ã—</button>
+        </div>
+        <div class="addon-card__body">
+          <div class="addon-card__inputs">
+            <label class="addon-card__select">
+              <span>Add-on name</span>
+              <select data-addon-name>
+                <option value="">Choose an add-on</option>
+              </select>
+            </label>
+            <label>
+              <span>Price</span>
+              <input type="number" data-addon-price min="0" placeholder="75000" readonly />
+            </label>
+          </div>
+          <label class="addon-card__description">
+            <span>Description</span>
+            <textarea data-addon-description rows="2" placeholder="Describe what guests receive." readonly></textarea>
+          </label>
+        </div>`
+      ;
+    } else {
+      row.innerHTML = 
+        `<div class="addon-card__header">
+          <p class="addon-card__title" data-addon-label>Addon #1</p>
+          <button class="icon-btn" type="button" data-action="remove-addon" aria-label="Remove add-on">Ã—</button>
+        </div>
+        <div class="addon-card__body">
+          <div class="addon-card__inputs">
+            <label>
+              <span>Add-on name</span>
+              <input type="text" data-addon-name maxlength="255" placeholder="Premium coach session" />
+            </label>
+            <label>
+              <span>Price</span>
+              <input type="number" data-addon-price min="0" placeholder="75000" />
+            </label>
+          </div>
+          <label class="addon-card__description">
+            <span>Description</span>
+            <textarea data-addon-description rows="2" placeholder="Describe what guests receive."></textarea>
+          </label>
+        </div>`
+      ;
+    }
+
+    const nameField = row.querySelector('[data-addon-name]');
+    const priceField = row.querySelector('[data-addon-price]');
+    const descField = row.querySelector('[data-addon-description]');
+
+    if (!isBookingContext && nameField) {
+      nameField.value = addon && typeof addon.name === 'string' ? addon.name : '';
+    }
+    if (!isBookingContext && priceField) {
+      const priceValue = Number.parseInt(
+        addon && addon.price !== undefined ? addon.price : '',
+        10,
+      );
+      priceField.value =
+        Number.isFinite(priceValue) && priceValue >= 0
+          ? String(priceValue)
+          : '';
+    }
+    if (!isBookingContext && descField) {
+      descField.value =
+        addon && typeof addon.description === 'string'
+          ? addon.description
+          : '';
+    }
+
+    return row;
+  }
+
+  function collectAddonFormData() {
+    const payload = [];
+    getAddonRows().forEach((row) => {
+      const nameField = row.querySelector('[data-addon-name]');
+      const priceField = row.querySelector('[data-addon-price]');
+      const descriptionField = row.querySelector('[data-addon-description]');
+      const name = nameField ? nameField.value.trim() : '';
+      if (!name) {
+        return;
+      }
+      const parsedPrice = Number.parseInt(priceField ? priceField.value : '', 10);
+      payload.push({
+        name,
+        price: Number.isFinite(parsedPrice) && parsedPrice >= 0 ? parsedPrice : 0,
+        description: descriptionField ? descriptionField.value.trim() : '',
+      });
+    });
+    return payload;
+  }
+
+  function syncAddonsInput() {
+    const { input } = getAddonElements();
+    if (!input) {
+      return;
+    }
+    const payload = collectAddonFormData();
+    input.value = JSON.stringify(payload);
+  }
+
+  function appendAddonRow(addon = {}) {
+    const { list } = getAddonElements();
+    if (!list) {
+      return null;
+    }
+    const row = createAddonRow(addon);
+    if (entityForm && entityForm.dataset.section === 'bookings') {
+      initializeBookingAddonRow(row, addon);
+    }
+    list.appendChild(row);
+
+    updateAddonLabels();
+    updateAddonEmptyState();
+    syncAddonsInput();
+    if (entityForm && entityForm.dataset.section === 'bookings') {
+      updateBookingAddonOptionStates();
+    }
+    return row;
+  }
+
+  function initializeBookingAddonRow(row, addon = {}) {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return;
+    }
+    if (!row) {
+      return;
+    }
+    const select = row.querySelector('select[data-addon-name]');
+    const priceInput = row.querySelector('[data-addon-price]');
+    const descriptionInput = row.querySelector('[data-addon-description]');
+    if (!select || !priceInput || !descriptionInput) {
+      return;
+    }
+    const addons = getCurrentVenueAddons();
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = addons.length
+      ? 'Choose an add-on'
+      : 'No add-ons available';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.hidden = addons.length > 0;
+    select.appendChild(placeholder);
+
+    const applySelection = (source) => {
+      const priceValue =
+        source && source.price !== undefined ? Number(source.price) : NaN;
+      priceInput.value =
+        Number.isFinite(priceValue) && priceValue >= 0
+          ? String(priceValue)
+          : '';
+      descriptionInput.value =
+        source && typeof source.description === 'string'
+          ? source.description
+          : '';
+    };
+
+    if (!addons.length) {
+      select.disabled = true;
+      applySelection(null);
+      return;
+    }
+
+    select.disabled = false;
+    addons.forEach((item) => {
+      const option = document.createElement('option');
+      option.value = item && item.name ? String(item.name) : '';
+      option.textContent = option.value || 'Untitled add-on';
+      select.appendChild(option);
+    });
+
+    const initialName =
+      addon && typeof addon.name === 'string' ? addon.name : '';
+    if (initialName) {
+      const matched = addons.find((item) =>
+        item
+        && item.name
+        && String(item.name).trim().toLowerCase()
+          === initialName.trim().toLowerCase(),
+      );
+      if (matched) {
+        placeholder.selected = false;
+        select.value = matched.name;
+        applySelection(matched);
+      } else {
+        applySelection(addon);
+      }
+    } else {
+      applySelection(null);
+    }
+
+    select.addEventListener('change', () => {
+      const value = select.value || '';
+      if (!value) {
+        applySelection(null);
+      } else {
+        const matched = addons.find((item) =>
+          item
+          && item.name
+          && String(item.name).trim().toLowerCase() === value.trim().toLowerCase(),
+        );
+        applySelection(matched || null);
+      }
+      syncAddonsInput();
+      updateBookingSubtotalDisplay();
+      updateBookingAddonOptionStates();
+    });
+  }
+
+
+  function hydrateAddonsField(addons = []) {
+    const { list, input } = getAddonElements();
+    if (!list) {
+      if (input) {
+        input.value = '[]';
+      }
+      return;
+    }
+    list.innerHTML = '';
+    if (Array.isArray(addons) && addons.length) {
+      addons.forEach((addon) => appendAddonRow(addon));
+    }
+    updateAddonLabels();
+    updateAddonEmptyState();
+    syncAddonsInput();
+    updateBookingSubtotalDisplay();
+    updateBookingAddonOptionStates();
+  }
+
+  hydrateAddonsField([]);
+  window.__adminAddAddon = (event) => {
+    const targetButton = event ? event.currentTarget || event.target : null;
+    if (targetButton && targetButton.disabled) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const row = appendAddonRow();
+    if (row) {
+      const nameField = row.querySelector('[data-addon-name]');
+      if (nameField) {
+        nameField.focus();
+      }
+    }
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-action="remove-addon"]');
+    if (!target) {
+      return;
+    }
+    const { list } = getAddonElements();
+    if (!list || !list.contains(target)) {
+      return;
+    }
+    const row = target.closest('[data-addon-row]');
+    if (row) {
+      row.remove();
+      updateAddonLabels();
+      updateAddonEmptyState();
+      syncAddonsInput();
+      updateBookingAddonOptionStates();
+      updateBookingSubtotalDisplay();
+    }
+  });
+
+  document.addEventListener('input', (event) => {
+    if (!event.target.matches('[data-addon-name], [data-addon-price], [data-addon-description]')) {
+      return;
+    }
+    const { list } = getAddonElements();
+    if (!list || !list.contains(event.target)) {
+      return;
+    }
+    syncAddonsInput();
+  });
+
+  function getCurrentVenueAddons() {
+    const venueId = getCurrentVenueId();
+    if (venueId == null) {
+      return [];
+    }
+    const venue = state.venues.find(
+      (item) => Number(item.id) === Number(venueId),
+    );
+    if (!venue || !Array.isArray(venue.addons)) {
+      return [];
+    }
+    return venue.addons;
+  }
+
+  function getBookingAddonElements() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return {
+        field: null,
+        list: null,
+        empty: null,
+        input: null,
+      };
+    }
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    return {
+      field: container.querySelector('[data-addons-field]'),
+      list: container.querySelector('[data-addons-list]'),
+      empty: container.querySelector('[data-addons-empty]'),
+      input: container.querySelector('[data-addons-input]'),
+    };
+  }
+
+  function getBookingAddonSelects() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return [];
+    }
+    const { list } = getBookingAddonElements();
+    if (!list) {
+      return [];
+    }
+    return Array.from(list.querySelectorAll('select[data-addon-name]'));
+  }
+
+  function getBookingSubtotalField() {
+    if (!entityForm) {
+      return null;
+    }
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    return container.querySelector('[data-booking-subtotal]');
+  }
+
+  function computeBookingSubtotal() {
+    if (!entityForm) {
+      return 0;
+    }
+    const container =
+      (formSections && formSections.bookings) || entityForm;
+    const startInput = container.querySelector('input[name="start_date"]');
+    const endInput = container.querySelector('input[name="end_date"]');
+    if (!startInput || !endInput) {
+      return 0;
+    }
+    const startRaw = (startInput.value || '').trim();
+    const endRaw = (endInput.value || '').trim();
+    if (!startRaw || !endRaw) {
+      return 0;
+    }
+    const startDateTime = new Date(startRaw);
+    const endDateTime = new Date(endRaw);
+    if (Number.isNaN(startDateTime.getTime()) || Number.isNaN(endDateTime.getTime())) {
+      return 0;
+    }
+
+    let first = startDateTime;
+    let last = endDateTime;
+    if (last < first) {
+      const tmp = first;
+      first = last;
+      last = tmp;
+    }
+    const msPerHour = 60 * 60 * 1000;
+    const rawHours = (last - first) / msPerHour;
+    const hours = Math.max(1, Math.round(rawHours));
+
+    let pricePerSession = 0;
+    const venueId = getCurrentVenueId();
+    if (venueId != null) {
+      const venue = state.venues.find((item) => Number(item.id) === Number(venueId));
+      if (venue && Number.isFinite(Number(venue.price))) {
+        pricePerSession = Number(venue.price);
+      }
+    }
+
+    let addonsTotal = 0;
+    const addons = collectAddonFormData();
+    addons.forEach((addon) => {
+      const price = Number(addon && addon.price);
+      if (Number.isFinite(price) && price > 0) {
+        addonsTotal += price;
+      }
+    });
+
+    const base = hours > 0 && pricePerSession > 0 ? hours * pricePerSession : 0;
+    return base + addonsTotal;
+  }
+
+  function updateBookingSubtotalDisplay() {
+    const field = getBookingSubtotalField();
+    if (!field) {
+      return;
+    }
+    const subtotal = computeBookingSubtotal();
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      field.value = '';
+      return;
+    }
+    field.value = formatCurrency(subtotal);
+  }
+
+  function updateBookingAddonOptionStates() {
+    if (!entityForm || entityForm.dataset.section !== 'bookings') {
+      return;
+    }
+    const selects = getBookingAddonSelects();
+    if (!selects.length) {
+      return;
+    }
+
+    const owners = new Map();
+    selects.forEach((select) => {
+      const value = (select.value || '').trim().toLowerCase();
+      if (!value) return;
+      if (!owners.has(value)) owners.set(value, select);
+    });
+
+    selects.forEach((select) => {
+      const options = select.querySelectorAll('option');
+      options.forEach((option) => {
+        const optionValue = (option.value || '').trim().toLowerCase();
+        if (!optionValue) {
+          // keep placeholder behaviour as defined when creating it
+          return;
+        }
+        const owner = owners.get(optionValue);
+        option.disabled = Boolean(owner && owner !== select);
+      });
+    });
+  }
+
+  function setBookingAddonsAvailability(hasAddons, venueId) {
+    const button = getAddonsButtonForSection('bookings');
+    if (!button) {
+      return;
+    }
+    const { field } = getBookingAddonElements();
+    const disabled = !hasAddons;
+    button.disabled = disabled;
+    button.classList.toggle('is-disabled', disabled);
+    if (field) {
+      field.classList.toggle('addons-disabled', disabled);
+    }
+    if (disabled) {
+      button.title =
+        venueId == null
+          ? 'Select a venue before adding add-ons.'
+          : 'This venue has no add-ons configured.';
+    } else {
+      button.title = '';
+    }
+  }
+
+  function syncSelectedBookingAddons() {
+    const { input } = getBookingAddonElements();
+    if (!input) {
+      return;
+    }
+    const payload = collectAddonFormData();
+    input.value = JSON.stringify(payload);
+  }
+
+  function getCsrfToken() {
+    const cookie = document.cookie
+      .split(';')
+      .map((item) => item.trim())
+      .find((item) => item.startsWith('csrftoken='));
+    return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+  }
+
+  function formatCurrency(value, { compact = false } = {}) {
+    /*
+     * Format amounts in Indonesian Rupiah.
+     * We rely on the browser locale to render the "Rp" symbol correctly.
+     */
+    const options = {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    };
+
+    if (compact) {
+      options.notation = 'compact';
+      options.compactDisplay = 'short';
+    }
+
+    return new Intl.NumberFormat(undefined, options).format(value);
+  }
+
+  function createStarRatingElement(averageRating, ratingCount) {
+    const container = document.createElement('div');
+    container.className = 'star-rating';
+    container.setAttribute('role', 'img');
+
+    const hasRating = typeof averageRating === 'number' && Number.isFinite(averageRating);
+    const countValue = Number.isFinite(Number(ratingCount)) ? Number(ratingCount) : 0;
+
+    if (!hasRating || countValue <= 0) {
+      const label = document.createElement('span');
+      label.className = 'star-rating__no-rating';
+      label.textContent = 'No rating';
+      container.appendChild(label);
+      container.setAttribute('aria-label', 'No rating yet');
+      return container;
+    }
+
+    const normalized = Math.min(Math.max(averageRating, 0), 5);
+    const rounded = Math.round(normalized * 10) / 10;
+
+    const starsWrapper = document.createElement('span');
+    starsWrapper.className = 'star-rating__stars';
+
+    const baseStars = document.createElement('span');
+    baseStars.className = 'star-rating__base';
+    baseStars.textContent = 'â˜…â˜…â˜…â˜…â˜…';
+
+    const fillStars = document.createElement('span');
+    fillStars.className = 'star-rating__fill';
+    fillStars.textContent = 'â˜…â˜…â˜…â˜…â˜…';
+    fillStars.style.width = `${(normalized / 5) * 100}%`;
+
+    starsWrapper.append(baseStars, fillStars);
+    container.appendChild(starsWrapper);
+
+    const label = document.createElement('span');
+    label.className = 'star-rating__label';
+    const ratingCountLabel = countValue === 1 ? '1 rating' : `${countValue} ratings`;
+    label.textContent = `${rounded.toFixed(1)} Â· ${ratingCountLabel}`;
+    container.appendChild(label);
+
+    container.setAttribute('aria-label', `Rated ${rounded.toFixed(1)} out of 5 based on ${ratingCountLabel}`);
+
+    return container;
+  }
+
+  function formatDate(dateString) {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  function formatDateTime(dateString) {
+    // Admin booking list: show date and hour only (no minutes)
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+    });
+  }
+
+  function getVenueTitleValue(venue) {
+    return venue && typeof venue.title === 'string' ? venue.title : '';
+  }
+
+  function getVenueFacilitiesText(venue) {
+    if (!venue || !Array.isArray(venue.facilities) || !venue.facilities.length) {
+      return 'â€”';
+    }
+    return venue.facilities.join(', ');
+  }
+
+  function getVenueFacilitiesValue(venue) {
+    if (!venue || !Array.isArray(venue.facilities) || !venue.facilities.length) {
+      return '';
+    }
+    return venue.facilities.join(', ');
+  }
+
+  function getVenueAddonsText(venue) {
+    if (!venue || !Array.isArray(venue.addons) || !venue.addons.length) {
+      return '-';
+    }
+    const labels = venue.addons.map((addon) => (addon && addon.name ? String(addon.name).trim() : '')).filter((name) => name);
+    return labels.length ? labels.join(', ') : '-';
+  }
+
+  function getVenueLocationValue(venue) {
+    return venue && typeof venue.location === 'string' ? venue.location : '';
+  }
+
+  function getBookingGuestLabel(booking) {
+    if (!booking) {
+      return '-';
+    }
+    if (booking.guest_label) {
+      return booking.guest_label;
+    }
+    if (booking.user) {
+      const fullName = booking.user.full_name ? String(booking.user.full_name).trim() : '';
+      const uname = booking.user.username ? String(booking.user.username).trim() : '';
+      const email = booking.user.email ? String(booking.user.email).trim() : '';
+      if (fullName) {
+        const tag = uname || email;
+        return tag ? `${fullName} (${tag})` : fullName;
+      }
+      if (uname) return uname;
+      if (email) return email;
+    }
+    const fallback = booking.username || booking.email || booking.contact_phone;
+    return fallback || '-';
+  }
+
+  function getBookingGuestValue(booking) {
+    const label = getBookingGuestLabel(booking);
+    return label === '-' ? '' : label;
+  }
+
+  function getBookingPhoneValue(booking) {
+    if (!booking) {
+      return '';
+    }
+    if (booking.contact_phone) {
+      return String(booking.contact_phone).trim();
+    }
+    return '';
+  }
+
+  function getBookingPhoneLabel(value) {
+    if (!value) {
+      return 'â€”';
+    }
+    const trimmed = String(value).trim();
+    return trimmed || 'â€”';
+  }
+
+  function getBookingVenueValue(booking) {
+    if (booking && booking.venue && booking.venue.title) {
+      return booking.venue.title;
+    }
+    return '';
+  }
+
+  function getBookingVenueLabel(booking) {
+    const value = getBookingVenueValue(booking);
+    return value || 'â€”';
+  }
+
+  function getBookingDateLabel(booking) {
+    const startRaw = booking && booking.start_date ? booking.start_date : '';
+    const endRaw = booking && booking.end_date ? booking.end_date : '';
+    const startFormatted = startRaw ? formatDateTime(startRaw) : '';
+    const endFormatted = endRaw ? formatDateTime(endRaw) : '';
+    const startLabel = startFormatted || startRaw || 'â€”';
+    const endLabel = endFormatted || endRaw || 'â€”';
+    return `${startLabel} â€“ ${endLabel}`;
+  }
+
+  function getBookingCreatedValue(booking) {
+    return booking && booking.created_at ? booking.created_at : '';
+  }
+
+  function getBookingCreatedLabel(booking) {
+    const value = getBookingCreatedValue(booking);
+    if (!value) return 'â€”';
+    const formatted = formatDateTime(value);
+    return formatted || value;
+  }
+
+  function getBookingPaidLabel(booking) {
+    return booking && booking.has_been_paid ? 'Paid' : 'Pending';
+  }
+
+  function getBookingNotesValue(booking) {
+    return booking && booking.notes ? booking.notes : '';
+  }
+
+  function getBookingNotesLabel(booking) {
+    const value = getBookingNotesValue(booking);
+    return value || 'â€”';
+  }
+
+  function getBookingAddonsLabel(booking) {
+    if (!booking || !Array.isArray(booking.selected_addons) || !booking.selected_addons.length) {
+      return '-';
+    }
+
+    const labels = booking.selected_addons
+
+      .map((addon) => (addon && addon.name ? String(addon.name).trim() : ''))
+
+      .filter((name) => name);
+
+    return labels.length ? labels.join(', ') : '-';
+  }
+
+  function compareVenueRatings(a, b) {
+    const averageA = Number(a && a.average_rating);
+    const averageB = Number(b && b.average_rating);
+    const safeAverageA = Number.isFinite(averageA) ? averageA : Number.NEGATIVE_INFINITY;
+    const safeAverageB = Number.isFinite(averageB) ? averageB : Number.NEGATIVE_INFINITY;
+    if (safeAverageA !== safeAverageB) {
+      return safeAverageA - safeAverageB;
+    }
+    const countA = Number(a && a.rating_count);
+    const countB = Number(b && b.rating_count);
+    const safeCountA = Number.isFinite(countA) ? countA : 0;
+    const safeCountB = Number.isFinite(countB) ? countB : 0;
+    if (safeCountA !== safeCountB) {
+      return safeCountA - safeCountB;
+    }
+    return 0;
+  }
+
+  function compareBookingDates(a, b) {
+    const startA = Date.parse(a && a.start_date);
+    const startB = Date.parse(b && b.start_date);
+    const safeStartA = Number.isFinite(startA) ? startA : Number.NEGATIVE_INFINITY;
+    const safeStartB = Number.isFinite(startB) ? startB : Number.NEGATIVE_INFINITY;
+    if (safeStartA !== safeStartB) {
+      return safeStartA - safeStartB;
+    }
+    const endA = Date.parse(a && a.end_date);
+    const endB = Date.parse(b && b.end_date);
+    const safeEndA = Number.isFinite(endA) ? endA : Number.NEGATIVE_INFINITY;
+    const safeEndB = Number.isFinite(endB) ? endB : Number.NEGATIVE_INFINITY;
+    if (safeEndA !== safeEndB) {
+      return safeEndA - safeEndB;
+    }
+    return 0;
+  }
+
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
+  const tableSorters = {
+    venues: {
+      image: { type: 'number', getValue: (item) => (item && item.image_url ? 1 : 0) },
+      title: { type: 'string', getValue: getVenueTitleValue },
+      type: { type: 'string', getValue: (item) => (item && item.type ? item.type : '') },
+      rating: { compare: compareVenueRatings },
+      location: { type: 'string', getValue: getVenueLocationValue },
+      facilities: { type: 'string', getValue: getVenueFacilitiesValue },
+      price: { type: 'number', getValue: (item) => Number(item && item.price) },
+      actions: { type: 'number', getValue: (item) => Number(item && item.id) },
+    },
+    bookings: {
+      guest: { type: 'string', getValue: getBookingGuestValue },
+      phone: { type: 'string', getValue: getBookingPhoneValue },
+      venue: { type: 'string', getValue: getBookingVenueValue },
+      dates: { compare: compareBookingDates },
+      paid: { type: 'number', getValue: (item) => (item && item.has_been_paid ? 1 : 0) },
+      notes: { type: 'string', getValue: getBookingNotesValue },
+      created: { type: 'date', getValue: getBookingCreatedValue },
+      actions: { type: 'number', getValue: (item) => Number(item && item.id) },
+    },
+  };
+
+  function compareRecords(a, b, config) {
+    if (!config) {
+      return 0;
+    }
+    if (typeof config.compare === 'function') {
+      const result = config.compare(a, b);
+      if (result !== 0) {
+        return result;
+      }
+      const idA = Number(a && a.id);
+      const idB = Number(b && b.id);
+      const safeIdA = Number.isFinite(idA) ? idA : 0;
+      const safeIdB = Number.isFinite(idB) ? idB : 0;
+      return safeIdA - safeIdB;
+    }
+    const type = config.type || 'string';
+    const getter = typeof config.getValue === 'function' ? config.getValue : () => undefined;
+    const valueA = getter(a);
+    const valueB = getter(b);
+    let result = 0;
+    if (type === 'number') {
+      const numA = Number(valueA);
+      const numB = Number(valueB);
+      const safeA = Number.isFinite(numA) ? numA : Number.NEGATIVE_INFINITY;
+      const safeB = Number.isFinite(numB) ? numB : Number.NEGATIVE_INFINITY;
+      result = safeA - safeB;
+    } else if (type === 'date') {
+      const timeA = Date.parse(valueA);
+      const timeB = Date.parse(valueB);
+      const safeA = Number.isFinite(timeA) ? timeA : Number.NEGATIVE_INFINITY;
+      const safeB = Number.isFinite(timeB) ? timeB : Number.NEGATIVE_INFINITY;
+      result = safeA - safeB;
+    } else {
+      const stringA = valueA === undefined || valueA === null ? '' : String(valueA);
+      const stringB = valueB === undefined || valueB === null ? '' : String(valueB);
+      result = collator.compare(stringA, stringB);
+    }
+    if (result !== 0) {
+      return result;
+    }
+    const idA = Number(a && a.id);
+    const idB = Number(b && b.id);
+    const fallbackA = Number.isFinite(idA) ? idA : 0;
+    const fallbackB = Number.isFinite(idB) ? idB : 0;
+    return fallbackA - fallbackB;
+  }
+
+  function getFilteredRecords(section) {
+    const records = Array.isArray(state[section]) ? state[section] : [];
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim().toLowerCase();
+
+    if (!query) {
+      return records;
+    }
+
+    if (section === 'venues') {
+      return records.filter((venue) => {
+        const parts = [
+          getVenueTitleValue(venue),
+          getVenueLocationValue(venue),
+          getVenueFacilitiesValue(venue),
+          getVenueAddonsText(venue),
+          venue && venue.type,
+          venue && venue.description,
+          venue && venue.price != null ? String(venue.price) : '',
+        ];
+        return parts.some((value) => {
+          if (!value) return false;
+          return String(value).toLowerCase().includes(query);
+        });
+      });
+    }
+
+    if (section === 'bookings') {
+      return records.filter((booking) => {
+        const parts = [
+          getBookingGuestValue(booking),
+          getBookingPhoneValue(booking),
+          getBookingVenueValue(booking),
+          getBookingNotesValue(booking),
+          getBookingAddonsLabel(booking),
+          getBookingPaidLabel(booking),
+          getBookingDateLabel(booking),
+          getBookingCreatedValue(booking),
+        ];
+        return parts.some((value) => {
+          if (!value) return false;
+          return String(value).toLowerCase().includes(query);
+        });
+      });
+    }
+
+    return records;
+  }
+
+  function getSortedRecords(section) {
+    const records = getFilteredRecords(section).slice();
+    const sortState = state.sort && state.sort[section];
+    if (!sortState || !sortState.key) {
+      return records;
+    }
+    const config = tableSorters[section] && tableSorters[section][sortState.key];
+    if (!config) {
+      return records;
+    }
+    records.sort((recordA, recordB) => {
+      const comparison = compareRecords(recordA, recordB, config);
+      if (comparison === 0) {
+        return 0;
+      }
+      return sortState.direction === 'desc' ? -comparison : comparison;
+    });
+    return records;
+  }
+
+  function updateSortIndicators(section) {
+    const headers = sortableHeaders[section] || [];
+    const sortState = state.sort && state.sort[section];
+    headers.forEach((header) => {
+      const key = header.dataset.sortKey;
+      const config = tableSorters[section] && tableSorters[section][key];
+      if (!config) {
+        header.classList.remove('is-sorted');
+        header.setAttribute('aria-sort', 'none');
+        return;
+      }
+      const isActive = sortState && sortState.key === key;
+      header.classList.toggle('is-sorted', Boolean(isActive));
+      if (isActive) {
+        const direction = sortState.direction === 'desc' ? 'descending' : 'ascending';
+        header.setAttribute('aria-sort', direction);
+      } else {
+        header.setAttribute('aria-sort', 'none');
+      }
+    });
+  }
+
+  function handleSortToggle(section, key) {
+    const config = tableSorters[section] && tableSorters[section][key];
+    if (!config) {
+      return;
+    }
+    const current = state.sort && state.sort[section] ? state.sort[section] : { key: null, direction: 'asc' };
+    let nextDirection = 'asc';
+    if (current.key === key && current.direction === 'asc') {
+      nextDirection = 'desc';
+    } else if (current.key === key && current.direction === 'desc') {
+      nextDirection = 'asc';
+    }
+    state.sort[section] = { key, direction: nextDirection };
+    if (section === 'venues') {
+      renderVenues();
+    } else if (section === 'bookings') {
+      renderBookings();
+    }
+  }
+
+  function registerSorting() {
+    Object.entries(sortableHeaders).forEach(([section, headers]) => {
+      headers.forEach((header) => {
+        const key = header.dataset.sortKey;
+        if (!key) {
+          return;
+        }
+        header.addEventListener('click', () => {
+          handleSortToggle(section, key);
+        });
+        header.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleSortToggle(section, key);
+          }
+        });
+      });
+      updateSortIndicators(section);
+    });
+  }
+
+  function getPopularityColors(count) {
+    const palette = ['#ea580c', '#f97316', '#fb923c', '#facc15', '#38d4c3', '#c084fc', '#f472b6', '#fb7185'];
+    const colors = [];
+    for (let index = 0; index < count; index += 1) {
+      colors.push(palette[index % palette.length]);
+    }
+    return colors;
+  }
+
+  function computeNiceScale(values) {
+    const dataPoints = Array.isArray(values) ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value >= 0) : [];
+
+    if (dataPoints.length === 0) {
+      return { suggestedMax: undefined, stepSize: undefined };
+    }
+
+    const maxValue = Math.max(...dataPoints);
+    if (!(maxValue > 0)) {
+      return { suggestedMax: undefined, stepSize: undefined };
+    }
+
+    const exponent = Math.floor(Math.log10(maxValue));
+    const magnitude = 10 ** exponent;
+    const normalized = maxValue / magnitude;
+    let niceNormalized;
+
+    if (normalized <= 1) {
+      niceNormalized = 1;
+    } else if (normalized <= 2) {
+      niceNormalized = 2;
+    } else if (normalized <= 5) {
+      niceNormalized = 5;
+    } else {
+      niceNormalized = 10;
+    }
+
+    const suggestedMax = niceNormalized * magnitude;
+    const stepSize = suggestedMax / 5;
+
+    return { suggestedMax, stepSize };
+  }
+
+  function createChartConfig(key, dataset) {
+    if (key === 'sales') {
+      const { suggestedMax, stepSize } = computeNiceScale(dataset.data);
+      const yAxis = {
+        beginAtZero: true,
+        grace: '8%',
+        grid: {
+          color: 'rgba(15, 23, 42, 0.08)',
+          drawBorder: false,
+          borderDash: [4, 4],
+        },
+        ticks: {
+          maxTicksLimit: 6,
+          color: '#ffffff',
+          callback(value) {
+            return formatCurrency(value, { compact: true });
+          },
+        },
+      };
+
+      if (Number.isFinite(suggestedMax)) {
+        yAxis.suggestedMax = suggestedMax;
+      }
+      if (Number.isFinite(stepSize) && stepSize > 0) {
+        yAxis.ticks.stepSize = stepSize;
+      }
+
+      return {
+        type: 'line',
+        data: {
+          labels: dataset.labels,
+          datasets: [
+            {
+              label: 'Daily sales',
+              data: dataset.data,
+              borderColor: '#ea580c',
+              backgroundColor: 'rgba(234, 88, 12, 0.18)',
+              tension: 0.35,
+              fill: true,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              pointBorderWidth: 2,
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#ea580c',
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          layout: {
+            padding: {
+              top: 12,
+              right: 16,
+              bottom: 8,
+              left: 8,
+            },
+          },
+          scales: {
+            x: {
+              grid: {
+                display: true,
+                color: 'rgba(15, 23, 42, 0.04)',
+                drawBorder: false,
+              },
+              ticks: {
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 6,
+                color: '#ffffff',
+                callback(value, index) {
+                  const label = dataset.labels[index];
+                  return formatDate(label);
+                },
+              },
+            },
+            y: yAxis,
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(2, 6, 23, 0.88)',
+              borderColor: 'rgba(255, 255, 255, 0.14)',
+              borderWidth: 1,
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              callbacks: {
+                title(context) {
+                  if (!context.length) {
+                    return '';
+                  }
+                  return formatDate(context[0].label);
+                },
+                label(context) {
+                  const amount = context.parsed.y ?? context.parsed ?? 0;
+                  return formatCurrency(amount);
+                },
+              },
+            },
+          },
+        },
+      };
+    }
+
+    return {
+      type: 'doughnut',
+      data: {
+        labels: dataset.labels,
+        datasets: [
+          {
+            data: dataset.data,
+            backgroundColor: getPopularityColors(dataset.labels.length),
+            borderWidth: 0,
+            hoverOffset: 12,
+            borderRadius: 10,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '58%',
+        layout: {
+          padding: {
+            top: 12,
+            bottom: 12,
+            left: 12,
+            right: 12,
+          },
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 14,
+              usePointStyle: true,
+              pointStyle: 'circle',
+              padding: 16,
+              color: '#ffffff',
+            },
+          },
+          tooltip: {
+            backgroundColor: 'rgba(2, 6, 23, 0.88)',
+            borderColor: 'rgba(255, 255, 255, 0.14)',
+            borderWidth: 1,
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            callbacks: {
+              label(context) {
+                const value = Number.isFinite(context.parsed) ? context.parsed : 0;
+                const suffix = value === 1 ? 'booking' : 'bookings';
+                const label = context.label || '';
+                const datasetValues =
+                  context && context.chart && context.chart.data && Array.isArray(context.chart.data.datasets)
+                    ? context.chart.data.datasets[context.datasetIndex]?.data || []
+                    : [];
+                const total = Array.isArray(datasetValues) ? datasetValues.reduce((sum, item) => sum + (Number(item) || 0), 0) : 0;
+                const percentage = total > 0 ? (value / total) * 100 : 0;
+                let percentageLabel = '';
+                if (Number.isFinite(percentage) && total > 0) {
+                  const precision = percentage >= 10 ? 0 : 1;
+                  percentageLabel = ` (${percentage.toFixed(precision)}%)`;
+                }
+                return `${label}: ${value} ${suffix}${percentageLabel}`;
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
+  function renderChart(key) {
+    const element = chartElements[key];
+    if (!element || !element.canvas) {
+      return;
+    }
+    const dataset = analyticsData[key] || { labels: [], data: [] };
+    const hasData =
+      Array.isArray(dataset.labels) && dataset.labels.length > 0 && Array.isArray(dataset.data) && dataset.data.some((value) => Number(value) > 0);
+
+    if (!hasData) {
+      if (chartInstances[key]) {
+        chartInstances[key].destroy();
+        chartInstances[key] = null;
+      }
+      if (element.canvas) {
+        element.canvas.classList.add('is-hidden');
+      }
+      if (element.empty) {
+        element.empty.classList.remove('is-hidden');
+      }
+      return;
+    }
+
+    if (element.canvas) {
+      element.canvas.classList.remove('is-hidden');
+    }
+    if (element.empty) {
+      element.empty.classList.add('is-hidden');
+    }
+
+    if (typeof Chart === 'undefined') {
+      return;
+    }
+
+    if (!chartInstances[key]) {
+      chartInstances[key] = new Chart(element.canvas, createChartConfig(key, dataset));
+      return;
+    }
+
+    const chart = chartInstances[key];
+    chart.data.labels = dataset.labels.slice();
+    chart.data.datasets[0].data = dataset.data.slice();
+    if (key === 'popularity') {
+      chart.data.datasets[0].backgroundColor = getPopularityColors(dataset.labels.length);
+    }
+    chart.update();
+  }
+
+  function setChartData(key, raw) {
+    analyticsData[key] = normalizeSeries(raw);
+    renderChart(key);
+  }
+
+  function updateAnalytics(meta) {
+    if (!meta || typeof meta !== 'object') {
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, 'sales')) {
+      setChartData('sales', meta.sales);
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, 'popularity')) {
+      setChartData('popularity', meta.popularity);
+    }
+  }
+
+  function initializeCharts() {
+    renderChart('sales');
+    renderChart('popularity');
+  }
+
+  function showToast(message) {
+    if (!toast) {
+      return;
+    }
+    toast.textContent = message;
+    toast.classList.add('is-visible');
+    window.clearTimeout(showToast.timeoutId);
+    showToast.timeoutId = window.setTimeout(() => {
+      toast.classList.remove('is-visible');
+    }, 2600);
+  }
+
+  function toggleEmptyState(section) {
+    const emptyState = emptyStates[section];
+    if (!emptyState) {
+      return;
+    }
+    const items = state[section] || [];
+    const meta = state.pagination[section] || {};
+    const hasItems = Array.isArray(items) && items.length > 0;
+    const query = (typeof meta.query === 'string' ? meta.query : state.search[section]) || '';
+    const defaultMessage = emptyState.dataset.emptyDefault || emptyState.textContent;
+    const filteredMessage = emptyState.dataset.emptyFiltered || defaultMessage;
+    emptyState.textContent = query ? filteredMessage : defaultMessage;
+    emptyState.classList.toggle('is-visible', !hasItems);
+  }
+
+  function setLoading(section, isLoading) {
+    const wrapper = tableWrappers[section];
+    if (!wrapper) {
+      return;
+    }
+    const active = Boolean(isLoading);
+    wrapper.classList.toggle('is-loading', active);
+    wrapper.setAttribute('aria-busy', active ? 'true' : 'false');
+  }
+
+  function computePageList(current, total, maxLength = 5) {
+    const safeTotal = Math.max(1, total || 1);
+    const safeCurrent = Math.min(Math.max(1, current || 1), safeTotal);
+    const visible = Math.max(1, maxLength || 1);
+    let start = Math.max(1, safeCurrent - Math.floor(visible / 2));
+    let end = start + visible - 1;
+    if (end > safeTotal) {
+      end = safeTotal;
+      start = Math.max(1, end - visible + 1);
+    }
+    const pages = [];
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+    return pages;
+  }
+
+  function handlePageChange(section, page) {
+    const meta = state.pagination[section] || {};
+    const parsed = Number(page);
+    const pageNumber = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    const pageSize = meta.pageSize || DEFAULT_PAGE_SIZE;
+    const query = state.search[section] || '';
+    loadSection(section, { page: pageNumber, pageSize, query });
+  }
+
+  function createPaginationButton(label, pageNumber, section, options = {}) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    if (options.ariaLabel) {
+      button.setAttribute('aria-label', options.ariaLabel);
+    }
+    if (options.disabled) {
+      button.disabled = true;
+      return button;
+    }
+    button.dataset.page = String(pageNumber);
+    button.addEventListener('click', () => {
+      handlePageChange(section, pageNumber);
+    });
+    return button;
+  }
+
+  function renderPagination(section) {
+    const container = paginationContainers[section];
+    if (!container) {
+      return;
+    }
+    const meta = state.pagination[section];
+    container.innerHTML = '';
+    if (!meta || meta.totalPages <= 1) {
+      container.classList.add('is-hidden');
+      return;
+    }
+    container.classList.remove('is-hidden');
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(
+      createPaginationButton('Prev', meta.page - 1, section, {
+        disabled: !meta.hasPrevious,
+        ariaLabel: 'Previous page',
+      })
+    );
+    const pages = computePageList(meta.page, meta.totalPages);
+    pages.forEach((pageNumber) => {
+      const button = createPaginationButton(String(pageNumber), pageNumber, section);
+      if (pageNumber === meta.page) {
+        button.classList.add('is-active');
+        button.disabled = true;
+        button.setAttribute('aria-current', 'page');
+      }
+      fragment.appendChild(button);
+    });
+    fragment.appendChild(
+      createPaginationButton('Next', meta.page + 1, section, {
+        disabled: !meta.hasNext,
+        ariaLabel: 'Next page',
+      })
+    );
+    container.appendChild(fragment);
+  }
+
+  function updateSummary(section) {
+    const summary = tableSummaries[section];
+    if (!summary) {
+      return;
+    }
+    const meta = state.pagination[section];
+    const items = state[section];
+    if (!meta || !items || !items.length || !meta.totalItems) {
+      summary.textContent = '';
+      return;
+    }
+    const startIndex = (meta.page - 1) * meta.pageSize + 1;
+    const endIndex = Math.min(meta.totalItems, startIndex + items.length - 1);
+    const queryText = meta.query ? ` matching â€œ${meta.query}â€` : '';
+    summary.textContent = `Showing ${startIndex}â€“${endIndex} of ${meta.totalItems}${queryText} results.`;
+  }
+
+  function updateTableFooter(section) {
+    const footer = tableFooters[section];
+    if (!footer) {
+      return;
+    }
+    const meta = state.pagination[section];
+    const hasItems = meta && meta.totalItems > 0;
+    footer.classList.toggle('is-hidden', !hasItems);
+  }
+
+  function handleSearchChange(section, rawValue) {
+    if (!(section in searchTimeouts)) {
+      return;
+    }
+    const query = typeof rawValue === 'string' ? rawValue.trim() : '';
+    state.search[section] = query;
+    const meta = state.pagination[section] || {};
+    const pageSize = meta.pageSize || DEFAULT_PAGE_SIZE;
+    window.clearTimeout(searchTimeouts[section]);
+    searchTimeouts[section] = window.setTimeout(() => {
+      loadSection(section, { page: 1, pageSize, query });
+    }, 220);
+  }
+
+  // Client-side search overrides: once the initial data page is loaded,
+  // filter the in-memory records instead of issuing a new request on
+  // every keystroke from the admin search boxes.
+  function toggleEmptyState(section) {
+    const emptyState = emptyStates[section];
+    if (!emptyState) {
+      return;
+    }
+    const items = getFilteredRecords(section);
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim();
+    const hasItems = Array.isArray(items) && items.length > 0;
+    const defaultMessage = emptyState.dataset.emptyDefault || emptyState.textContent;
+    const filteredMessage = emptyState.dataset.emptyFiltered || defaultMessage;
+    emptyState.textContent = query ? filteredMessage : defaultMessage;
+    emptyState.classList.toggle('is-visible', !hasItems);
+  }
+
+  function updateSummary(section) {
+    const summary = tableSummaries[section];
+    if (!summary) {
+      return;
+    }
+    const meta = state.pagination[section];
+    const items = getFilteredRecords(section);
+    const rawQuery =
+      state.search && typeof state.search[section] === 'string' ? state.search[section] : '';
+    const query = rawQuery.trim();
+
+    if (!items || !items.length) {
+      summary.textContent = '';
+      return;
+    }
+
+    if (!meta || !meta.totalItems || !meta.pageSize) {
+      if (query) {
+        summary.textContent = `Showing ${items.length} result(s) matching "${query}".`;
+      } else {
+        summary.textContent = `Showing ${items.length} result(s).`;
+      }
+      return;
+    }
+
+    const startIndex = (meta.page - 1) * meta.pageSize + 1;
+    const endIndex = Math.min(meta.totalItems, startIndex + items.length - 1);
+    const queryText =
+      query || meta.query ? ` matching "${query || meta.query}"` : '';
+    summary.textContent = `Showing ${startIndex}â€“${endIndex} of ${meta.totalItems}${queryText} results.`;
+  }
+
+  function handleSearchChange(section, rawValue) {
+    if (!(section in searchTimeouts)) {
+      return;
+    }
+    const query = typeof rawValue === 'string' ? rawValue.trim() : '';
+    state.search[section] = query;
+    window.clearTimeout(searchTimeouts[section]);
+    searchTimeouts[section] = window.setTimeout(() => {
+      if (section === 'venues') {
+        renderVenues();
+      } else if (section === 'bookings') {
+        renderBookings();
+      }
+      toggleEmptyState(section);
+      updateSummary(section);
+    }, 160);
+  }
+
+  function createAutocompleteController(fieldElement, options = {}) {
+    if (!fieldElement) {
+      return null;
+    }
+
+    const textInput = fieldElement.querySelector('input[type="text"]');
+    const hiddenInput = fieldElement.querySelector('input[type="hidden"]');
+    const panel = fieldElement.querySelector('[data-autocomplete-panel]');
+
+    if (!textInput || !panel) {
+      return null;
+    }
+
+    const settings = {
+      minChars: 1,
+      debounce: 200,
+      ...options,
+    };
+
+    let items = [];
+    let highlightedIndex = -1;
+    let debounceId = null;
+    let lastRequestId = 0;
+
+    function setHighlightedIndex(index) {
+      highlightedIndex = index;
+      const optionsNodes = panel.querySelectorAll('.autocomplete-option');
+      optionsNodes.forEach((option, optionIndex) => {
+        option.classList.toggle('is-active', optionIndex === highlightedIndex);
+        if (optionIndex === highlightedIndex) {
+          option.scrollIntoView({ block: 'nearest' });
+        }
+      });
+    }
+
+    function close() {
+      panel.hidden = true;
+      panel.innerHTML = '';
+      items = [];
+      highlightedIndex = -1;
+      lastRequestId += 1;
+      if (typeof settings.onClose === 'function') {
+        settings.onClose();
+      }
+    }
+
+    function setSelection(displayValue = '', hiddenValue = '') {
+      textInput.value = displayValue;
+      if (hiddenInput) {
+        hiddenInput.value = hiddenValue;
+      }
+    }
+
+    function renderOptions(list) {
+      panel.innerHTML = '';
+
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'autocomplete-empty';
+        empty.textContent = typeof settings.emptyMessage === 'function' ? settings.emptyMessage() : settings.emptyMessage || 'No results found.';
+        panel.appendChild(empty);
+        panel.hidden = false;
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      list.forEach((item, index) => {
+        const option = document.createElement('div');
+        option.className = 'autocomplete-option';
+        option.dataset.index = index.toString();
+
+        const primary = document.createElement('strong');
+        const primaryText = settings.getPrimaryText ? settings.getPrimaryText(item) : '';
+        primary.textContent = primaryText || '';
+        option.appendChild(primary);
+
+        const secondaryText = settings.getSecondaryText ? settings.getSecondaryText(item) : '';
+        if (secondaryText) {
+          const secondary = document.createElement('span');
+          secondary.textContent = secondaryText;
+          option.appendChild(secondary);
+        }
+
+        option.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          select(index);
+        });
+
+        fragment.appendChild(option);
+      });
+
+      panel.appendChild(fragment);
+      panel.hidden = false;
+      setHighlightedIndex(-1);
+    }
+
+    function select(index) {
+      const item = items[index];
+      if (!item) {
+        return;
+      }
+      const display = settings.getInputValue ? settings.getInputValue(item) : '';
+      const value = settings.getHiddenValue ? settings.getHiddenValue(item) : '';
+      setSelection(display, value);
+      if (typeof settings.onSelect === 'function') {
+        settings.onSelect(item);
+      }
+      close();
+    }
+
+    async function requestItems(query) {
+      if (typeof settings.fetchItems !== 'function') {
+        return;
+      }
+
+      const requestId = ++lastRequestId;
+
+      try {
+        const result = await settings.fetchItems(query);
+        if (requestId !== lastRequestId) {
+          return;
+        }
+        items = Array.isArray(result) ? result : [];
+        renderOptions(items);
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          return;
+        }
+        console.error(error);
+        close();
+      }
+    }
+
+    function handleInput(event) {
+      if (hiddenInput) {
+        hiddenInput.value = '';
+      }
+      const query = event.target.value.trim();
+      window.clearTimeout(debounceId);
+      if (!query || query.length < settings.minChars) {
+        close();
+        return;
+      }
+      debounceId = window.setTimeout(() => {
+        requestItems(query);
+      }, settings.debounce);
+    }
+
+    function handleKeydown(event) {
+      if (!items.length) {
+        if (event.key === 'Escape') {
+          close();
+        }
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        const nextIndex = highlightedIndex + 1 >= items.length ? 0 : highlightedIndex + 1;
+        setHighlightedIndex(nextIndex);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        const nextIndex = highlightedIndex <= 0 ? items.length - 1 : highlightedIndex - 1;
+        setHighlightedIndex(nextIndex);
+      } else if (event.key === 'Enter') {
+        if (highlightedIndex >= 0) {
+          event.preventDefault();
+          select(highlightedIndex);
+        }
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    }
+
+    textInput.addEventListener('input', handleInput);
+    textInput.addEventListener('keydown', handleKeydown);
+    textInput.addEventListener('focus', () => {
+      const query = textInput.value.trim();
+      if (query.length >= settings.minChars) {
+        requestItems(query);
+      }
+    });
+    textInput.addEventListener('blur', () => {
+      window.setTimeout(() => {
+        close();
+      }, 120);
+    });
+
+    return {
+      input: textInput,
+      hiddenInput,
+      close,
+      clear() {
+        setSelection('', '');
+        close();
+      },
+      setSelection,
+      refresh() {
+        const query = textInput.value.trim();
+        if (query.length >= settings.minChars) {
+          requestItems(query);
+        }
+      },
+    };
+  }
+
+  function closeAllAutocompletes() {
+    Object.values(autocompleteControllers).forEach((controller) => {
+      if (controller) {
+        controller.close();
+      }
+    });
+  }
+
+  function clearAutocompletes() {
+    Object.values(autocompleteControllers).forEach((controller) => {
+      if (controller) {
+        controller.clear();
+      }
+    });
+  }
+
+  function syncVenueAutocompleteSelection() {
+    const venueController = autocompleteControllers.venue;
+    if (!venueController || !venueController.hiddenInput) {
+      return;
+    }
+    const currentValue = venueController.hiddenInput.value;
+    if (!currentValue) {
+      return;
+    }
+    const matchingVenue = state.venues.find((venue) => Number(venue.id) === Number(currentValue));
+    if (matchingVenue) {
+      venueController.setSelection(matchingVenue.title || '', matchingVenue.id);
+      return;
+    }
+    const venuesMeta = state.pagination.venues || {};
+    const totalVenues =
+      typeof venuesMeta.total_available === 'number'
+        ? venuesMeta.total_available
+        : typeof venuesMeta.totalItems === 'number'
+        ? venuesMeta.totalItems
+        : state.venues.length;
+    if (totalVenues === 0) {
+      venueController.setSelection('', '');
+    }
+  }
+
+  const userAutocompleteField = entityForm.querySelector('[data-autocomplete="user"]');
+  if (userAutocompleteField) {
+    autocompleteControllers.user = createAutocompleteController(userAutocompleteField, {
+      minChars: 2,
+      debounce: 220,
+      fetchItems: async (query) => {
+        if (!endpoints.users || !endpoints.users.search) {
+          return [];
+        }
+        if (userSearchController) {
+          userSearchController.abort();
+        }
+        userSearchController = new AbortController();
+        try {
+          const response = await fetch(`${endpoints.users.search}?q=${encodeURIComponent(query)}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: userSearchController.signal,
+          });
+          if (!response.ok) {
+            throw new Error('Search failed');
+          }
+          const payload = await response.json();
+          if (payload.meta && typeof payload.meta.has_users === 'boolean') {
+            state.hasUsers = payload.meta.has_users;
+            updateActionButton();
+          }
+          if (!payload.success) {
+            return [];
+          }
+          return Array.isArray(payload.data) ? payload.data : [];
+        } finally {
+          userSearchController = null;
+        }
+      },
+      getPrimaryText: (item) => (item.full_name ? item.full_name : item.username),
+      getSecondaryText: (item) => {
+        if (item.full_name) {
+          return item.username;
+        }
+        return item.email || '';
+      },
+      getInputValue: (item) => item.username || '',
+      getHiddenValue: (item) => (item.id !== undefined ? item.id : ''),
+      emptyMessage: () => (state.hasUsers ? 'No users found.' : 'No users available yet.'),
+      onSelect: () => {
+        state.hasUsers = true;
+        updateActionButton();
+      },
+      onClose: () => {
+        if (userSearchController) {
+          userSearchController.abort();
+          userSearchController = null;
+        }
+      },
+    });
+  }
+
+  const venueAutocompleteField = entityForm.querySelector('[data-autocomplete="venue"]');
+  if (venueAutocompleteField) {
+    autocompleteControllers.venue = createAutocompleteController(venueAutocompleteField, {
+      minChars: 1,
+      debounce: 160,
+      fetchItems: async (query) => {
+        const normalized = query.trim().toLowerCase();
+        if (!normalized) {
+          return [];
+        }
+        const matches = state.venues.filter((venue) => {
+          const title = venue.title ? venue.title.toLowerCase() : '';
+          const location = venue.location ? venue.location.toLowerCase() : '';
+          return title.includes(normalized) || location.includes(normalized);
+        });
+        return matches.slice(0, 8);
+      },
+      getPrimaryText: (item) => item.title || '',
+      getSecondaryText: (item) => item.location || '',
+      getInputValue: (item) => item.title || '',
+      getHiddenValue: (item) => (item.id !== undefined ? item.id : ''),
+      emptyMessage: () => (state.venues.length ? 'No venues found.' : 'Create a venue first.'),
+      onSelect: (item) => {
+        if (!entityForm || entityForm.dataset.section !== 'bookings') {
+          return;
+        }
+        const venueId =
+          item && item.id !== undefined ? item.id : getCurrentVenueId();
+        const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+        if (bookingAddonsField) {
+          bookingAddonsField.value = '[]';
+        }
+        hydrateAddonsField([]);
+        const available = getCurrentVenueAddons();
+        setBookingAddonsAvailability(available.length > 0, venueId);
+      },
+    });
+
+    const venueTextInput = venueAutocompleteField.querySelector('input[type="text"]');
+    if (venueTextInput) {
+      venueTextInput.addEventListener('input', () => {
+        if (!entityForm || entityForm.dataset.section !== 'bookings') {
+          return;
+        }
+        if (!venueTextInput.value.trim()) {
+          const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+          if (bookingAddonsField) {
+            bookingAddonsField.value = '[]';
+          }
+          hydrateAddonsField([]);
+          setBookingAddonsAvailability(false, null);
+        }
+      });
+    }
+  }
+
+  function renderVenues() {
+    venuesTableBody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    const records = getSortedRecords('venues');
+    records.forEach((venue) => {
+      const row = document.createElement('tr');
+      row.dataset.recordId = venue.id;
+
+      const imageCell = document.createElement('td');
+      if (venue.image_url) {
+        const img = document.createElement('img');
+        img.src = venue.image_url;
+        img.alt = `${venue.title} preview`;
+        imageCell.appendChild(img);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'image-placeholder';
+        placeholder.textContent = 'No image';
+        imageCell.appendChild(placeholder);
+      }
+      row.appendChild(imageCell);
+
+      const titleCell = document.createElement('td');
+      titleCell.textContent = getVenueTitleValue(venue) || 'â€”';
+      row.appendChild(titleCell);
+
+      const descriptionCell = document.createElement('td');
+      descriptionCell.dataset.col = 'venue-description';
+      const descriptionText =
+        typeof venue.description === 'string' && venue.description.trim() ? venue.description.trim() : 'â€”';
+      const descSpan = document.createElement('span');
+      descSpan.className = 'venue-description__text';
+      descSpan.textContent = descriptionText;
+      descriptionCell.appendChild(descSpan);
+      row.appendChild(descriptionCell);
+
+      const typeCell = document.createElement('td');
+      typeCell.textContent = venue.type || 'â€”';
+      row.appendChild(typeCell);
+
+      const ratingCell = document.createElement('td');
+      const ratingElement = createStarRatingElement(venue.average_rating, venue.rating_count);
+      ratingCell.appendChild(ratingElement);
+      row.appendChild(ratingCell);
+
+      const locationCell = document.createElement('td');
+      const locationValue = getVenueLocationValue(venue);
+      locationCell.textContent = locationValue || 'â€”';
+      row.appendChild(locationCell);
+
+      const facilitiesCell = document.createElement('td');
+      facilitiesCell.textContent = getVenueFacilitiesText(venue);
+      row.appendChild(facilitiesCell);
+
+      const addonsCell = document.createElement('td');
+      addonsCell.textContent = getVenueAddonsText(venue);
+      row.appendChild(addonsCell);
+
+      const priceCell = document.createElement('td');
+      priceCell.textContent = formatCurrency(venue.price);
+      row.appendChild(priceCell);
+
+      const actionsCell = document.createElement('td');
+      actionsCell.className = 'actions-col';
+      const actionGroup = document.createElement('div');
+      actionGroup.className = 'table-actions';
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.dataset.action = 'edit';
+      editButton.dataset.id = venue.id;
+      editButton.textContent = 'Edit';
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.dataset.action = 'delete';
+      deleteButton.dataset.id = venue.id;
+      deleteButton.textContent = 'Delete';
+
+      actionGroup.append(editButton, deleteButton);
+      actionsCell.appendChild(actionGroup);
+      row.appendChild(actionsCell);
+
+      fragment.appendChild(row);
+    });
+
+    venuesTableBody.appendChild(fragment);
+    toggleEmptyState('venues');
+    updateSummary('venues');
+    renderPagination('venues');
+    updateTableFooter('venues');
+    animateTableRows(venuesTableBody);
+    updateSortIndicators('venues');
+  }
+
+  function renderBookings() {
+    bookingsTableBody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    const records = getSortedRecords('bookings');
+
+    records.forEach((booking) => {
+      const row = document.createElement('tr');
+      row.dataset.recordId = booking.id;
+
+      const guestCell = document.createElement('td');
+      guestCell.textContent = getBookingGuestLabel(booking);
+      row.appendChild(guestCell);
+
+      const phoneCell = document.createElement('td');
+      phoneCell.textContent = getBookingPhoneLabel(booking.contact_phone);
+      row.appendChild(phoneCell);
+
+      const venueCell = document.createElement('td');
+      venueCell.textContent = getBookingVenueLabel(booking);
+      row.appendChild(venueCell);
+
+      const datesCell = document.createElement('td');
+      datesCell.textContent = getBookingDateLabel(booking);
+      row.appendChild(datesCell);
+
+      const createdCell = document.createElement('td');
+      createdCell.textContent = getBookingCreatedLabel(booking);
+      row.appendChild(createdCell);
+
+      const paidCell = document.createElement('td');
+      paidCell.textContent = getBookingPaidLabel(booking);
+      row.appendChild(paidCell);
+
+      const notesCell = document.createElement('td');
+      notesCell.textContent = getBookingNotesLabel(booking);
+      row.appendChild(notesCell);
+
+      const addonsCell = document.createElement('td');
+      addonsCell.textContent = getBookingAddonsLabel(booking);
+      row.appendChild(addonsCell);
+
+      const actionsCell = document.createElement('td');
+      actionsCell.className = 'actions-col';
+      const actionGroup = document.createElement('div');
+      actionGroup.className = 'table-actions';
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.dataset.action = 'edit';
+      editButton.dataset.id = booking.id;
+      editButton.textContent = 'Edit';
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.dataset.action = 'delete';
+      deleteButton.dataset.id = booking.id;
+      deleteButton.textContent = 'Delete';
+
+      actionGroup.append(editButton, deleteButton);
+      actionsCell.appendChild(actionGroup);
+      row.appendChild(actionsCell);
+
+      fragment.appendChild(row);
+    });
+
+    bookingsTableBody.appendChild(fragment);
+    toggleEmptyState('bookings');
+    updateSummary('bookings');
+    renderPagination('bookings');
+    updateTableFooter('bookings');
+    animateTableRows(bookingsTableBody);
+    updateSortIndicators('bookings');
+  }
+
+  function updateHeader(section) {
+    const config = sectionConfig[section];
+    if (!config) {
+      return;
+    }
+    sectionTitle.textContent = config.title;
+    sectionDescription.textContent = config.description;
+    actionButton.querySelector('.btn-label').textContent = config.buttonLabel;
+  }
+
+  function updateActionButton() {
+    if (state.currentSection === 'bookings') {
+      const venuesMeta = state.pagination.venues || {};
+      const totalVenues =
+        typeof venuesMeta.total_available === 'number'
+          ? venuesMeta.total_available
+          : typeof venuesMeta.totalItems === 'number'
+          ? venuesMeta.totalItems
+          : state.venues.length;
+      const hasVenues = totalVenues > 0;
+      const hasUsers = state.hasUsers;
+      const canCreate = hasVenues && hasUsers;
+      actionButton.disabled = !canCreate;
+      if (!canCreate) {
+        const missing = [];
+        if (!hasVenues) {
+          missing.push('a venue');
+        }
+        if (!hasUsers) {
+          missing.push('a user');
+        }
+        actionButton.title = `Create ${missing.join(' and ')} before adding bookings.`;
+      } else {
+        actionButton.title = '';
+      }
+    } else {
+      actionButton.disabled = false;
+      actionButton.title = '';
+    }
+  }
+
+  function setSidebarCollapsed(collapsed) {
+    app.classList.toggle('sidebar-collapsed', collapsed);
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute('aria-pressed', String(collapsed));
+      sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      sidebarToggle.textContent = collapsed ? 'â†’' : 'â†';
+    }
+  }
+
+  function setActiveSection(section) {
+    if (!sectionConfig[section]) {
+      return;
+    }
+    state.currentSection = section;
+
+    let activeButton = null;
+    navButtons.forEach((button) => {
+      const isActive = button.dataset.target === section;
+      button.classList.toggle('is-active', isActive);
+      if (isActive) {
+        activeButton = button;
+      }
+    });
+
+    let activeSectionElement = null;
+    contentSections.forEach((contentSection) => {
+      const isActive = contentSection.dataset.section === section;
+      contentSection.classList.toggle('is-hidden', !isActive);
+      if (isActive) {
+        activeSectionElement = contentSection;
+      }
+    });
+
+    animateActiveNavButton(activeButton);
+    animateSectionEntry(activeSectionElement);
+
+    if (searchInputs[section]) {
+      searchInputs[section].value = state.search[section] || '';
+    }
+
+    updateHeader(section);
+    updateActionButton();
+    refreshFromServer(section);
+  }
+
+  function registerSidebarToggle() {
+    if (!sidebarToggle) {
+      return;
+    }
+    const stored = localStorage.getItem(sidebarToggleKey);
+    const initialCollapsed = stored === 'true';
+    setSidebarCollapsed(initialCollapsed);
+    sidebarToggle.addEventListener('click', () => {
+      const next = !app.classList.contains('sidebar-collapsed');
+      setSidebarCollapsed(next);
+      localStorage.setItem(sidebarToggleKey, String(next));
+      sidebarToggle.classList.add('is-animating');
+      sidebarToggle.addEventListener(
+        'animationend',
+        () => {
+          sidebarToggle.classList.remove('is-animating');
+        },
+        { once: true },
+      );
+    });
+  }
+
+  function clearForm() {
+    entityForm.reset();
+    hydrateAddonsField([]);
+    if (entityForm.dataset.section === 'bookings') {
+      setBookingAddonsAvailability(false, null);
+    }
+    clearAutocompletes();
+    if (entityForm.dataset.section === 'bookings') {
+      const paidField = entityForm.querySelector('input[name="has_been_paid"]');
+      if (paidField) {
+        paidField.checked = false;
+      }
+    }
+  }
+
+  function clearErrors() {
+    if (modalErrors) {
+      modalErrors.hidden = true;
+      modalErrors.innerHTML = '';
+    }
+  }
+
+  function showErrors(messages) {
+    if (!modalErrors) {
+      return;
+    }
+    if (!messages || !messages.length) {
+      clearErrors();
+      return;
+    }
+    modalErrors.innerHTML = `<ul>${messages.map((msg) => `<li>${msg}</li>`).join('')}</ul>`;
+    modalErrors.hidden = false;
+  }
+
+  function openModal(mode, section, recordId) {
+    if (section === 'bookings' && mode === 'create') {
+      if (!state.hasUsers) {
+        showToast('Create a user before adding bookings.');
+        return;
+      }
+      if (!state.venues.length) {
+        showToast('Create a venue before adding bookings.');
+        return;
+      }
+    }
+
+    state.modalMode = mode;
+    state.editingId = recordId || null;
+    entityForm.dataset.mode = mode;
+    entityForm.dataset.section = section;
+    entityForm.dataset.recordId = recordId || '';
+
+    setActiveFormSection(section);
+
+    clearForm();
+    clearErrors();
+    closeAllAutocompletes();
+
+    let editingVenue = null;
+    if (section === 'venues' && recordId) {
+      editingVenue =
+        state.venues.find((item) => Number(item.id) === Number(recordId)) || null;
+    }
+    if (section === 'venues') {
+      const addons =
+        editingVenue && Array.isArray(editingVenue.addons) ? editingVenue.addons : [];
+      hydrateAddonsField(addons);
+    } else {
+      hydrateAddonsField([]);
+      setBookingAddonsAvailability(false, null);
+    }
+
+    if (mode === 'edit' && recordId) {
+      if (section === 'venues') {
+        if (editingVenue) {
+          entityForm.querySelector('input[name="title"]').value = editingVenue.title;
+          const typeField = entityForm.querySelector('select[name="type"]');
+          if (typeField) {
+            const fallback = typeField.options.length ? typeField.options[0].value : '';
+            typeField.value = editingVenue.type || fallback;
+          }
+          entityForm.querySelector('textarea[name="description"]').value = editingVenue.description || '';
+          entityForm.querySelector('input[name="facilities"]').value = (editingVenue.facilities || []).join(', ');
+          entityForm.querySelector('input[name="price"]').value = editingVenue.price;
+          entityForm.querySelector('input[name="location"]').value = editingVenue.location || '';
+          const imageField = entityForm.querySelector('input[name="image"]');
+          if (imageField) {
+            imageField.value = '';
+          }
+        }
+      } else if (section === 'bookings') {
+        const booking =
+          state.bookings.find((item) => Number(item.id) === Number(recordId)) || null;
+        if (booking) {
+          if (autocompleteControllers.user) {
+            const usernameValue = booking.user ? booking.user.username : booking.username || '';
+            const userIdValue = booking.user ? booking.user.id : '';
+            autocompleteControllers.user.setSelection(usernameValue, userIdValue);
+          }
+          if (autocompleteControllers.venue) {
+            const venueTitle = booking.venue ? booking.venue.title : '';
+            const venueId = booking.venue ? booking.venue.id : '';
+            autocompleteControllers.venue.setSelection(venueTitle, venueId);
+          }
+          const startInput = entityForm.querySelector('input[name="start_date"]');
+          if (startInput) {
+            startInput.value = formatDateTimeLocal(booking.start_date);
+          }
+          const endInput = entityForm.querySelector('input[name="end_date"]');
+          if (endInput) {
+            endInput.value = formatDateTimeLocal(booking.end_date);
+          }
+          entityForm.querySelector('input[name="has_been_paid"]').checked =
+            Boolean(booking.has_been_paid);
+          entityForm.querySelector('textarea[name="notes"]').value = booking.notes || '';
+          const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
+          if (bookingAddonsField) {
+            bookingAddonsField.value = JSON.stringify(booking.selected_addons || []);
+          }
+          const availableAddons = getCurrentVenueAddons();
+          const venueId = booking.venue ? booking.venue.id : null;
+          setBookingAddonsAvailability(availableAddons.length > 0, venueId);
+          hydrateAddonsField(booking.selected_addons || []);
+        }
+      }
+    } else if (section === 'bookings') {
+      if (autocompleteControllers.user) {
+        autocompleteControllers.user.setSelection('', '');
+      }
+      if (autocompleteControllers.venue) {
+        autocompleteControllers.venue.setSelection('', '');
+      }
+      setBookingAddonsAvailability(false, null);
+    }
+
+    modalTitle.textContent =
+      mode === 'edit' ? `Edit ${sectionConfig[section].title.slice(0, -1)}` : `Add ${sectionConfig[section].title.slice(0, -1)}`;
+    if (submitLabel) {
+      submitLabel.textContent = mode === 'edit' ? 'Update' : 'Create';
+    }
+
+    if (section === 'bookings') {
+      updateBookingSubtotalDisplay();
+    }
+
+    showModalBackdrop();
+
+    if (canAnimate && modalElement) {
+      if (modalAnimation) {
+        modalAnimation.pause();
+        modalAnimation = null;
+      }
+      anime.remove([modalBackdrop, modalElement]);
+      anime.set(modalBackdrop, { opacity: 0 });
+      anime.set(modalElement, { opacity: 0, translateY: 22, scale: 0.96 });
+      modalAnimation = anime
+        .timeline({
+          duration: 280,
+          easing: 'easeOutQuad',
+          complete: () => {
+            resetModalStyles();
+            modalAnimation = null;
+          },
+        })
+        .add({
+          targets: modalBackdrop,
+          opacity: 1,
+          duration: 180,
+        })
+        .add(
+          {
+            targets: modalElement,
+            opacity: 1,
+            translateY: 0,
+            scale: 1,
+            duration: 280,
+          },
+          '-=120'
+        );
+    } else {
+      resetModalStyles();
+    }
+  }
+
+  function closeModal() {
+    state.editingId = null;
+    closeAllAutocompletes();
+    if (!modalBackdrop) {
+      return;
+    }
+    if (modalBackdrop.hidden) {
+      hideModalBackdrop();
+      resetModalStyles();
+      return;
+    }
+    if (!canAnimate || !modalElement) {
+      hideModalBackdrop();
+      resetModalStyles();
+      return;
+    }
+
+    if (modalAnimation) {
+      modalAnimation.pause();
+      modalAnimation = null;
+    }
+    anime.remove([modalBackdrop, modalElement]);
+    modalAnimation = anime
+      .timeline({
+        duration: 220,
+        easing: 'easeInOutQuad',
+        complete: () => {
+          hideModalBackdrop();
+          resetModalStyles();
+          modalAnimation = null;
+        },
+      })
+      .add({
+        targets: modalElement,
+        opacity: 0,
+        translateY: 16,
+        scale: 0.96,
+        duration: 200,
+      })
+      .add(
+        {
+          targets: modalBackdrop,
+          opacity: 0,
+          duration: 160,
+        },
+        '-=120'
+      );
+  }
+
+  async function loadSection(section, options = {}) {
+    const endpoint = endpoints[section];
+    if (!endpoint || !endpoint.list) {
+      return null;
+    }
+
+    const currentMeta = state.pagination[section] || {};
+    const query = options.query !== undefined ? options.query : state.search[section] || '';
+    const requestedPageSize = options.pageSize !== undefined ? Number(options.pageSize) : currentMeta.pageSize;
+    const pageSize = Number.isFinite(requestedPageSize) && requestedPageSize > 0 ? requestedPageSize : DEFAULT_PAGE_SIZE;
+    const requestedPage = options.page !== undefined ? Number(options.page) : currentMeta.page;
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+    if (query) {
+      params.set('q', query);
+    }
+
+    if (fetchControllers[section]) {
+      fetchControllers[section].abort();
+    }
+    const controller = new AbortController();
+    fetchControllers[section] = controller;
+
+    try {
+      setLoading(section, true);
+      const response = await fetch(`${endpoint.list}?${params.toString()}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error('Failed to load data');
+      }
+      const payload = await response.json();
+      if (!payload.success) {
+        return null;
+      }
+      const data = Array.isArray(payload.data) ? payload.data : [];
+      const meta = normalizePaginationMeta(payload.meta, {
+        page,
+        pageSize,
+        query,
+        totalItems: currentMeta.totalItems,
+        totalPages: currentMeta.totalPages,
+        hasPrevious: currentMeta.hasPrevious,
+        hasNext: currentMeta.hasNext,
+      });
+
+      state[section] = data;
+      state.pagination[section] = meta;
+      state.search[section] = meta.query || '';
+
+      if (searchInputs[section] && searchInputs[section].value !== state.search[section]) {
+        searchInputs[section].value = state.search[section];
+      }
+
+      if (section === 'bookings' && typeof meta.has_users === 'boolean') {
+        state.hasUsers = meta.has_users;
+      }
+
+      if (section === 'venues') {
+        renderVenues();
+        syncVenueAutocompleteSelection();
+        if (autocompleteControllers.venue) {
+          if (!state.venues.length && !meta.totalItems) {
+            autocompleteControllers.venue.clear();
+          } else {
+            autocompleteControllers.venue.refresh();
+          }
+        }
+        if (state.currentSection === 'bookings') {
+          renderBookings();
+        }
+      } else if (section === 'bookings') {
+        renderBookings();
+        updateAnalytics(meta.analytics || (payload.meta ? payload.meta.analytics : undefined));
+      }
+
+      updateActionButton();
+      return payload;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return null;
+      }
+      console.error(error);
+      showToast('Unable to load data right now.');
+      return null;
+    } finally {
+      setLoading(section, false);
+      if (fetchControllers[section] === controller) {
+        fetchControllers[section] = null;
+      }
+    }
+  }
+
+  async function refreshFromServer(section, options = {}) {
+    return loadSection(section, options);
+  }
+
+  async function handleFormSubmit(event) {
+    event.preventDefault();
+    const section = entityForm.dataset.section;
+    const mode = entityForm.dataset.mode;
+    const recordId = entityForm.dataset.recordId;
+
+    const endpoint = endpoints[section];
+    if (!endpoint) {
+      return;
+    }
+
+    const url = mode === 'edit' ? endpoint.update(recordId) : endpoint.create;
+    syncAddonsInput();
+    const formData = new FormData(entityForm);
+
+    if (section === 'venues') {
+      const imageField = entityForm.querySelector('input[name="image"]');
+      if (imageField && imageField.files && imageField.files.length === 0) {
+        formData.delete('image');
+      }
+    }
+
+    if (section === 'bookings' && !entityForm.querySelector('input[name="has_been_paid"]').checked) {
+      formData.delete('has_been_paid');
+    }
+
+    const submitButton = entityForm.querySelector('button[type="submit"]');
+    clearErrors();
+
+    if (section === 'bookings') {
+      const venueId = formData.get('venue');
+      if (!venueId) {
+        showErrors(['Please choose a venue from the list.']);
+        if (autocompleteControllers.venue && autocompleteControllers.venue.input) {
+          autocompleteControllers.venue.input.focus();
+        }
+        return;
+      }
+    }
+
+    submitButton.disabled = true;
+    submitButton.classList.add('is-loading');
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData,
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        const errors = payload && payload.errors ? payload.errors : ['Unable to save changes.'];
+        showErrors(errors);
+        return;
+      }
+
+      if (section === 'venues') {
+        if (
+          mode === 'edit' &&
+          autocompleteControllers.venue &&
+          autocompleteControllers.venue.hiddenInput &&
+          Number(autocompleteControllers.venue.hiddenInput.value) === Number(payload.data.id)
+        ) {
+          autocompleteControllers.venue.setSelection(payload.data.title || '', payload.data.id);
+        }
+
+        const targetPage = mode === 'edit' ? state.pagination.venues.page || 1 : 1;
+        await refreshFromServer('venues', {
+          page: targetPage,
+          query: state.search.venues || '',
+        });
+
+        if (mode === 'edit') {
+          await refreshFromServer('bookings', {
+            page: state.pagination.bookings.page || 1,
+            query: state.search.bookings || '',
+          });
+        }
+      } else if (section === 'bookings') {
+        state.hasUsers = true;
+        const targetPage = mode === 'edit' ? state.pagination.bookings.page || 1 : 1;
+        await refreshFromServer('bookings', {
+          page: targetPage,
+          query: state.search.bookings || '',
+        });
+      }
+
+      closeModal();
+      showToast(mode === 'edit' ? 'Updated successfully!' : 'Created successfully!');
+    } catch (error) {
+      console.error(error);
+      showErrors(['Network error. Please try again.']);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.classList.remove('is-loading');
+    }
+  }
+
+  async function handleDelete(section, recordId) {
+    const endpoint = endpoints[section];
+    if (!endpoint) {
+      return;
+    }
+    const confirmed = window.confirm('Are you sure you want to delete this item?');
+    if (!confirmed) {
+      return;
+    }
+    try {
+      const response = await fetch(endpoint.delete(recordId), {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error('Delete failed');
+      }
+      await animateRowRemoval(section, recordId);
+      if (section === 'venues') {
+        if (
+          autocompleteControllers.venue
+          && autocompleteControllers.venue.hiddenInput
+          && Number(autocompleteControllers.venue.hiddenInput.value) === Number(recordId)
+        ) {
+          autocompleteControllers.venue.clear();
+        }
+        await refreshFromServer('venues', {
+          page: state.pagination.venues.page || 1,
+          query: state.search.venues || '',
+        });
+        await refreshFromServer('bookings', {
+          page: state.pagination.bookings.page || 1,
+          query: state.search.bookings || '',
+        });
+      } else if (section === 'bookings') {
+        await refreshFromServer('bookings', {
+          page: state.pagination.bookings.page || 1,
+          query: state.search.bookings || '',
+        });
+      }
+      showToast('Deleted successfully.');
+    } catch (error) {
+      console.error(error);
+      showToast('Unable to delete this item right now.');
+    }
+  }
+
+  navButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setActiveSection(button.dataset.target);
+    });
+  });
+
+  actionButton.addEventListener('click', () => {
+    openModal('create', state.currentSection);
+  });
+
+  entityForm.addEventListener('submit', handleFormSubmit);
+
+  const bookingStartInput = entityForm.querySelector('input[name="start_date"]');
+  const bookingEndInput = entityForm.querySelector('input[name="end_date"]');
+  if (bookingStartInput && bookingEndInput) {
+    ['change', 'input'].forEach((eventName) => {
+      bookingStartInput.addEventListener(eventName, updateBookingSubtotalDisplay);
+      bookingEndInput.addEventListener(eventName, updateBookingSubtotalDisplay);
+    });
+  }
+
+  document.querySelectorAll('[data-action="close-modal"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      closeModal();
+    });
+  });
+
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', (event) => {
+      if (event.target === modalBackdrop) {
+        closeModal();
+      }
+    });
+  }
+
+  venuesTableBody.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) {
+      return;
+    }
+    if (button.dataset.action === 'edit') {
+      openModal('edit', 'venues', button.dataset.id);
+    } else if (button.dataset.action === 'delete') {
+      handleDelete('venues', button.dataset.id);
+    }
+  });
+
+  bookingsTableBody.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) {
+      return;
+    }
+    if (button.dataset.action === 'edit') {
+      openModal('edit', 'bookings', button.dataset.id);
+    } else if (button.dataset.action === 'delete') {
+      handleDelete('bookings', button.dataset.id);
+    }
+  });
+
+  document.addEventListener('click', async (event) => {
+    const refreshButton = event.target.closest('[data-action="refresh-bookings"]');
+    if (!refreshButton) {
+      return;
+    }
+    await refreshFromServer('bookings', {
+      page: state.pagination.bookings.page || 1,
+      query: state.search.bookings || '',
+    });
+  });
+
+  Object.entries(searchInputs).forEach(([section, input]) => {
+    if (!input) {
+      return;
+    }
+    input.value = state.search[section] || '';
+    input.addEventListener('keyup', (event) => {
+      handleSearchChange(section, event.target.value);
+    });
+    input.addEventListener('search', (event) => {
+      handleSearchChange(section, event.target.value);
+    });
+  });
+
+  registerSidebarToggle();
+  registerSorting();
+  initializeCharts();
+  renderVenues();
+  renderBookings();
+  updateHeader(state.currentSection);
+  updateActionButton();
+  refreshFromServer('venues');
+})();

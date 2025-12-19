@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class RentConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "rent"
+    verbose_name = "Penyewaan Lapangan"
+
+    def ready(self):
+        from . import signals

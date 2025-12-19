@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Control Center{% endblock %} · Cloud Docs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{% static 'app/admin.css' %}" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+      defer
+    ></script>
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body class="admin-body">
+    <div class="admin-gradient-mesh" aria-hidden="true">
+      <span class="mesh mesh-1"></span>
+      <span class="mesh mesh-2 mesh-bounce"></span>
+      <span class="mesh mesh-3"></span>
+      <span class="mesh mesh-4 mesh-bounce"></span>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    {% block content %}{% endblock %}
+    <script src="{% static 'app/admin.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>
+
+
+
