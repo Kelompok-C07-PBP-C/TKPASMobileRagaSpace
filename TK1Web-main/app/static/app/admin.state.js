@@ -868,6 +868,17 @@
     const active = Boolean(isLoading);
     wrapper.classList.toggle('is-loading', active);
     wrapper.setAttribute('aria-busy', active ? 'true' : 'false');
+
+    const searchInput = document.querySelector(`[data-search-input="${section}"]`);
+    if (searchInput) {
+      searchInput.disabled = active;
+      searchInput.setAttribute('aria-disabled', active ? 'true' : 'false');
+    }
+
+    const searchButton = document.querySelector(`[data-action="search-${section}"]`);
+    if (searchButton) {
+      searchButton.disabled = active;
+    }
   }
 
   function computePageList(current, total, maxLength = 5) {

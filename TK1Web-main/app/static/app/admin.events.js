@@ -583,13 +583,45 @@
       return;
     }
     input.value = state.search[section] || '';
-    input.addEventListener('keyup', (event) => {
-      handleSearchChange(section, event.target.value);
-    });
+    if (section === 'venues' || section === 'bookings') {
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+          return;
+        }
+        event.preventDefault();
+        handleSearchChange(section, event.target.value);
+      });
+    } else {
+      input.addEventListener('keyup', (event) => {
+        handleSearchChange(section, event.target.value);
+      });
+    }
     input.addEventListener('search', (event) => {
+      if (section === 'venues' || section === 'bookings') {
+        const value = typeof event.target.value === 'string' ? event.target.value.trim() : '';
+        if (value) {
+          return;
+        }
+      }
       handleSearchChange(section, event.target.value);
     });
   });
+
+  const venueSearchButton = document.querySelector('[data-action="search-venues"]');
+  const venueSearchInput = searchInputs.venues;
+  if (venueSearchButton && venueSearchInput) {
+    venueSearchButton.addEventListener('click', () => {
+      handleSearchChange('venues', venueSearchInput.value);
+    });
+  }
+
+  const bookingSearchButton = document.querySelector('[data-action="search-bookings"]');
+  const bookingSearchInput = searchInputs.bookings;
+  if (bookingSearchButton && bookingSearchInput) {
+    bookingSearchButton.addEventListener('click', () => {
+      handleSearchChange('bookings', bookingSearchInput.value);
+    });
+  }
 
   registerSidebarToggle();
   registerSorting();

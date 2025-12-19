@@ -318,11 +318,12 @@ class AdminSearchCard extends StatelessWidget {
           final hasText = value.text.trim().isNotEmpty;
           return TextField(
             controller: controller,
+            enabled: !loading,
             style: GoogleFonts.plusJakartaSans(
               color: AdminPalette.textPrimary,
               fontWeight: FontWeight.w600,
             ),
-            onSubmitted: onSubmitted,
+            onSubmitted: loading ? null : onSubmitted,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: hint,
@@ -353,6 +354,10 @@ class AdminSearchCard extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: AdminPalette.border.withValues(alpha: 0.8)),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: AdminPalette.border.withValues(alpha: 0.55)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -485,6 +490,61 @@ class AdminLoadingCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class AdminSectionLoadingOverlay extends StatelessWidget {
+  const AdminSectionLoadingOverlay({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AdminPalette.backgroundBase.withValues(alpha: 0.68),
+                AdminPalette.backgroundBase.withValues(alpha: 0.42),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Center(
+            child: AdminGlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              tint: AdminPalette.surfaceCard.withValues(alpha: 0.92),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminPalette.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -644,6 +704,23 @@ class AdminVenueCard extends StatelessWidget {
                           key: ValueKey<String>(imageUrl),
                           imageUrl,
                           fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            final expected = loadingProgress.expectedTotalBytes;
+                            final value = expected != null && expected > 0
+                                ? loadingProgress.cumulativeBytesLoaded / expected
+                                : null;
+                            return Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value: value,
+                                ),
+                              ),
+                            );
+                          },
                           errorBuilder: (context, error, stack) => Icon(
                             Icons.broken_image_outlined,
                             color: AdminPalette.textSecondary.withValues(alpha: 0.75),
@@ -876,9 +953,14 @@ class AdminBookingCard extends StatelessWidget {
 }
 
 class AdminAnalyticsPanel extends StatelessWidget {
-  const AdminAnalyticsPanel({super.key, required this.bookingsMeta});
+  const AdminAnalyticsPanel({
+    super.key,
+    required this.bookingsMeta,
+    this.loading = false,
+  });
 
   final Map<String, dynamic>? bookingsMeta;
+  final bool loading;
 
   Map<String, List<dynamic>> _extractSeries(String key) {
     final analytics = bookingsMeta?['analytics'];
@@ -895,6 +977,7 @@ class AdminAnalyticsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showLoadingOverlay = loading;
     final sales = _extractSeries('sales');
     final popularity = _extractSeries('popularity');
 
@@ -926,6 +1009,8 @@ class AdminAnalyticsPanel extends StatelessWidget {
           title: 'Daily sales',
           subtitle: 'Sum of paid bookings per day.',
           height: chartHeight,
+          showLoadingOverlay: showLoadingOverlay,
+          loadingOverlayLabel: 'Loading analytics…',
           child: hasSales
               ? _AdminSalesLineChart(
                   labels: salesLabels,
@@ -938,6 +1023,8 @@ class AdminAnalyticsPanel extends StatelessWidget {
           title: 'Venue popularity',
           subtitle: 'Share of paid bookings by venue.',
           height: chartHeight,
+          showLoadingOverlay: showLoadingOverlay,
+          loadingOverlayLabel: 'Loading analytics…',
           child: hasPopularity
               ? _AdminPopularityDonutChart(
                   labels: popularityLabels,
@@ -976,45 +1063,62 @@ class _AdminChartCard extends StatelessWidget {
     required this.subtitle,
     required this.height,
     required this.child,
+    this.showLoadingOverlay = false,
+    this.loadingOverlayLabel,
   });
 
   final String title;
   final String subtitle;
   final double height;
   final Widget child;
+  final bool showLoadingOverlay;
+  final String? loadingOverlayLabel;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: height,
-      child: AdminGlassCard(
-        padding: const EdgeInsets.all(18),
-        tint: AdminPalette.surfaceCard,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AdminPalette.textPrimary,
+      child: Stack(
+        children: [
+          AdminGlassCard(
+            padding: const EdgeInsets.all(18),
+            tint: AdminPalette.surfaceCard,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AdminPalette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AdminPalette.textPrimary.withValues(alpha: 0.75),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Expanded(child: child),
+              ],
+            ),
+          ),
+          if (showLoadingOverlay)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: AdminSectionLoadingOverlay(
+                  label: loadingOverlayLabel ?? 'Loading…',
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(
-                color: AdminPalette.textPrimary.withValues(alpha: 0.75),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Expanded(child: child),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1262,8 +1366,9 @@ class _AdminPopularityDonutChart extends StatelessWidget {
   final List<String> labels;
   final List<int> values;
 
-  @override
-  Widget build(BuildContext context) {
+  static const int _previewRows = 3;
+
+  List<_PopularitySlice> _sortedNonZeroSlices() {
     final slices = <_PopularitySlice>[];
     for (var i = 0; i < labels.length; i++) {
       final count = i < values.length ? values[i] : 0;
@@ -1275,24 +1380,145 @@ class _AdminPopularityDonutChart extends StatelessWidget {
         ),
       );
     }
+    final nonZero = slices.where((slice) => slice.value > 0).toList();
+    nonZero.sort((a, b) => b.value.compareTo(a.value));
+    return nonZero;
+  }
 
-    final total = slices.fold<int>(0, (sum, slice) => sum + slice.value);
-    final nonZeroSlices = slices.where((slice) => slice.value > 0).toList();
+  void _showLegendSheet(
+    BuildContext context, {
+    required List<_PopularitySlice> slices,
+    required int total,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: AdminPalette.backgroundBase.withValues(alpha: 0.72),
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 720),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: AdminModalSheet(
+                  title: 'Venue popularity',
+                  scrollController: scrollController,
+                  onClose: () => Navigator.of(context).pop(),
+                  bodyPadding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  body: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: slices.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final slice = slices[index];
+                      final percentage =
+                          total > 0 ? (slice.value / total) * 100 : 0.0;
+                      final label = slice.label.trim().isEmpty
+                          ? 'Unknown venue'
+                          : slice.label.trim();
+                      final suffix =
+                          slice.value == 1 ? 'booking' : 'bookings';
+                      final percentageLabel = total > 0
+                          ? (percentage >= 10
+                              ? '${percentage.toStringAsFixed(0)}%'
+                              : '${percentage.toStringAsFixed(1)}%')
+                          : '';
+                      return AdminGlassCard(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        tint: AdminPalette.surfaceHover,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: slice.color,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    label,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: AdminPalette.textPrimary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${slice.value} $suffix${percentageLabel.isEmpty ? '' : ' ($percentageLabel)'}',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: AdminPalette.textPrimary
+                                          .withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-    return Column(
-      children: [
-        Expanded(
+  @override
+  Widget build(BuildContext context) {
+    final sorted = _sortedNonZeroSlices();
+    final total = sorted.fold<int>(0, (sum, slice) => sum + slice.value);
+    final preview = sorted.take(_previewRows).toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : 220.0;
+        final maxWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : 320.0;
+        final isNarrow = maxWidth < 420;
+        final chartScale = isNarrow ? 0.5 : 0.45;
+        final chartSize = (math.min(maxHeight, maxWidth * chartScale)).clamp(130.0, maxHeight);
+
+        final outerRadius = chartSize / 2;
+        final innerRadius = outerRadius * 0.58;
+        final thickness = outerRadius - innerRadius;
+
+        final chart = SizedBox(
+          width: chartSize,
+          height: chartSize,
           child: PieChart(
             PieChartData(
               sectionsSpace: 0,
-              centerSpaceRadius: 48,
+              centerSpaceRadius: innerRadius,
               startDegreeOffset: -90,
-              sections: nonZeroSlices
+              sections: sorted
                   .map(
                     (slice) => PieChartSectionData(
                       value: slice.value.toDouble(),
                       color: slice.color,
-                      radius: 44,
+                      radius: thickness,
                       title: '',
                       showTitle: false,
                       borderSide: BorderSide.none,
@@ -1302,62 +1528,96 @@ class _AdminPopularityDonutChart extends StatelessWidget {
             ),
             duration: const Duration(milliseconds: 260),
           ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 10,
-          alignment: WrapAlignment.center,
-          children: nonZeroSlices.map((slice) {
-            final percentage = total > 0 ? (slice.value / total) * 100 : 0.0;
-            final label = slice.label.trim().isEmpty ? 'Unknown' : slice.label.trim();
-            final suffix = slice.value == 1 ? 'booking' : 'bookings';
-            final percentageLabel = total > 0
-                ? (percentage >= 10 ? '${percentage.toStringAsFixed(0)}%' : '${percentage.toStringAsFixed(1)}%')
-                : '';
-            return _AdminLegendChip(
-              color: slice.color,
-              label: '$label • ${slice.value} $suffix${percentageLabel.isEmpty ? '' : ' ($percentageLabel)'}',
-            );
-          }).toList(),
-        ),
-      ],
+        );
+
+        final legend = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (preview.isNotEmpty)
+              ...preview.map(
+                (slice) {
+                  final label =
+                      slice.label.trim().isNotEmpty ? slice.label.trim() : 'Unknown venue';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AdminLegendRow(color: slice.color, label: label),
+                  );
+                },
+              ),
+            if (sorted.length > preview.length)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => _showLegendSheet(
+                    context,
+                    slices: sorted,
+                    total: total,
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AdminPalette.accent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.unfold_more_rounded, size: 18),
+                  label: Text(
+                    'Show more (${sorted.length})',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            chart,
+            const SizedBox(width: 14),
+            Expanded(child: Center(child: legend)),
+          ],
+        );
+      },
     );
   }
 }
 
-class _AdminLegendChip extends StatelessWidget {
-  const _AdminLegendChip({required this.color, required this.label});
+class _AdminLegendRow extends StatelessWidget {
+  const _AdminLegendRow({
+    required this.color,
+    required this.label,
+  });
 
   final Color color;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: AdminPalette.surfaceHover,
-        border: Border.all(color: AdminPalette.border.withValues(alpha: 0.22)),
-      ),
+    return AdminGlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      tint: AdminPalette.surfaceHover,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 10,
             height: 10,
             decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
-          const SizedBox(width: 8),
-          Flexible(
+          const SizedBox(width: 12),
+          Expanded(
             child: Text(
               label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.plusJakartaSans(
-                color: AdminPalette.textPrimary.withValues(alpha: 0.85),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                color: AdminPalette.textPrimary,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -1418,6 +1678,7 @@ class AdminVenuesSection extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.analyticsMeta,
+    required this.analyticsLoading,
     required this.onRefresh,
     required this.onSearch,
     required this.onClearSearch,
@@ -1433,6 +1694,7 @@ class AdminVenuesSection extends StatelessWidget {
   final bool loading;
   final String? error;
   final Map<String, dynamic>? analyticsMeta;
+  final bool analyticsLoading;
   final Future<void> Function() onRefresh;
   final VoidCallback onSearch;
   final VoidCallback onClearSearch;
@@ -1443,47 +1705,69 @@ class AdminVenuesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showOverlay = loading && error == null;
+    final overlayLabel = searchController.text.trim().isNotEmpty
+        ? 'Searching venues…'
+        : 'Loading venues…';
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
         children: [
-          AdminAnalyticsPanel(bookingsMeta: analyticsMeta),
-          const SizedBox(height: 16),
-          AdminSearchCard(
-            controller: searchController,
-            hint: 'Search venues',
-            loading: loading,
-            onSubmitted: (_) => onSearch(),
-            onClear: onClearSearch,
+          AdminAnalyticsPanel(
+            bookingsMeta: analyticsMeta,
+            loading: analyticsLoading,
           ),
-          const SizedBox(height: 14),
-          if (error != null)
-            AdminErrorBanner(message: error!)
-          else if (loading && venues.isEmpty)
-            const AdminLoadingCard(label: 'Loading venues…')
-          else if (venues.isEmpty)
-            const AdminEmptyCard(
-              title: 'No venues yet',
-              subtitle: 'Create your first venue to start accepting bookings.',
-            )
-          else
-            ...venues.map(
-              (venue) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AdminVenueCard(
-                  venue: venue,
-                  onEdit: () => onEdit(venue),
-                  onDelete: () => onDelete(venue),
-                ),
+          const SizedBox(height: 16),
+          Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AdminSearchCard(
+                    controller: searchController,
+                    hint: 'Search venues',
+                    loading: loading,
+                    onSubmitted: (_) => onSearch(),
+                    onClear: onClearSearch,
+                  ),
+                  const SizedBox(height: 14),
+                  if (error != null)
+                    AdminErrorBanner(message: error!)
+                  else if (venues.isEmpty && !loading)
+                    const AdminEmptyCard(
+                      title: 'No venues yet',
+                      subtitle:
+                          'Create your first venue to start accepting bookings.',
+                    )
+                  else if (venues.isEmpty)
+                    const SizedBox(height: 240)
+                  else
+                    ...venues.map(
+                      (venue) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AdminVenueCard(
+                          venue: venue,
+                          onEdit: () => onEdit(venue),
+                          onDelete: () => onDelete(venue),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  AdminPaginationRow(
+                    meta: meta,
+                    loading: loading,
+                    onPrevious: onPreviousPage,
+                    onNext: onNextPage,
+                  ),
+                ],
               ),
-            ),
-          const SizedBox(height: 8),
-          AdminPaginationRow(
-            meta: meta,
-            loading: loading,
-            onPrevious: onPreviousPage,
-            onNext: onNextPage,
+              if (showOverlay)
+                Positioned.fill(
+                  child: AdminSectionLoadingOverlay(label: overlayLabel),
+                ),
+            ],
           ),
         ],
       ),
@@ -1523,45 +1807,64 @@ class AdminBookingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showOverlay = loading && error == null;
+    final overlayLabel = searchController.text.trim().isNotEmpty
+        ? 'Searching bookings…'
+        : 'Loading bookings…';
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
         children: [
-          AdminSearchCard(
-            controller: searchController,
-            hint: 'Search bookings',
-            loading: loading,
-            onSubmitted: (_) => onSearch(),
-            onClear: onClearSearch,
-          ),
-          const SizedBox(height: 14),
-          if (error != null)
-            AdminErrorBanner(message: error!)
-          else if (loading && bookings.isEmpty)
-            const AdminLoadingCard(label: 'Loading bookings…')
-          else if (bookings.isEmpty)
-            const AdminEmptyCard(
-              title: 'No bookings yet',
-              subtitle: 'Once users start reserving venues, they will appear here.',
-            )
-          else
-            ...bookings.map(
-              (booking) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AdminBookingCard(
-                  booking: booking,
-                  onEdit: () => onEdit(booking),
-                  onDelete: () => onDelete(booking),
-                ),
+          Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AdminSearchCard(
+                    controller: searchController,
+                    hint: 'Search bookings',
+                    loading: loading,
+                    onSubmitted: (_) => onSearch(),
+                    onClear: onClearSearch,
+                  ),
+                  const SizedBox(height: 14),
+                  if (error != null)
+                    AdminErrorBanner(message: error!)
+                  else if (bookings.isEmpty && !loading)
+                    const AdminEmptyCard(
+                      title: 'No bookings yet',
+                      subtitle:
+                          'Once users start reserving venues, they will appear here.',
+                    )
+                  else if (bookings.isEmpty)
+                    const SizedBox(height: 240)
+                  else
+                    ...bookings.map(
+                      (booking) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AdminBookingCard(
+                          booking: booking,
+                          onEdit: () => onEdit(booking),
+                          onDelete: () => onDelete(booking),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  AdminPaginationRow(
+                    meta: meta,
+                    loading: loading,
+                    onPrevious: onPreviousPage,
+                    onNext: onNextPage,
+                  ),
+                ],
               ),
-            ),
-          const SizedBox(height: 8),
-          AdminPaginationRow(
-            meta: meta,
-            loading: loading,
-            onPrevious: onPreviousPage,
-            onNext: onNextPage,
+              if (showOverlay)
+                Positioned.fill(
+                  child: AdminSectionLoadingOverlay(label: overlayLabel),
+                ),
+            ],
           ),
         ],
       ),

@@ -160,9 +160,15 @@ class _AdminVenueEditorSheetState extends State<AdminVenueEditorSheet> {
         Navigator.of(context).pop(true);
         return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Save failed')),
+      );
       setState(() => _error = 'Save failed.');
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
       setState(() => _error = e.toString());
     } finally {
       if (mounted) {
@@ -753,9 +759,15 @@ class _AdminBookingEditorSheetState extends State<AdminBookingEditorSheet> {
         Navigator.of(context).pop(true);
         return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Save failed')),
+      );
       setState(() => _error = 'Save failed.');
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
       setState(() => _error = e.toString());
     } finally {
       if (mounted) {

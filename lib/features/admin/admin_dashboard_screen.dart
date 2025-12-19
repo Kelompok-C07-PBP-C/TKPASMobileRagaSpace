@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tk2ragaspace/features/admin/admin_editors.dart';
@@ -53,10 +55,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     setState(() => _bootstrapping = true);
     try {
       await Api().ensureCsrfToken();
-      await Future.wait([
-        _fetchVenues(resetPage: true),
-        _fetchBookings(resetPage: true),
-      ]);
+      // Start loading bookings early so analytics can render without flashing empty states.
+      unawaited(_fetchBookings(resetPage: true));
+      await _fetchVenues(resetPage: true);
     } finally {
       if (mounted) {
         setState(() => _bootstrapping = false);
@@ -141,6 +142,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (_section == section) return;
     setState(() => _section = section);
     Navigator.of(context).maybePop();
+
+    if (section == AdminSection.bookings &&
+        !_bookingsLoading &&
+        _bookingsMeta == null) {
+      unawaited(_fetchBookings(resetPage: true));
+    }
   }
 
   Future<void> _logout() async {
@@ -160,6 +167,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Future<void> _openVenueEditor({Map<String, dynamic>? venue}) async {
+    final editing = venue != null;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -170,11 +178,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       builder: (_) => AdminVenueEditorSheet(venue: venue),
     );
     if (saved == true) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(editing ? 'Venue updated' : 'Venue created')),
+      );
       await _fetchVenues(resetPage: true);
     }
   }
 
   Future<void> _openBookingEditor({Map<String, dynamic>? booking}) async {
+    final editing = booking != null;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -188,6 +201,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
     );
     if (saved == true) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(editing ? 'Booking updated' : 'Booking created')),
+      );
       await _fetchBookings(resetPage: true);
     }
   }
@@ -252,12 +269,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       venues: _venues,
                       meta: _venuesMeta,
                       loading: _venuesLoading,
-                      error: _venuesError,
-                      analyticsMeta: _bookingsMeta,
-                      onRefresh: () => _fetchVenues(resetPage: true),
-                      onSearch: () => _fetchVenues(resetPage: true),
-                      onClearSearch: () {
-                        _venuesSearchController.clear();
+                       error: _venuesError,
+                       analyticsMeta: _bookingsMeta,
+                       analyticsLoading: _bookingsLoading,
+                       onRefresh: () => _fetchVenues(resetPage: true),
+                       onSearch: () => _fetchVenues(resetPage: true),
+                       onClearSearch: () {
+                         _venuesSearchController.clear();
                         _fetchVenues(resetPage: true);
                       },
                       onPreviousPage: _venuesMeta?['has_previous'] == true
@@ -329,7 +347,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         booking: booking,
                         onDeleted: () => _fetchBookings(resetPage: true),
                       ),
-                    ),
+                      ),
             ),
           ],
         ),

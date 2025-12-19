@@ -7,12 +7,16 @@ into the local `app` tables so the custom admin UI renders existing records.
 """
 
 from decimal import Decimal
+from threading import Lock
 from typing import Any
 
 from django.apps import apps
 from django.utils import timezone
 
 from .models import Booking, BookingDate, Venue, _normalize_addons
+
+_SYNC_LOCK = Lock()
+_LAST_SYNC_AT = None
 
 
 def _build_addons_json(main_addons) -> list[dict[str, object]]:
@@ -126,19 +130,29 @@ def _ensure_app_booking_from_main(main_booking) -> Booking:
     return app_booking
 
 
-def sync_all_main_to_app() -> None:
+def sync_all_main_to_app(*, min_interval_seconds: int = 10) -> None:
     """Pull core TK1Web data into the copied app tables."""
-    MLVenue = apps.get_model("manajemen_lapangan", "Venue")
-    RentBooking = apps.get_model("rent", "Booking")
+    global _LAST_SYNC_AT
+    min_interval_seconds = max(int(min_interval_seconds), 0)
 
-    # Sync venues
-    for venue in MLVenue.objects.all():
-        _ensure_app_venue_from_main(venue)
+    with _SYNC_LOCK:
+        if min_interval_seconds > 0 and _LAST_SYNC_AT is not None:
+            elapsed = (timezone.now() - _LAST_SYNC_AT).total_seconds()
+            if elapsed < min_interval_seconds:
+                return
+        _LAST_SYNC_AT = timezone.now()
 
-    # Sync bookings (includes related venue/add-ons)
-    for booking in (
-        RentBooking.objects.select_related("venue", "user")
-        .prefetch_related("addons", "payment")
-        .all()
-    ):
-        _ensure_app_booking_from_main(booking)
+        MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+        RentBooking = apps.get_model("rent", "Booking")
+
+        # Sync venues
+        for venue in MLVenue.objects.all():
+            _ensure_app_venue_from_main(venue)
+
+        # Sync bookings (includes related venue/add-ons)
+        for booking in (
+            RentBooking.objects.select_related("venue", "user")
+            .prefetch_related("addons", "payment")
+            .all()
+        ):
+            _ensure_app_booking_from_main(booking)
