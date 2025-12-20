@@ -5,8 +5,9 @@ mixin _HomeTestimonialsSection on _HomeScreenCore {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool stacked = constraints.maxWidth < 560;
+        final double cardWidth = math.max(0.0, constraints.maxWidth - 20);
         final double cardHeight = _estimateTestimonialHeight(
-          constraints.maxWidth,
+          cardWidth,
           stacked,
         );
         return VisibilityDetector(
@@ -49,11 +50,12 @@ mixin _HomeTestimonialsSection on _HomeScreenCore {
   double _estimateTestimonialHeight(double width, bool stacked) {
     const double horizontalPadding = 56; // 28 * 2
     const double verticalPadding = 64; // 32 * 2
-    const double avatarSize = 96;
+    const double avatarWidth = 100;
+    const double avatarHeight = 96;
     const double avatarGap = 24;
     final double textWidth = math.max(
       140,
-      width - horizontalPadding - (stacked ? 0 : avatarSize + avatarGap),
+      width - horizontalPadding - (stacked ? 0 : avatarWidth + avatarGap),
     );
     final nameStyle = GoogleFonts.plusJakartaSans(
       fontSize: 20,
@@ -92,8 +94,8 @@ mixin _HomeTestimonialsSection on _HomeScreenCore {
       maxTextBlockHeight = math.max(maxTextBlockHeight, blockHeight);
     }
     final double contentHeight = stacked
-        ? avatarSize + 18 + maxTextBlockHeight
-        : math.max(avatarSize, maxTextBlockHeight);
+        ? avatarHeight + 18 + maxTextBlockHeight
+        : math.max(avatarHeight, maxTextBlockHeight);
     final double safety = stacked ? 70 : 40;
     return contentHeight + verticalPadding + safety;
   }
@@ -179,6 +181,42 @@ class _TestimonialCard extends StatelessWidget {
   final _TestimonialData data;
   final bool stacked;
 
+  static String _uiAvatarUrl(String name) {
+    final encoded = Uri.encodeComponent(name.trim().isEmpty ? 'User' : name.trim());
+    return 'https://ui-avatars.com/api/?name=$encoded&background=132548&color=ffffff&size=256&rounded=true&bold=true';
+  }
+
+  Widget _buildFallbackAvatar() {
+    final initials = data.name
+        .trim()
+        .split(RegExp(r'\\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.characters.first)
+        .join()
+        .toUpperCase();
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initials.isNotEmpty ? initials : 'RS',
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white70,
+            fontWeight: FontWeight.w800,
+            fontSize: 24,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final avatar = Container(
@@ -200,18 +238,10 @@ class _TestimonialCard extends StatelessWidget {
               : Image.network(
                   data.avatarUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.person_outline,
-                      color: Colors.white70,
-                    ),
+                  errorBuilder: (_, __, ___) => Image.network(
+                    _uiAvatarUrl(data.name),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildFallbackAvatar(),
                   ),
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
@@ -235,7 +265,6 @@ class _TestimonialCard extends StatelessWidget {
       ),
       ),
     );
-    final shouldShowMore = data.quote.trim().length > 220;
     final quoteStyle = GoogleFonts.plusJakartaSans(
       fontSize: 15,
       height: 1.6,
@@ -267,47 +296,8 @@ class _TestimonialCard extends StatelessWidget {
         Text(
           data.quote,
           style: quoteStyle,
-          maxLines: shouldShowMore ? (stacked ? 6 : 7) : null,
-          overflow: shouldShowMore ? TextOverflow.ellipsis : TextOverflow.visible,
+          softWrap: true,
         ),
-        if (shouldShowMore) ...[
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (dialogContext) => AlertDialog(
-                backgroundColor: const Color(0xFF020617),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                title: Text(
-                  data.name,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                content: SingleChildScrollView(
-                  child: Text(data.quote, style: quoteStyle),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-            ),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              foregroundColor: const Color(0xFF1B89AE),
-              textStyle: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            child: const Text('Read more'),
-          ),
-        ],
       ],
     );
     final child = stacked

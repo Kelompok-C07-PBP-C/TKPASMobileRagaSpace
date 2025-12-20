@@ -7,6 +7,42 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:tk2ragaspace/features/admin/admin_theme.dart';
 import 'package:tk2ragaspace/services/api.dart';
 
+enum AdminVenueSortKey { id, title, price, rating }
+
+extension AdminVenueSortKeyLabel on AdminVenueSortKey {
+  String get label {
+    switch (this) {
+      case AdminVenueSortKey.id:
+        return 'ID';
+      case AdminVenueSortKey.title:
+        return 'Title';
+      case AdminVenueSortKey.price:
+        return 'Price';
+      case AdminVenueSortKey.rating:
+        return 'Rating';
+    }
+  }
+}
+
+enum AdminBookingSortKey { createdAt, startDate, endDate, guest, paid }
+
+extension AdminBookingSortKeyLabel on AdminBookingSortKey {
+  String get label {
+    switch (this) {
+      case AdminBookingSortKey.createdAt:
+        return 'Created';
+      case AdminBookingSortKey.startDate:
+        return 'Start date';
+      case AdminBookingSortKey.endDate:
+        return 'End date';
+      case AdminBookingSortKey.guest:
+        return 'Guest';
+      case AdminBookingSortKey.paid:
+        return 'Payment';
+    }
+  }
+}
+
 String adminFormatIdr(int value) {
   final formatted = value.toString().replaceAllMapped(
         RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -34,6 +70,154 @@ int adminSafeInt(Object? value, {int fallback = 0}) {
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value) ?? fallback;
   return fallback;
+}
+
+class AdminSortBar<T> extends StatelessWidget {
+  const AdminSortBar({
+    super.key,
+    required this.options,
+    required this.value,
+    required this.ascending,
+    required this.onChanged,
+    required this.onToggleDirection,
+    this.enabled = true,
+    this.labelBuilder,
+  });
+
+  final List<T> options;
+  final T value;
+  final bool ascending;
+  final ValueChanged<T> onChanged;
+  final VoidCallback onToggleDirection;
+  final bool enabled;
+  final String Function(T value)? labelBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textStyle = GoogleFonts.plusJakartaSans(
+      color: AdminPalette.textPrimary,
+      fontWeight: FontWeight.w700,
+    );
+
+    final dropdown = DropdownButton<T>(
+      value: value,
+      isExpanded: true,
+      dropdownColor: AdminPalette.backgroundBase,
+      style: textStyle,
+      iconEnabledColor: AdminPalette.textSecondary,
+      onChanged: enabled
+          ? (next) {
+              if (next == null) return;
+              onChanged(next);
+            }
+          : null,
+      items: options
+          .map(
+            (option) => DropdownMenuItem<T>(
+              value: option,
+              child: Text(
+                labelBuilder?.call(option) ?? option.toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+    );
+
+    final directionButton = IconButton(
+      tooltip: ascending ? 'Ascending' : 'Descending',
+      onPressed: enabled ? onToggleDirection : null,
+      icon: Icon(
+        ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+        color: enabled
+            ? AdminPalette.textPrimary.withValues(alpha: 0.85)
+            : AdminPalette.textSecondary.withValues(alpha: 0.6),
+      ),
+    );
+
+    return AdminGlassCard(
+      padding: const EdgeInsets.all(14),
+      tint: AdminPalette.surfaceCard,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 520;
+          if (wide) {
+            return Row(
+              children: [
+                Icon(
+                  Icons.sort_rounded,
+                  color: AdminPalette.textSecondary.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 10),
+                Text('Sort by', style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AdminPalette.textSecondary.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w700,
+                )),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AdminPalette.inputBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AdminPalette.border.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: DropdownButtonHideUnderline(child: dropdown),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                directionButton,
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.sort_rounded,
+                    color: AdminPalette.textSecondary.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Sort by',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AdminPalette.textSecondary.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  directionButton,
+                ],
+              ),
+              const SizedBox(height: 10),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AdminPalette.inputBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AdminPalette.border.withValues(alpha: 0.8),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: DropdownButtonHideUnderline(child: dropdown),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 class AdminPrimaryPillButton extends StatelessWidget {
@@ -1679,6 +1863,10 @@ class AdminVenuesSection extends StatelessWidget {
     required this.error,
     required this.analyticsMeta,
     required this.analyticsLoading,
+    required this.sortKey,
+    required this.sortAscending,
+    required this.onSortKeyChanged,
+    required this.onToggleSortDirection,
     required this.onRefresh,
     required this.onSearch,
     required this.onClearSearch,
@@ -1695,6 +1883,10 @@ class AdminVenuesSection extends StatelessWidget {
   final String? error;
   final Map<String, dynamic>? analyticsMeta;
   final bool analyticsLoading;
+  final AdminVenueSortKey sortKey;
+  final bool sortAscending;
+  final ValueChanged<AdminVenueSortKey> onSortKeyChanged;
+  final VoidCallback onToggleSortDirection;
   final Future<void> Function() onRefresh;
   final VoidCallback onSearch;
   final VoidCallback onClearSearch;
@@ -1731,6 +1923,16 @@ class AdminVenuesSection extends StatelessWidget {
                     loading: loading,
                     onSubmitted: (_) => onSearch(),
                     onClear: onClearSearch,
+                  ),
+                  const SizedBox(height: 12),
+                  AdminSortBar<AdminVenueSortKey>(
+                    options: AdminVenueSortKey.values,
+                    value: sortKey,
+                    ascending: sortAscending,
+                    enabled: !loading,
+                    labelBuilder: (value) => value.label,
+                    onChanged: onSortKeyChanged,
+                    onToggleDirection: onToggleSortDirection,
                   ),
                   const SizedBox(height: 14),
                   if (error != null)
@@ -1783,6 +1985,10 @@ class AdminBookingsSection extends StatelessWidget {
     required this.meta,
     required this.loading,
     required this.error,
+    required this.sortKey,
+    required this.sortAscending,
+    required this.onSortKeyChanged,
+    required this.onToggleSortDirection,
     required this.onRefresh,
     required this.onSearch,
     required this.onClearSearch,
@@ -1797,6 +2003,10 @@ class AdminBookingsSection extends StatelessWidget {
   final Map<String, dynamic>? meta;
   final bool loading;
   final String? error;
+  final AdminBookingSortKey sortKey;
+  final bool sortAscending;
+  final ValueChanged<AdminBookingSortKey> onSortKeyChanged;
+  final VoidCallback onToggleSortDirection;
   final Future<void> Function() onRefresh;
   final VoidCallback onSearch;
   final VoidCallback onClearSearch;
@@ -1828,6 +2038,16 @@ class AdminBookingsSection extends StatelessWidget {
                     loading: loading,
                     onSubmitted: (_) => onSearch(),
                     onClear: onClearSearch,
+                  ),
+                  const SizedBox(height: 12),
+                  AdminSortBar<AdminBookingSortKey>(
+                    options: AdminBookingSortKey.values,
+                    value: sortKey,
+                    ascending: sortAscending,
+                    enabled: !loading,
+                    labelBuilder: (value) => value.label,
+                    onChanged: onSortKeyChanged,
+                    onToggleDirection: onToggleSortDirection,
                   ),
                   const SizedBox(height: 14),
                   if (error != null)

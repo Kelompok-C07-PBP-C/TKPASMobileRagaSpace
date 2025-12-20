@@ -25,6 +25,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   final _bookingsSearchController = TextEditingController();
 
   AdminSection _section = AdminSection.venues;
+  AdminVenueSortKey _venueSortKey = AdminVenueSortKey.id;
+  bool _venueSortAscending = false;
+  AdminBookingSortKey _bookingSortKey = AdminBookingSortKey.createdAt;
+  bool _bookingSortAscending = false;
 
   List<Map<String, dynamic>> _venues = const [];
   Map<String, dynamic>? _venuesMeta;
@@ -72,6 +76,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return fallback;
   }
 
+  double _safeDouble(Object? value, {double fallback = 0}) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  DateTime _safeDateTime(Object? value) {
+    final raw = (value ?? '').toString();
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) return parsed;
+    if (raw.length >= 10) {
+      return DateTime.tryParse(raw.substring(0, 10)) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  List<Map<String, dynamic>> _sortedVenues(List<Map<String, dynamic>> venues) {
+    final sorted = venues.toList();
+    sorted.sort((a, b) {
+      int compareById() => _safeInt(a['id']).compareTo(_safeInt(b['id']));
+
+      int cmp = 0;
+      switch (_venueSortKey) {
+        case AdminVenueSortKey.id:
+          cmp = compareById();
+          break;
+        case AdminVenueSortKey.title:
+          final at = (a['title'] ?? '').toString().toLowerCase();
+          final bt = (b['title'] ?? '').toString().toLowerCase();
+          cmp = at.compareTo(bt);
+          break;
+        case AdminVenueSortKey.price:
+          cmp = _safeInt(a['price']).compareTo(_safeInt(b['price']));
+          break;
+        case AdminVenueSortKey.rating:
+          final ar = a['average_rating'];
+          final br = b['average_rating'];
+          final aHas = ar != null;
+          final bHas = br != null;
+          if (aHas != bHas) {
+            // Always keep unrated venues at the end (regardless of sort direction).
+            return aHas ? -1 : 1;
+          }
+          cmp = _safeDouble(ar).compareTo(_safeDouble(br));
+          break;
+      }
+      if (cmp == 0) cmp = compareById();
+      return _venueSortAscending ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
+  List<Map<String, dynamic>> _sortedBookings(List<Map<String, dynamic>> bookings) {
+    final sorted = bookings.toList();
+    sorted.sort((a, b) {
+      int compareById() => _safeInt(a['id']).compareTo(_safeInt(b['id']));
+
+      int cmp = 0;
+      switch (_bookingSortKey) {
+        case AdminBookingSortKey.createdAt:
+          cmp = _safeDateTime(a['created_at']).compareTo(_safeDateTime(b['created_at']));
+          break;
+        case AdminBookingSortKey.startDate:
+          cmp = _safeDateTime(a['start_date']).compareTo(_safeDateTime(b['start_date']));
+          break;
+        case AdminBookingSortKey.endDate:
+          cmp = _safeDateTime(a['end_date']).compareTo(_safeDateTime(b['end_date']));
+          break;
+        case AdminBookingSortKey.guest:
+          final ag = (a['guest_label'] ?? a['username'] ?? '').toString().toLowerCase();
+          final bg = (b['guest_label'] ?? b['username'] ?? '').toString().toLowerCase();
+          cmp = ag.compareTo(bg);
+          break;
+        case AdminBookingSortKey.paid:
+          final ap = a['has_been_paid'] == true;
+          final bp = b['has_been_paid'] == true;
+          cmp = ap == bp ? 0 : (ap ? 1 : -1);
+          break;
+      }
+      if (cmp == 0) cmp = compareById();
+      return _bookingSortAscending ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
   Future<void> _fetchVenues({bool resetPage = false}) async {
     if (_venuesLoading) return;
     setState(() {
@@ -90,9 +180,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final meta = payload['meta'];
       if (!mounted) return;
       setState(() {
-        _venues = (data is List)
+        final List<Map<String, dynamic>> items = (data is List)
             ? data.whereType<Map<String, dynamic>>().toList()
-            : const [];
+            : const <Map<String, dynamic>>[];
+        _venues = _sortedVenues(items);
         _venuesMeta = meta is Map<String, dynamic> ? meta : null;
       });
     } catch (e) {
@@ -123,9 +214,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final meta = payload['meta'];
       if (!mounted) return;
       setState(() {
-        _bookings = (data is List)
+        final List<Map<String, dynamic>> items = (data is List)
             ? data.whereType<Map<String, dynamic>>().toList()
-            : const [];
+            : const <Map<String, dynamic>>[];
+        _bookings = _sortedBookings(items);
         _bookingsMeta = meta is Map<String, dynamic> ? meta : null;
       });
     } catch (e) {
@@ -148,6 +240,55 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         _bookingsMeta == null) {
       unawaited(_fetchBookings(resetPage: true));
     }
+  }
+
+  void _setVenueSort(AdminVenueSortKey key) {
+    setState(() {
+      if (_venueSortKey == key) {
+        _venueSortAscending = !_venueSortAscending;
+      } else {
+        _venueSortKey = key;
+        _venueSortAscending = switch (key) {
+          AdminVenueSortKey.id => false,
+          AdminVenueSortKey.title => true,
+          AdminVenueSortKey.price => true,
+          AdminVenueSortKey.rating => false,
+        };
+      }
+      _venues = _sortedVenues(_venues);
+    });
+  }
+
+  void _toggleVenueSortDirection() {
+    setState(() {
+      _venueSortAscending = !_venueSortAscending;
+      _venues = _sortedVenues(_venues);
+    });
+  }
+
+  void _setBookingSort(AdminBookingSortKey key) {
+    setState(() {
+      if (_bookingSortKey == key) {
+        _bookingSortAscending = !_bookingSortAscending;
+      } else {
+        _bookingSortKey = key;
+        _bookingSortAscending = switch (key) {
+          AdminBookingSortKey.createdAt => false,
+          AdminBookingSortKey.startDate => true,
+          AdminBookingSortKey.endDate => true,
+          AdminBookingSortKey.guest => true,
+          AdminBookingSortKey.paid => true,
+        };
+      }
+      _bookings = _sortedBookings(_bookings);
+    });
+  }
+
+  void _toggleBookingSortDirection() {
+    setState(() {
+      _bookingSortAscending = !_bookingSortAscending;
+      _bookings = _sortedBookings(_bookings);
+    });
   }
 
   Future<void> _logout() async {
@@ -272,6 +413,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                        error: _venuesError,
                        analyticsMeta: _bookingsMeta,
                        analyticsLoading: _bookingsLoading,
+                      sortKey: _venueSortKey,
+                      sortAscending: _venueSortAscending,
+                      onSortKeyChanged: _setVenueSort,
+                      onToggleSortDirection: _toggleVenueSortDirection,
                        onRefresh: () => _fetchVenues(resetPage: true),
                        onSearch: () => _fetchVenues(resetPage: true),
                        onClearSearch: () {
@@ -313,6 +458,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       meta: _bookingsMeta,
                       loading: _bookingsLoading,
                       error: _bookingsError,
+                      sortKey: _bookingSortKey,
+                      sortAscending: _bookingSortAscending,
+                      onSortKeyChanged: _setBookingSort,
+                      onToggleSortDirection: _toggleBookingSortDirection,
                       onRefresh: () => _fetchBookings(resetPage: true),
                       onSearch: () => _fetchBookings(resetPage: true),
                       onClearSearch: () {

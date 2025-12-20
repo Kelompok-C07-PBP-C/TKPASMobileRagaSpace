@@ -8,7 +8,9 @@ import '../../widgets/auth_background.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.returnToPrevious = false});
+
+  final bool returnToPrevious;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,9 +44,13 @@ class _LoginScreenState extends State<LoginScreen>
         ).showSnackBar(const SnackBar(content: Text('Login successful')));
         await Future<void>.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          AuroraWarpRoute(const LoadingScreen()),
-        );
+        if (widget.returnToPrevious) {
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.of(context).pushReplacement(
+            AuroraWarpRoute(const LoadingScreen()),
+          );
+        }
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -80,9 +86,13 @@ class _LoginScreenState extends State<LoginScreen>
     if (!mounted) return;
     setState(() => _loading = false);
     if (success) {
-      Navigator.of(context).pushReplacement(
-        AuroraWarpRoute(const LoadingScreen()),
-      );
+      if (widget.returnToPrevious) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          AuroraWarpRoute(const LoadingScreen()),
+        );
+      }
     }
   }
 

@@ -135,6 +135,7 @@ abstract class _HomeScreenCore extends State<HomeScreen>
   bool _loadingVenues = true;
   String? _venuesError;
   bool _venuesCanRetry = false;
+  bool _isAuthenticated = false;
   String _selectedCity = _filterCities.first;
   String _selectedCategory = _filterCategories.first;
   String _selectedPrice = _filterPrices.first;
@@ -170,6 +171,7 @@ abstract class _HomeScreenCore extends State<HomeScreen>
   Future<void> _openVenueDetail(_VenueCardData data);
   List<_VenueCardData> get _filteredVenues;
   Widget _buildSectionHeader(String title, String? subtitle);
+  Future<void> _loadWishlist();
   Future<void> _syncWishlistFromServer({
     List<_VenueCardData>? localSeed,
     bool silent = false,
@@ -178,6 +180,87 @@ abstract class _HomeScreenCore extends State<HomeScreen>
   Future<void> _toggleWishlist(_VenueCardData data);
   Future<bool> _toggleWishlistAndReturn(_VenueCardData data);
   Future<List<_VenueCardData>> _syncWishlistForScreen();
+
+  bool get _authenticated => _isAuthenticated && Api.currentUserId != null;
+
+  Future<void> _bootstrapAuthSession() async {
+    if (homeSkipNetworkForTests) return;
+
+    try {
+      await Api().me();
+    } catch (_) {
+      // ignore and fall back to stored credentials
+    }
+    if (!mounted) return;
+
+    if (Api.currentUserId == null) {
+      try {
+        await Api.tryAutoLoginFromStorage();
+      } catch (_) {
+        // ignore
+      }
+    }
+    if (!mounted) return;
+
+    final nowAuthenticated = Api.currentUserId != null;
+    if (nowAuthenticated != _isAuthenticated) {
+      setState(() => _isAuthenticated = nowAuthenticated);
+    }
+    if (nowAuthenticated) {
+      unawaited(_loadWishlist());
+      unawaited(_loadProfileSummary());
+      unawaited(() async {
+        try {
+          final isAdmin = await Api().resolveAdminStatus().timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => Api.isAdmin,
+          );
+          if (!mounted || !isAdmin) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              AuroraWarpRoute(const AdminDashboardScreen()),
+            );
+          });
+        } catch (_) {
+          // ignore
+        }
+      }());
+    }
+  }
+
+  Future<bool> _ensureLoggedIn() async {
+    if (_authenticated) return true;
+
+    final result = await Navigator.of(context).push<bool>(
+      AuroraWarpRoute(const LoginScreen(returnToPrevious: true)),
+    );
+    if (!mounted) return false;
+
+    final nowAuthenticated = (result == true) || Api.currentUserId != null;
+    if (!nowAuthenticated) return false;
+
+    setState(() => _isAuthenticated = true);
+    unawaited(_loadWishlist());
+    unawaited(_loadProfileSummary());
+
+    try {
+      final isAdmin = await Api().resolveAdminStatus().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => Api.isAdmin,
+      );
+      if (!mounted) return false;
+      if (isAdmin) {
+        Navigator.of(context).pushReplacement(
+          AuroraWarpRoute(const AdminDashboardScreen()),
+        );
+        return false;
+      }
+    } catch (_) {
+      // Ignore and proceed as a regular user session.
+    }
+    return true;
+  }
 
   void _startHighlightAutoScroll() {
     _highlightTimer?.cancel();
@@ -240,6 +323,7 @@ class _HomeScreenState extends _HomeScreenCore
   @override
   void initState() {
     super.initState();
+    _isAuthenticated = Api.currentUserId != null;
     _highlightController = PageController(viewportFraction: 0.9);
     _categoryMarqueeController = AnimationController(
       vsync: this,
@@ -252,6 +336,7 @@ class _HomeScreenState extends _HomeScreenCore
       _fetchTopVenues();
       _loadWishlist();
       _loadProfileSummary();
+      unawaited(_bootstrapAuthSession());
     }
   }
 

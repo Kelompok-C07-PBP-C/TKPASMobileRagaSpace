@@ -134,6 +134,15 @@ class AdminCreationForm(UserCreationForm):
 class ProfileUpdateForm(forms.ModelForm):
     """Update the authenticated user's profile + linked phone number."""
 
+    avatar = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(
+            attrs={
+                "class": "w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-white placeholder-white/60 backdrop-blur file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/30",
+            }
+        ),
+    )
+
     phone_number = forms.CharField(
         required=False,
         widget=forms.TextInput(
@@ -187,6 +196,15 @@ class ProfileUpdateForm(forms.ModelForm):
         profile = getattr(user, "profile", None)
         if profile is None:
             profile, _ = Profile.objects.get_or_create(user=user)
-        profile.phone_number = (self.cleaned_data.get("phone_number") or "").strip()
-        profile.save(update_fields=["phone_number"])
+        updates: list[str] = []
+        phone_number = (self.cleaned_data.get("phone_number") or "").strip()
+        if profile.phone_number != phone_number:
+            profile.phone_number = phone_number
+            updates.append("phone_number")
+        avatar = self.cleaned_data.get("avatar")
+        if avatar:
+            profile.avatar = avatar
+            updates.append("avatar")
+        if commit and updates:
+            profile.save(update_fields=updates)
         return user

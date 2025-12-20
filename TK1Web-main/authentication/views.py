@@ -12,6 +12,7 @@ from django.db.models import Count
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
@@ -89,6 +90,14 @@ class RegisterView(FormView):
 class ProfileView(LoginRequiredMixin, TemplateView):
     template_name = "authentication/profile.html"
 
+    def _resolve_next_url(self, request: HttpRequest) -> str:
+        raw_next = (request.POST.get("next") or request.GET.get("next") or "").strip()
+        if not raw_next:
+            return ""
+        if not url_has_allowed_host_and_scheme(raw_next, allowed_hosts={request.get_host()}):
+            return ""
+        return raw_next
+
     def _build_password_form(self, data=None) -> PasswordChangeForm:
         form = PasswordChangeForm(user=self.request.user, data=data)
         for field in form.fields.values():
@@ -104,18 +113,20 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             {
                 "profile_form": ProfileUpdateForm(instance=self.request.user),
                 "password_form": self._build_password_form(),
+                "next_url": self._resolve_next_url(self.request),
             }
         )
         return context
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        next_url = self._resolve_next_url(request)
         if "update_profile" in request.POST:
-            profile_form = ProfileUpdateForm(request.POST, instance=request.user)
+            profile_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
             password_form = self._build_password_form()
             if profile_form.is_valid():
                 profile_form.save()
                 messages.success(request, "Profile updated successfully.")
-                return redirect("authentication:profile")
+                return redirect(next_url or "authentication:profile")
             messages.error(request, "Unable to update profile. Please check the form.")
         elif "change_password" in request.POST:
             password_form = self._build_password_form(data=request.POST)
@@ -124,7 +135,7 @@ class ProfileView(LoginRequiredMixin, TemplateView):
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 messages.success(request, "Password updated successfully.")
-                return redirect("authentication:profile")
+                return redirect(next_url or "authentication:profile")
             messages.error(request, "Unable to update password. Please check the form.")
         else:
             profile_form = ProfileUpdateForm(instance=request.user)
@@ -136,6 +147,7 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             {
                 "profile_form": profile_form,
                 "password_form": password_form,
+                "next_url": next_url,
             },
         )
 

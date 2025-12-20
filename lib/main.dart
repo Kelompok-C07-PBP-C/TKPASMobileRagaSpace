@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'features/authentication/login_screen.dart';
+import 'features/home/home_screen.dart';
 
 const bool _showPerfOverlay =
     bool.fromEnvironment('ENABLE_PERF_OVERLAY', defaultValue: false);
@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const HomeScreen(),
     );
   }
 }

@@ -10,10 +10,46 @@
   <div class="grid gap-8 lg:grid-cols-2">
     <div class="rounded-[2.75rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/50 backdrop-blur-2xl">
       <h2 class="text-xl font-semibold text-white">Account details</h2>
-      <form method="post" class="mt-6 space-y-6" novalidate>
+      <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+        {% with display_name=request.user.get_full_name|default:request.user.username %}
+        <div class="h-24 w-24 overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 shadow-lg shadow-cyan-500/10">
+          {% if request.user.profile.avatar %}
+          <img
+            src="{{ request.user.profile.avatar.url }}"
+            alt="Profile picture of {{ display_name }}"
+            class="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=256&rounded=true&bold=true';"
+          />
+          {% else %}
+          <img
+            src="https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=256&rounded=true&bold=true"
+            alt="Avatar for {{ display_name }}"
+            class="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          {% endif %}
+        </div>
+        <div class="text-center sm:text-left">
+          <p class="text-sm font-semibold text-white">Profile picture</p>
+          <p class="mt-1 text-xs text-white/60">Upload an image to show in the navbar and account page.</p>
+        </div>
+        {% endwith %}
+      </div>
+
+      <form method="post" enctype="multipart/form-data" class="mt-6 space-y-6" novalidate>
         {% csrf_token %}
         <input type="hidden" name="update_profile" value="1" />
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}" />{% endif %}
         {{ profile_form.non_field_errors }}
+
+        <div class="space-y-2">
+          <label for="{{ profile_form.avatar.id_for_label }}" class="block text-sm font-medium text-white/80">Profile picture (optional)</label>
+          {{ profile_form.avatar }}
+          {{ profile_form.avatar.errors }}
+        </div>
 
         <div class="space-y-2">
           <label for="{{ profile_form.username.id_for_label }}" class="block text-sm font-medium text-white/80">Username</label>
@@ -56,6 +92,7 @@
       <form method="post" class="mt-6 space-y-6" novalidate>
         {% csrf_token %}
         <input type="hidden" name="change_password" value="1" />
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}" />{% endif %}
         {{ password_form.non_field_errors }}
 
         <div class="space-y-2">

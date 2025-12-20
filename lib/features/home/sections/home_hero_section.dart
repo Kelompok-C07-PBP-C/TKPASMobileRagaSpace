@@ -94,22 +94,43 @@ mixin _HomeHeroSection on _HomeScreenCore {
             ],
           ),
           const Spacer(),
-          InkWell(
-            onTap: _showProfileMenu,
-            borderRadius: BorderRadius.circular(24),
-          child: CircleAvatar(
-              radius: 16,
-              backgroundImage: !homeDisableNetworkImagesForTests &&
-                      _avatarUrl != null &&
-                      _avatarUrl!.isNotEmpty
-                  ? NetworkImage(_avatarUrl!)
-                  : null,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, color: Colors.white)
-                  : null,
+          if (_authenticated)
+            InkWell(
+              onTap: _showProfileMenu,
+              borderRadius: BorderRadius.circular(24),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundImage: !homeDisableNetworkImagesForTests &&
+                        _avatarUrl != null &&
+                        _avatarUrl!.isNotEmpty
+                    ? NetworkImage(_avatarUrl!)
+                    : null,
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
+              ),
+            )
+          else
+            TextButton.icon(
+              onPressed: () => _ensureLoggedIn(),
+              icon: const Icon(Icons.login_rounded, color: Colors.white),
+              label: Text(
+                'Login',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -517,6 +538,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
     String? initialCategory,
     String? initialPrice,
   }) async {
+    if (!await _ensureLoggedIn()) return;
     if (_navIndex == 1) return;
     setState(() => _navIndex = 1);
     final selected = await Navigator.of(context).push<_CatalogProduct>(
@@ -538,6 +560,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
 
   @override
   Future<void> _openWishlist() async {
+    if (!await _ensureLoggedIn()) return;
     if (_navIndex == 2) return;
     setState(() => _navIndex = 2);
     await Navigator.of(context).push(
@@ -556,6 +579,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
 
   @override
   Future<void> _openBookings() async {
+    if (!await _ensureLoggedIn()) return;
     if (_navIndex == 3) return;
     setState(() => _navIndex = 3);
     await Navigator.of(context).push(
@@ -575,6 +599,7 @@ mixin _HomeHeroSection on _HomeScreenCore {
 
   @override
   Future<void> _openVenueDetail(_VenueCardData data) async {
+    if (!await _ensureLoggedIn()) return;
     final isFavorite = _wishlistKeys.contains(data.storageKey);
     await Navigator.of(context).push(
       AuroraWarpRoute(
@@ -677,23 +702,24 @@ mixin _HomeHeroSection on _HomeScreenCore {
 
   Future<void> _performLogout() async {
     if (!mounted) return;
-    // Navigate away from the home shell immediately so the UI feels snappy.
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
-
-    // Perform the server-side logout in the background. Even if this fails,
-    // the user is already back on the login screen and the local "remember me"
-    // state will be cleared by Api.logout.
-    // ignore: unawaited_futures
-    () async {
-      try {
-        await Api().logout();
-      } catch (_) {
-        // deliberately ignored
-      }
-    }();
+    try {
+      await Api().logout();
+    } catch (_) {
+      // ignore
+    }
+    if (!mounted) return;
+    setState(() {
+      _isAuthenticated = false;
+      _avatarUrl = null;
+      _accountPhoneNumber = null;
+      _wishlist = const <_VenueCardData>[];
+      _wishlistKeys = const <String>{};
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged out')),
+      );
+    }
   }
 
   Future<List<_BookingSummary>> _fetchBookingsFromServer() async {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tk2ragaspace/features/home/home_screen.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:tk2ragaspace/main.dart';
 
@@ -9,9 +12,29 @@ Future<void> _pumpBriefly(WidgetTester tester, {int millis = 400}) async {
 }
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    homeSkipNetworkForTests = true;
+    homeDisableNetworkImagesForTests = true;
+    debugSetFadeSlideInDisabledForTests(true);
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
+
+  tearDown(() {
+    homeSkipNetworkForTests = false;
+    homeDisableNetworkImagesForTests = false;
+    debugSetFadeSlideInDisabledForTests(false);
+  });
+
   testWidgets('Login UI renders and toggles password visibility', (tester) async {
     await tester.pumpWidget(const MyApp());
     await _pumpBriefly(tester);
+
+    final loginButton = find.text('Login');
+    expect(loginButton, findsOneWidget);
+
+    await tester.tap(loginButton);
+    await _pumpBriefly(tester, millis: 700);
 
     expect(find.text('Login to RagaSpace'), findsOneWidget);
     expect(find.text('Login'), findsWidgets);
@@ -28,6 +51,12 @@ void main() {
   testWidgets('Navigate to register screen', (tester) async {
     await tester.pumpWidget(const MyApp());
     await _pumpBriefly(tester);
+
+    final loginButton = find.text('Login');
+    expect(loginButton, findsOneWidget);
+
+    await tester.tap(loginButton);
+    await _pumpBriefly(tester, millis: 700);
 
     final registerLink = find.text("Don't have an account? Register now");
 

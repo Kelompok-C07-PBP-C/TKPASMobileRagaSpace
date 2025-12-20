@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from add_on.models import AddOn
+from app.models import Profile
 from manajemen_lapangan.models import Category, Venue
 from rent.models import Booking
 
@@ -25,6 +26,9 @@ class BookingFlowTests(TestCase):
             password="secret123",
             is_staff=True,
         )
+        profile, _ = Profile.objects.get_or_create(user=self.user)
+        profile.phone_number = "08123456789"
+        profile.save(update_fields=["phone_number"])
         self.category = Category.objects.create(name="Stadium")
         self.venue = Venue.objects.create(
             category=self.category,
@@ -44,6 +48,28 @@ class BookingFlowTests(TestCase):
             description="Enhanced lighting package",
             price="50000.00",
         )
+
+    def test_booking_requires_phone_number(self) -> None:
+        user_without_phone = get_user_model().objects.create_user(
+            username="no-phone",
+            email="no-phone@example.com",
+            password="secret123",
+        )
+        self.client.force_login(user_without_phone)
+        start = timezone.now() + timedelta(days=1)
+        end = start + timedelta(hours=1)
+        response = self.client.post(
+            reverse("venue-detail", kwargs={"slug": self.venue.slug}),
+            {
+                "start_datetime": start.strftime("%Y-%m-%dT%H:%M"),
+                "end_datetime": end.strftime("%Y-%m-%dT%H:%M"),
+            },
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('authentication:profile')}?next={reverse('venue-detail', kwargs={'slug': self.venue.slug})}",
+        )
+        self.assertEqual(Booking.objects.filter(user=user_without_phone).count(), 0)
 
     def test_user_can_submit_booking_request(self) -> None:
         self.client.force_login(self.user)

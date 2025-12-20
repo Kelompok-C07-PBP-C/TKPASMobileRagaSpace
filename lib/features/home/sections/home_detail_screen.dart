@@ -1189,9 +1189,27 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
             ),
           )
           .toList();
+      final ratings = parsed
+          .map((review) => review.rating)
+          .where((rating) => rating >= 1 && rating <= 5)
+          .toList();
+      final averageRating = ratings.isEmpty
+          ? 0.0
+          : ratings.reduce((a, b) => a + b) / ratings.length;
       if (!mounted) return;
       setState(() {
         _reviews = parsed;
+        data = _VenueCardData(
+          category: data.category,
+          name: data.name,
+          location: data.location,
+          description: data.description,
+          price: data.price,
+          rating: averageRating.toDouble(),
+          imageUrl: data.imageUrl,
+          id: data.id,
+          addons: data.addons,
+        );
         _loadingReviews = false;
       });
     } catch (err) {

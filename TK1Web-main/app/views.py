@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 from typing import Any
+from urllib.parse import urlencode
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.forms import AuthenticationForm
@@ -15,6 +16,7 @@ from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -464,7 +466,12 @@ def me_view(request: HttpRequest):
 
 
 def top_venues_view(request: HttpRequest):
-    sync_all_main_to_app()
+    # This endpoint is hit frequently by the mobile app. Avoid the heavier
+    # booking sync here to prevent lock contention/timeouts.
+    try:
+        sync_all_main_to_app(min_interval_seconds=60, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     try:
         limit = max(1, min(10, int(request.GET.get("limit", 3))))
     except (TypeError, ValueError):
@@ -510,7 +517,11 @@ def top_venues_view(request: HttpRequest):
 
 
 def venues_list_view(request: HttpRequest):
-    sync_all_main_to_app()
+    # Mobile catalog needs venues fast; skip booking sync to avoid timeouts.
+    try:
+        sync_all_main_to_app(min_interval_seconds=60, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     queryset = _admin_base_venue_queryset().order_by("title")
     data = []
     for venue in queryset:
@@ -1184,27 +1195,14 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
 
 @ensure_csrf_cookie
 def admin_login_view(request: HttpRequest):
-    if request.user.is_authenticated and request.user.is_staff:
+    """Deprecated: redirect to the shared /auth/login/ page."""
+    if request.user.is_authenticated:
         return redirect(request.GET.get("next") or "/admin/")
 
-    form = AuthenticationForm(request, data=request.POST or None)
-    error_message = None
-
-    if request.method == "POST":
-        if form.is_valid():
-            user = form.get_user()
-            if not user.is_staff:
-                error_message = "Akun ini tidak memiliki akses ke Control Center."
-            else:
-                login(request, user)
-                next_url = request.POST.get("next") or request.GET.get("next") or "/admin/"
-                return redirect(next_url)
-        else:
-            error_message = "Username atau password salah."
-
-    next_url = request.GET.get("next") or request.POST.get("next") or "/admin/"
-    context = {"form": form, "error": error_message, "next": next_url}
-    return render(request, "app/admin_login.html", context)
+    next_url = (request.GET.get("next") or request.POST.get("next") or "/admin/").strip()
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = "/admin/"
+    return redirect(f"/auth/login/?{urlencode({'next': next_url})}")
 
 
 @login_required
@@ -1254,7 +1252,7 @@ def admin_panel(request: HttpRequest):
 @login_required
 def admin_logout_view(request: HttpRequest):
     logout(request)
-    return redirect("/admin/login/")
+    return redirect("/auth/login/")
 
 
 @login_required
