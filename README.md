@@ -1,10 +1,11 @@
-# RagaSpace
-[![Build Status](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/status.svg?token=8l3C6fh7DiaWRYezq6kBIw&branch=main)](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd)
-
-## Download
-https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-artifacts/83f6c87d02ff9f1b/public-install-page/28514b763be4390a1312a832286ec85e
+# 🌐 RagaSpace
 
 # Aplikasi Penyewaan Lapangan Olahraga
+
+[![Build Status](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/status.svg?token=8l3C6fh7DiaWRYezq6kBIw&branch=main)](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd)
+
+## 🔗 Download Link:
+https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-artifacts/83f6c87d02ff9f1b/public-install-page/28514b763be4390a1312a832286ec85e
 
 ## Anggota Kelompok :
 
@@ -19,17 +20,56 @@ https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-arti
 
 ## Deskripsi Aplikasi
 
-Aplikasi mobile ini merupakan platform penyewaan lapangan olahraga yang menghubungkan penyewa (user) dengan pemilik tempat (admin).
-Melalui aplikasi mobile ini, pengguna dapat dengan mudah mencari, membandingkan, dan menyewa berbagai jenis lapangan olahraga di kota-kota besar di Indonesia.
+RagaSpace Mobile adalah platform penyewaan lapangan olahraga yang menghubungkan penyewa (user) dengan pemilik tempat (admin). 
+Aplikasi ini memudahkan pengguna untuk mencari, membandingkan, dan menyewa berbagai jenis lapangan olahraga di kota-kota besar di Indonesia.
 
-Fitur utama aplikasi mobile ini mencakup pencarian **berdasarkan kategori olahraga, filter harga, like dan review, serta integrasi dengan pembayaran digital**.
-Bagi pemilik lapangan, aplikasi ini memudahkan pengelolaan data venue, fasilitas, jadwal ketersediaan, serta aturan yang berlaku.
+## Fitur Utama
+
+* Pencarian lapangan berdasarkan kategori olahraga dan lokasi
+* Filter dan sortir berdasarkan harga
+* Sistem like dan wishlist
+* Integrasi pembayaran digital
+* Pengelolaan venue untuk admin (jadwal, fasilitas, aturan)
 
 ## Kebermanfaatan:
 
 * Mempermudah masyarakat untuk menemukan dan menyewa lapangan olahraga.
 * Membantu pemilik lapangan dalam memasarkan fasilitas olahraga mereka secara online.
 * Meningkatkan aksesibilitas olahraga di kota besar maupun daerah.
+
+## Kategori Lapangan
+
+Aplikasi menyediakan 100+ lapangan di 10 kota besar Indonesia dengan kategori:
+
+* Padel
+* Tennis
+* Futsal
+* Volly Ball
+* Badminton
+* Basket
+* Billiard
+* Sepak Bola
+* Mini Soccer
+* Tenis Meja
+
+---
+
+## Role Pengguna
+
+1. User (Penyewa)
+
+* Melihat daftar lapangan berdasarkan kategori & lokasi
+* Menyewa lapangan dan melakukan pembayaran
+* Memberikan like pada lapangan favorit
+* Mengelola wishlist pribadi
+* Mengatur profil dan pengaturan akun
+
+2. Admin (Pemilik Tempat)
+
+* Menambahkan atau menghapus data lapangan
+* Mengatur deskripsi, fasilitas, dan aturan venue
+* Menentukan jadwal ketersediaan lapangan
+* Mengelola informasi harga dan lokasi
 
 ---
 
@@ -100,24 +140,28 @@ Setiap data mencakup:
 
 ---
 
-## Role atau Peran Pengguna
+## Screenshot
 
-1. User (Penyewa / Menyewa)
+* Home Screen
+<!-- ![Home Screen](screenshots/home.png) -->
+Screenshot akan ditambahkan
 
-   * Melihat daftar lapangan berdasarkan kategori & lokasi
-   * Menyewa lapangan
-   * Melakukan pembayaran
-   * Memberikan like & review
-   * Menyewa alat olahraga tambahan
+* Katalog Lapangan
+<!-- ![Katalog](screenshots/katalog.png) -->
+Screenshot akan ditambahkan
 
-2. Pemilik Tempat (Admin)
+* Detail & Booking
+<!-- ![Detail](screenshots/detail.png) -->
+Screenshot akan ditambahkan
 
-   * Menambahkan atau menghapus data lapangan
-   * Mengatur deskripsi, fasilitas, aturan venue, lokasi
-   * Menentukan jadwal ketersediaan lapangan
-   * Mengelola informasi harga
+* Wishlist
+<!-- ![Wishlist](screenshots/wishlist.png) -->
+Screenshot akan ditambahkan
 
----
+* Account Setting
+<!-- ![Setting](screenshots/setting.png) -->
+Screenshot akan ditambahkan
+
 
 ## Desain
 
@@ -125,10 +169,13 @@ Setiap data mencakup:
 
 ---
 
+## Alur Integrasi dengan Web Service
 
-
-
-
+┌─────────────┐     HTTP Request      ┌─────────────┐
+│   Flutter   │ ───────────────────▶  │   Django    │
+│   Mobile    │                       │   Backend   │
+│     App     │ ◀───────────────────  │   (REST)    │
+└─────────────┘    JSON Response      └─────────────┘
 
 Langkah-langkah Integrasi Aplikasi dengan Website :
 
@@ -143,3 +190,9 @@ Mengimplementasikan tampilan antarmuka aplikasi berdasarkan desain website yang 
 
 Integrasi Front-End dan Back-End secara Asinkron
 Menghubungkan front-end dengan API back-end menggunakan konsep asynchronous HTTP request agar komunikasi data lebih efisien dan responsif.
+
+___
+
+
+## Lisensi
+Proyek ini dikembangkan untuk keperluan Tugas Akhir Mata Kuliah Pemrograman Berbasis Platform (PBP) - Fakultas Ilmu Komputer, Universitas Indonesia, Semester Ganjil 2024/2025.
