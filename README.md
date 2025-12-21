@@ -186,9 +186,9 @@ Langkah-langkah Integrasi Aplikasi dengan Website :
 
 3. Mengimplementasikan REST API di Django
    Mengembangkan endpoint API pada Django melalui views.py dengan menggunakan JsonResponse atau Django JSON Serializer untuk memastikan data dikirim dalam format JSON yang konsisten.
-   a. Konfigurasi CORS dan Cookies di settings.py
-   b. Membuat endpoint API di views.py
-   c. Routing di urls.py
+   * a. Konfigurasi CORS dan Cookies di settings.py
+   * b. Membuat endpoint API di views.py
+   * c. Routing di urls.py
 
 4. Membuat Model Dart dari JSON
    Mengkonversi response JSON dari Django menjadi object Dart menggunakan model class dengan factory constructor.
@@ -207,23 +207,13 @@ Langkah-langkah Integrasi Aplikasi dengan Website :
 
 ## Ringkasan API
 
-Method             Endpoint            Fungsi                  Modul
-POST/              auth/login/         Login user              Autentikasi
-POST/              auth/register/      Register user baru      Autentikasi
-POST/              auth/logout/        Logout user             Autentikasi
-GET/               json/               Ambil semua venue       Katalog
-GET/               json/<id>/          Ambil detail venue      Product Detail
-POST/              create-flutter/     Tambah venue baru       Admin
-POST/              booking/create/     Buat booking            Booking
-GET/               wishlist/json/      Ambil wishlist user     Wishlist
-POST/              wishlist/add/       Tambah ke wishlist      Wishlist
-POST/              account/update/     Update profil user      Account Setting
-  
+<img width="518" height="342" alt="image" src="https://github.com/user-attachments/assets/38bd7bc8-7c12-44ec-b3cc-7706128f952e" />
+
 ___
 
 ## Catatan
-Username admin: dinova
-Password admin: dinova132
+* Username admin: dinova
+* Password admin: dinova132
 
 ---
 
