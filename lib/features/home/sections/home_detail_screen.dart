@@ -441,20 +441,6 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
   }
 
   Future<void> _openBookingDialog(BuildContext context) async {
-    final phone = (_accountPhoneNumber ?? '').trim();
-    if (phone.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Tambahkan nomor telepon di Account settings sebelum booking.',
-            ),
-          ),
-        );
-      }
-      _openAccountSettings();
-      return;
-    }
     await _loadBookedRanges();
     if (!context.mounted) return;
     final summary = await _showBookingDialog(context);
@@ -1067,7 +1053,7 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
               ).pop(_ReviewDraft(rating: rating, comment: text));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1FA2FF),
+              backgroundColor: const Color(0xFF1B89AE),
               foregroundColor: Colors.white,
             ),
             child: const Text('Simpan'),
@@ -1203,9 +1189,27 @@ class _VenueDetailScreenState extends State<_VenueDetailScreen> {
             ),
           )
           .toList();
+      final ratings = parsed
+          .map((review) => review.rating)
+          .where((rating) => rating >= 1 && rating <= 5)
+          .toList();
+      final averageRating = ratings.isEmpty
+          ? 0.0
+          : ratings.reduce((a, b) => a + b) / ratings.length;
       if (!mounted) return;
       setState(() {
         _reviews = parsed;
+        data = _VenueCardData(
+          category: data.category,
+          name: data.name,
+          location: data.location,
+          description: data.description,
+          price: data.price,
+          rating: averageRating.toDouble(),
+          imageUrl: data.imageUrl,
+          id: data.id,
+          addons: data.addons,
+        );
         _loadingReviews = false;
       });
     } catch (err) {

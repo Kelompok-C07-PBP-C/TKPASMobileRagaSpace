@@ -1,9 +1,8 @@
 # RagaSpace
-[![Build Status](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/status.svg?token=8l3C6fh7DiaWRYezq6kBIw&branch=main&workflow=deploy&v=20251220)](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd)
-
+[![Build Status](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/status.svg?token=8l3C6fh7DiaWRYezq6kBIw&branch=main)](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd)
 
 ## Download
-Download our latest version of RagaSpace! [Download _RagaSpace_ APK](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-artifacts/af1304a58e0452a4/public-install-page/d05d7eb2b7daccc63c885ebdf9f8b049)
+https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-artifacts/83f6c87d02ff9f1b/public-install-page/28514b763be4390a1312a832286ec85e
 
 # Aplikasi Penyewaan Lapangan Olahraga
 

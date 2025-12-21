@@ -501,7 +501,7 @@ class _BookingDialogState extends State<_BookingDialog> {
         onPressed: _submitting ? null : _submit,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          backgroundColor: const Color(0xFF1FA2FF),
+          backgroundColor: const Color(0xFF1B89AE),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -818,7 +818,7 @@ class _BookingConfirmationCard extends StatelessWidget {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [Color(0xFF1FA2FF), Color(0xFF6B7CFF)],
+                colors: [Color(0xFF1B89AE), Color(0xFF0EA5E9)],
               ),
             ),
             child: const Icon(Icons.auto_awesome, color: Colors.white),
@@ -893,7 +893,7 @@ class _BookingConfirmationCard extends StatelessWidget {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                backgroundColor: const Color(0xFF1FA2FF),
+                backgroundColor: const Color(0xFF1B89AE),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:tk2ragaspace/features/admin/admin_dashboard_screen.dart';
+import 'package:tk2ragaspace/services/api.dart';
 import 'package:tk2ragaspace/theme/aurora_palette.dart';
 import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
 import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
@@ -41,11 +42,25 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   Future<void> _navigateToHome() async {
     if (loadingScreenDisableAutoNavigateForTests) return;
+    final adminFuture = Api().resolveAdminStatus();
     await Future<void>.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      AuroraWarpRoute(const HomeScreen()),
-    );
+
+    Widget destination = const HomeScreen();
+    try {
+      final isAdmin = await adminFuture.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => false,
+      );
+      if (isAdmin) {
+        destination = const AdminDashboardScreen();
+      }
+    } catch (_) {
+      // Fall back to the user home screen when the backend is unreachable.
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(AuroraWarpRoute(destination));
   }
 
   @override

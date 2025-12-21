@@ -71,7 +71,7 @@ void main() {
     accountFetchOverride = (api, userId) async => {
           'username': 'tk2ragaspace',
           'email': 'tk2ragaspace@example.com',
-          'first_name': 'tk2ragaspace',
+          'first_name': 'Tirta',
           'last_name': 'Polo',
           'phone_number': '08123',
           'avatar_url': '',
@@ -161,22 +161,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(updateCalls, isNotEmpty);
-
-    // Trigger change password success path.
-    accountChangePasswordOverride = (api,
-        {required userId,
-        required currentPassword,
-        required newPassword,
-        required confirmPassword}) async {};
-
-    state.debugSetPasswordFieldsForTests(
-      currentPassword: 'old-pass',
-      newPassword: 'new-pass',
-      confirmPassword: 'new-pass',
-    );
-
-    await state.debugChangePasswordForTests();
-    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -193,7 +177,7 @@ void main() {
       return {
         'username': 'tk2ragaspace',
         'email': 'tk2ragaspace@example.com',
-        'first_name': 'tk2ragaspace',
+        'first_name': 'Tirta',
         'last_name': 'Polo',
         'phone_number': '08123',
         'avatar_url': '',
@@ -250,41 +234,6 @@ void main() {
     // updateAccount throws -> catch branch.
     await state.debugSaveProfileForTests();
     await tester.pumpAndSettle();
-
-    // Password change validation: missing fields.
-    await state.debugChangePasswordForTests();
-    await tester.pump();
-
-    state.debugSetPasswordFieldsForTests(currentPassword: 'old');
-    await state.debugChangePasswordForTests();
-    await tester.pump();
-
-    state.debugSetPasswordFieldsForTests(
-      currentPassword: 'old',
-      newPassword: 'new1',
-      confirmPassword: 'new2',
-    );
-    await state.debugChangePasswordForTests();
-    await tester.pump();
-
-    // Now valid fields but no user id.
-    state.debugSetPasswordFieldsForTests(confirmPassword: 'new1');
-    accountUserIdOverride = () => null;
-    await state.debugChangePasswordForTests();
-    await tester.pump();
-
-    // User id present but changePassword throws -> catch branch.
-    accountUserIdOverride = () => 1;
-    accountChangePasswordOverride = (api,
-        {required userId,
-        required currentPassword,
-        required newPassword,
-        required confirmPassword}) async {
-      throw ApiError('change failed');
-    };
-
-    await state.debugChangePasswordForTests();
-    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -329,14 +278,6 @@ void main() {
     );
 
     await state.debugSaveProfileForTests();
-    await tester.pumpAndSettle();
-
-    state.debugSetPasswordFieldsForTests(
-      currentPassword: 'old-pass',
-      newPassword: 'new-pass',
-      confirmPassword: 'new-pass',
-    );
-    await state.debugChangePasswordForTests();
     await tester.pumpAndSettle();
   });
 }

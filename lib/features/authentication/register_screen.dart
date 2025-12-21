@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api.dart';
 import '../../widgets/auth_background.dart';
@@ -43,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created')),
+          const SnackBar(content: Text('Registration successful. Please login.')),
         );
       }
     } catch (e) {
@@ -184,7 +185,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () => setState(() => _obscure = !_obscure),
                           ),
                         ).applyDefaults(decorationTheme),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
+                        validator: (v) {
+                          final value = (v ?? '').trim();
+                          if (value.isEmpty) return 'Enter password';
+                          if (value.length < 8) {
+                            return 'Password must be at least 8 characters';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -200,7 +208,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                           ),
                         ).applyDefaults(decorationTheme),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Confirm password' : null,
+                        validator: (v) {
+                          final value = (v ?? '').trim();
+                          if (value.isEmpty) return 'Confirm password';
+                          if (value != _passCtrl.text) return 'Passwords do not match';
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 14),
                       AnimatedSwitcher(
@@ -217,7 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                       ),
                       const SizedBox(height: 20),
-                      GradientButton(label: 'Sign Up', onPressed: _loading ? null : _register, loading: _loading),
+                      GradientButton(label: 'Register', onPressed: _loading ? null : _register, loading: _loading),
                     ],
                   ),
                 ),
@@ -229,7 +242,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withValues(alpha: 0.8),
                   ),
-                  child: const Text('Already have an account? Sign In'),
+                  child: const Text('Already have an account? Login'),
                 ),
               ),
             ],
@@ -257,29 +270,47 @@ class _RegisterHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                colors: [scheme.primary, scheme.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               boxShadow: [
-                BoxShadow(color: scheme.primary.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 12)),
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 12),
+                ),
               ],
             ),
-            child: Icon(Icons.mobile_friendly_rounded, color: scheme.primary, size: 30),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: SvgPicture.asset(
+                'assets/ragaspace-logo.svg',
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Register',
+                Text('Register to RagaSpace',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     )),
                 const SizedBox(height: 6),
                 Text(
-                  'Create an account to unlock all features.',
+                  'Create your account to get started.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.75),
                     height: 1.5,

@@ -446,7 +446,7 @@
   <div class="w-full px-3 py-16 sm:px-8 lg:px-10" data-animate>
     <div class="flex flex-col items-center gap-3 text-center">
       <h2 class="text-3xl font-semibold text-white drop-shadow-[0_8px_30px_rgba(14,165,233,0.4)]">Top 3 Venues</h2>
-      <p class="text-sm text-white/70">Handpicked places loved by the RagaSpace community.</p>
+      <p class="text-sm text-white/70">Most booked venues on RagaSpace.</p>
     </div>
     <div id="catalog-grid" class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {% for venue in popular_venues|slice:":3" %}
@@ -472,6 +472,7 @@
               alt="Foto testimoni {{ testimonials.0.name }}"
               loading="lazy"
               decoding="async"
+              onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ testimonials.0.name|urlencode }}&background=132548&color=ffffff&size=256&rounded=true&bold=true';"
               class="h-40 w-40 rounded-3xl object-cover shadow-xl shadow-cyan-500/30 sm:h-56 sm:w-56 sm:rounded-[3rem]"
             />
             {% endif %}
@@ -542,6 +543,40 @@
     let isAnimating = false;
     const intervalDuration = 4000;
 
+    const uiAvatarUrl = (name) => {
+      const safeName = (name || "User").toString().trim() || "User";
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=132548&color=ffffff&size=256&rounded=true&bold=true`;
+    };
+
+    const setTestimonialImage = (testimonial) => {
+      if (!imageEl) {
+        return;
+      }
+
+      const name = testimonial?.name || "User";
+      const primaryUrl = testimonial?.image || "";
+      const fallbackUrl = uiAvatarUrl(name);
+      const useFallbackDirectly = !primaryUrl;
+
+      imageEl.dataset.fallbackApplied = useFallbackDirectly ? "1" : "0";
+      imageEl.classList.remove("hidden");
+      imageEl.alt = `Foto testimoni ${name}`;
+
+      imageEl.onload = () => {
+        imageEl.classList.remove("hidden");
+      };
+      imageEl.onerror = () => {
+        if (imageEl.dataset.fallbackApplied === "1") {
+          imageEl.classList.add("hidden");
+          return;
+        }
+        imageEl.dataset.fallbackApplied = "1";
+        imageEl.src = fallbackUrl;
+      };
+
+      imageEl.src = useFallbackDirectly ? fallbackUrl : primaryUrl;
+    };
+
     const updateIndicators = (index) => {
       indicators.forEach((indicator, indicatorIndex) => {
         indicator.classList.toggle("bg-cyan-400/80", indicatorIndex === index);
@@ -573,16 +608,7 @@
         }
 
         // Update content
-        if (imageEl) {
-          imageEl.onload = () => {
-            imageEl.classList.remove("hidden");
-          };
-          imageEl.onerror = () => {
-            imageEl.classList.add("hidden");
-          };
-          imageEl.src = testimonial.image;
-          imageEl.alt = `Foto testimoni ${testimonial.name}`;
-        }
+        setTestimonialImage(testimonial);
         nameEl.textContent = testimonial.name;
         roleEl.textContent = testimonial.role;
 
@@ -625,16 +651,7 @@
         const testimonial = testimonials[index];
         if (!testimonial) return;
 
-        if (imageEl) {
-          imageEl.onload = () => {
-            imageEl.classList.remove("hidden");
-          };
-          imageEl.onerror = () => {
-            imageEl.classList.add("hidden");
-          };
-          imageEl.src = testimonial.image;
-          imageEl.alt = `Foto testimoni ${testimonial.name}`;
-        }
+        setTestimonialImage(testimonial);
         nameEl.textContent = testimonial.name;
         roleEl.textContent = testimonial.role;
 

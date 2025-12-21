@@ -1,6 +1,8 @@
 import json
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
+from decimal import Decimal
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
@@ -10,7 +12,7 @@ from django.test import TestCase, Client, RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
-from . import views, sample_data, forms as app_forms
+from . import views, sample_data, forms as app_forms, models as app_models
 from .models import (
     Venue,
     Booking,
@@ -31,7 +33,7 @@ class AuthApiTests(TestCase):
     def test_register_success_and_me(self):
         res = self.client.post(
             reverse('app:api-register'),
-            data={"username": "alice", "password": "pass123", "email": "a@example.com"},
+            data={"username": "alice", "password": "MySecurePass123!", "email": "a@example.com"},
             content_type='application/json'
         )
         self.assertEqual(res.status_code, 200, res.content)
@@ -641,8 +643,8 @@ class AccountViewsTests(TestCase):
         password_payload_ok = {
             "user_id": self.user.id,
             "current_password": "x",
-            "new_password": "newpw",
-            "confirm_password": "newpw",
+            "new_password": "NewSecurePass123!",
+            "confirm_password": "NewSecurePass123!",
         }
         response_password_ok = self.client.post(
             reverse("app:api-account-password"),
@@ -987,6 +989,82 @@ class WishlistAndReviewViewsTests(TestCase):
         self.assertEqual(response_delete.status_code, 200)
 
 
+class ReviewSyncAndVenueResolutionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="syncuser", password="x")
+        Category = apps.get_model("manajemen_lapangan", "Category")
+        MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+        self.category = Category.objects.create(name="Tennis Sync", slug="tennis-sync")
+        self.main_venue = MLVenue.objects.create(
+            category=self.category,
+            name="Sync Venue",
+            slug="original-slug",
+            description="Desc",
+            location="Location",
+            city="Jakarta",
+            address="",
+            price_per_hour=Decimal("100000.00"),
+            capacity=1,
+            facilities="wifi",
+            image_url="",
+            available_start_time=time(7, 0),
+            available_end_time=time(22, 0),
+        )
+        self.app_venue = Venue.objects.create(
+            title="Sync Venue",
+            description="Desc",
+            facilities=[],
+            addons=[],
+            price=100000,
+            location="Jakarta, Location",
+            image_url="",
+            type=Venue.VenueType.TENNIS,
+        )
+
+    def test_resolve_main_venue_links_existing_and_preserves_slug(self):
+        MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+        resolved = app_models._resolve_main_venue(self.app_venue)
+        self.assertEqual(resolved.pk, self.main_venue.pk)
+        self.app_venue.refresh_from_db()
+        self.main_venue.refresh_from_db()
+        self.assertEqual(self.app_venue.linked_venue_id, self.main_venue.pk)
+        self.assertEqual(self.main_venue.slug, "original-slug")
+        self.assertEqual(
+            MLVenue.objects.filter(name__iexact="Sync Venue", city__iexact="Jakarta").count(),
+            1,
+        )
+
+    def test_review_edit_and_delete_syncs_to_app_comment(self):
+        Review = apps.get_model("interaksi", "Review")
+
+        self.app_venue.linked_venue_id = self.main_venue.pk
+        self.app_venue.save(update_fields=["linked_venue_id"])
+
+        review = Review.objects.create(
+            user=self.user,
+            venue=self.main_venue,
+            rating=5,
+            comment="Hello",
+        )
+
+        comment = Comment.objects.filter(linked_review_id=review.pk).first()
+        self.assertIsNotNone(comment)
+        assert comment is not None  # for type checkers
+        self.assertEqual(comment.rating, 5)
+        self.assertEqual(comment.comment, "Hello")
+        self.assertTrue(CommentVenue.objects.filter(comment=comment, venue=self.app_venue).exists())
+
+        review.rating = 3
+        review.comment = "Updated"
+        review.save()
+        comment.refresh_from_db()
+        self.assertEqual(comment.rating, 3)
+        self.assertEqual(comment.comment, "Updated")
+
+        review.delete()
+        self.assertFalse(Comment.objects.filter(pk=comment.pk).exists())
+
+
 class AdminHelpersAndViewsTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -1082,19 +1160,8 @@ class AdminHelpersAndViewsTests(TestCase):
 
     def test_admin_login_panel_logout_and_json_apis(self):
         response_get_login = self.client.get(reverse("html-admin-login"))
-        self.assertEqual(response_get_login.status_code, 200)
-
-        login_failed = self.client.post(
-            reverse("html-admin-login"),
-            {"username": "admin", "password": "wrong"},
-        )
-        self.assertEqual(login_failed.status_code, 200)
-
-        login_ok = self.client.post(
-            reverse("html-admin-login"),
-            {"username": "admin", "password": "x"},
-        )
-        self.assertEqual(login_ok.status_code, 302)
+        self.assertEqual(response_get_login.status_code, 302)
+        self.assertIn("/auth/login/", response_get_login["Location"])
 
         self.client.force_login(self.staff_user)
         panel_response = self.client.get(reverse("html-admin-panel"))

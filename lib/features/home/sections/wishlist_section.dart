@@ -290,6 +290,7 @@ mixin _HomeWishlistSection on _HomeScreenCore {
 
   @override
   Future<void> _toggleWishlist(_VenueCardData data) async {
+    if (!await _ensureLoggedIn()) return;
     final key = data.storageKey;
     final adding = !_wishlistKeys.contains(key);
     final previousList = List<_VenueCardData>.from(_wishlist);

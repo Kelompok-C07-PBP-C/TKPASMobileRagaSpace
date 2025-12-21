@@ -39,6 +39,8 @@ dependencies:
   visibility_detector: ^0.4.0+2
   shared_preferences: ^2.2.3
   image_picker: ^1.1.2
+  fl_chart: ^1.1.1
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +67,7 @@ flutter:
   assets:
     - assets/hero_gradient.png
     - assets/twinkle_stars.png
+    - assets/ragaspace-logo.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

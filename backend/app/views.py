@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
@@ -17,6 +18,13 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 
 from .forms import BookingForm, VenueForm
 from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue, WishlistEntry
+
+
+@require_GET
+@ensure_csrf_cookie
+def csrf_view(request: HttpRequest):
+    token = get_token(request)
+    return JsonResponse({"success": True, "csrfToken": token})
 
 
 
@@ -288,7 +296,15 @@ def login_view(request: HttpRequest):
         return JsonResponse({"detail": "invalid credentials"}, status=401)
 
     login(request, user)
-    return JsonResponse({"id": user.id, "username": user.username})
+    return JsonResponse(
+        {
+            "id": user.id,
+            "username": user.username,
+            "is_staff": bool(user.is_staff),
+            "is_superuser": bool(user.is_superuser),
+            "is_admin": bool(user.is_staff or user.is_superuser),
+        }
+    )
 
 
 @csrf_exempt
@@ -321,6 +337,9 @@ def _serialize_user_account(user, request: HttpRequest | None = None):
         "last_name": user.last_name,
         "avatar_url": avatar_url,
         "phone_number": profile.phone_number,
+        "is_staff": bool(user.is_staff),
+        "is_superuser": bool(user.is_superuser),
+        "is_admin": bool(user.is_staff or user.is_superuser),
     }
 
 
@@ -1279,7 +1298,5 @@ def admin_users_search_api(request: HttpRequest):
             "meta": {"has_users": UserModel.objects.exists()},
         }
     )
-
-
 
 

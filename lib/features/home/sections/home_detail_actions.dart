@@ -75,7 +75,7 @@ class _AddonCheckboxTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: selected
-                ? const Color(0xFF1FA2FF)
+                ? const Color(0xFF1B89AE)
                 : Colors.white.withValues(alpha: 0.18),
           ),
           color: Colors.white.withValues(alpha: 0.03),
@@ -86,7 +86,7 @@ class _AddonCheckboxTile extends StatelessWidget {
             Checkbox(
               value: selected,
               onChanged: (value) => onChanged(value ?? false),
-              activeColor: const Color(0xFF1FA2FF),
+              activeColor: const Color(0xFF1B89AE),
               side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),

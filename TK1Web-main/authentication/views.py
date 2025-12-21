@@ -4,13 +4,15 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib import messages
-from django.contrib.auth import logout
+from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.forms import PasswordChangeForm
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
@@ -19,7 +21,7 @@ from katalog.filters import VenueFilter
 from manajemen_lapangan.models import Venue
 from rent.models import Booking, Payment
 
-from .forms import LoginForm, RegistrationForm
+from .forms import LoginForm, RegistrationForm, ProfileUpdateForm
 from .mixins import AdminRequiredMixin, EnsureCsrfCookieMixin
 
 
@@ -29,7 +31,8 @@ class AuthLoginView(LoginView):
     authentication_form = LoginForm
 
     def get_success_url(self) -> str:
-        return reverse("home")
+        redirect_url = self.get_redirect_url()
+        return redirect_url or reverse("home")
 
     def _wants_json(self) -> bool:
         request = self.request
@@ -57,9 +60,9 @@ class AuthLoginView(LoginView):
 
 
 class AuthLogoutView(LoginRequiredMixin, View):
-    """Log out the current user and redirect them to the login page."""
+    """Log out the current user and redirect them to the homepage."""
 
-    success_url = reverse_lazy("authentication:login")
+    success_url = reverse_lazy("home")
 
     def _logout(self, request: HttpRequest) -> None:
         logout(request)
@@ -84,6 +87,71 @@ class RegisterView(FormView):
         return super().form_valid(form)
 
 
+class ProfileView(LoginRequiredMixin, TemplateView):
+    template_name = "authentication/profile.html"
+
+    def _resolve_next_url(self, request: HttpRequest) -> str:
+        raw_next = (request.POST.get("next") or request.GET.get("next") or "").strip()
+        if not raw_next:
+            return ""
+        if not url_has_allowed_host_and_scheme(raw_next, allowed_hosts={request.get_host()}):
+            return ""
+        return raw_next
+
+    def _build_password_form(self, data=None) -> PasswordChangeForm:
+        form = PasswordChangeForm(user=self.request.user, data=data)
+        for field in form.fields.values():
+            field.widget.attrs.setdefault(
+                "class",
+                "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
+            )
+        return form
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "profile_form": ProfileUpdateForm(instance=self.request.user),
+                "password_form": self._build_password_form(),
+                "next_url": self._resolve_next_url(self.request),
+            }
+        )
+        return context
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        next_url = self._resolve_next_url(request)
+        if "update_profile" in request.POST:
+            profile_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+            password_form = self._build_password_form()
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Profile updated successfully.")
+                return redirect(next_url or "authentication:profile")
+            messages.error(request, "Unable to update profile. Please check the form.")
+        elif "change_password" in request.POST:
+            password_form = self._build_password_form(data=request.POST)
+            profile_form = ProfileUpdateForm(instance=request.user)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password updated successfully.")
+                return redirect(next_url or "authentication:profile")
+            messages.error(request, "Unable to update password. Please check the form.")
+        else:
+            profile_form = ProfileUpdateForm(instance=request.user)
+            password_form = self._build_password_form()
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "password_form": password_form,
+                "next_url": next_url,
+            },
+        )
+
+
 class HomeView(EnsureCsrfCookieMixin, TemplateView):
     template_name = "authentication/home.html"
 
@@ -92,7 +160,7 @@ class HomeView(EnsureCsrfCookieMixin, TemplateView):
         venue_filter = VenueFilter(self.request.GET, queryset=Venue.objects.all())
         popular_venues = (
             Venue.objects.annotate(bookings_count=Count("bookings"))
-            .order_by("-bookings_count")
+            .order_by("-bookings_count", "-id")
             .prefetch_related("addons")[:3]
         )
         wishlist_ids: set[int] = set()

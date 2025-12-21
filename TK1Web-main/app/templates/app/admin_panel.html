@@ -55,7 +55,7 @@
           class="nav-link nav-link--logout"
           data-icon="⏻"
         >
-          <span class="nav-label">Log out</span>
+          <span class="nav-label">Logout</span>
         </a>
       </div>
     </aside>
@@ -103,22 +103,25 @@
               </article>
             </div>
           </div>
-          <div class="surface-card surface-card--table">
-            <div class="table-controls">
-              <label class="search-field">
-                <span class="sr-only">Search venues</span>
-                <input
-                  type="search"
-                  data-search-input="venues"
-                  placeholder="Search venues"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-              </label>
-            </div>
-            <div class="table-wrapper" data-table-wrapper="venues">
-              <table class="data-table" data-table-section="venues">
-                <thead>
+            <div class="surface-card surface-card--table">
+              <div class="table-controls">
+                <label class="search-field">
+                  <span class="sr-only">Search venues</span>
+                  <input
+                    type="search"
+                    data-search-input="venues"
+                    placeholder="Search venues"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </label>
+                <button class="secondary-btn" type="button" data-action="search-venues">
+                  Search
+                </button>
+              </div>
+              <div class="table-wrapper" data-table-wrapper="venues">
+                <table class="data-table" data-table-section="venues">
+                  <thead>
                   <tr>
                     <th
                       scope="col"
@@ -241,6 +244,9 @@
                   spellcheck="false"
                 />
               </label>
+              <button class="secondary-btn" type="button" data-action="search-bookings">
+                Search
+              </button>
               <button
                 class="secondary-btn"
                 type="button"
@@ -531,5 +537,3 @@
   {{ analytics.sales|json_script:"sales-chart-data" }}
   {{ analytics.popularity|json_script:"popularity-chart-data" }}
 {% endblock %}
-
-

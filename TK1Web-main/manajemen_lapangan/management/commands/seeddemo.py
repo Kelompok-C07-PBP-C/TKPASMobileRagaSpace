@@ -490,13 +490,21 @@ class Command(BaseCommand):
                 "reference_code": "VS-DEMO-0001",
             },
         )
-        Review.objects.update_or_create(
-            user=user,
-            venue=booking.venue,
-            defaults={
-                "rating": 5,
-                "comment": "Fantastic facility with spotless amenities and friendly staff!",
-            },
+        demo_review = (
+            Review.objects.filter(user=user, venue=booking.venue)
+            .order_by("-created_at")
+            .first()
         )
+        if demo_review is None:
+            Review.objects.create(
+                user=user,
+                venue=booking.venue,
+                rating=5,
+                comment="Fantastic facility with spotless amenities and friendly staff!",
+            )
+        else:
+            demo_review.rating = 5
+            demo_review.comment = "Fantastic facility with spotless amenities and friendly staff!"
+            demo_review.save(update_fields=["rating", "comment", "updated_at"])
         Wishlist.objects.get_or_create(user=user, venue=booking.venue)
         self.stdout.write(self.style.SUCCESS("Sample booking, payment, and review are ready."))

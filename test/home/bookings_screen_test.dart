@@ -62,10 +62,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Header and filter chips rendered.
-    expect(find.text('Booked Venues'), findsOneWidget);
-    expect(find.text('Semua'), findsOneWidget);
-    expect(find.text('Paid'), findsOneWidget);
-    expect(find.text('Belum dibayar'), findsOneWidget);
+    expect(find.text('Booked places'), findsOneWidget);
+    expect(find.text('Semua'), findsWidgets);
+    expect(find.byType(DropdownButton<String>), findsNWidgets(2));
 
     // Booking cards rendered.
     final cardFinder = find.byWidgetPredicate(
@@ -82,10 +81,20 @@ void main() {
     expect(selected, isNotEmpty);
 
     // Change filters to exercise _BookingFilterBar and _filteredBookings logic.
-    await tester.tap(find.text('Paid'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Belum dibayar'));
-    await tester.pumpAndSettle();
+    Future<void> selectStatus(String value) async {
+      // Second dropdown in the filter bar is the "Status" selector.
+      await tester.tap(find.byType(DropdownButton<String>).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(value).last);
+      await tester.pumpAndSettle();
+    }
+
+    await selectStatus('Sudah bayar');
+    expect(find.text('Harborview Badminton Center'), findsOneWidget);
+    expect(find.text('Aurora Sports Dome'), findsNothing);
+
+    await selectStatus('Belum bayar');
+    expect(find.text('Aurora Sports Dome'), findsOneWidget);
 
     // Tap back button once to exercise the header onBack callback.
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
@@ -139,7 +148,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // With only a pending booking, filter "Paid" yields no data message.
-    await tester.tap(find.text('Paid'));
+    await tester.tap(find.byType(DropdownButton<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sudah bayar').last);
     await tester.pumpAndSettle();
     expect(
       find.text('Belum ada booking yang sudah dibayar.'),
@@ -159,8 +170,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Belum dibayar'));
+    await tester.tap(find.byType(DropdownButton<String>).at(1));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Belum bayar').last);
+    await tester.pumpAndSettle();
+    final statusDropdown = tester.widget<DropdownButton<String>>(
+      find.byType(DropdownButton<String>).at(1),
+    );
+    expect(statusDropdown.value, 'Belum bayar');
+    expect(
+      find.text('Semua booking masih menunggu konfirmasi.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('BookingsScreen cancel booking success removes card',

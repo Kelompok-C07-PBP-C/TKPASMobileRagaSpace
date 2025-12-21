@@ -1,8 +1,8 @@
 part of 'package:tk2ragaspace/features/home/home_screen.dart';
 
 const _backgroundGradient = AuroraPalette.sky;
-const _ctaBlue = Color(0xFF1FA2FF);
-const _ctaTeal = Color(0xFF2CD5FF);
+const _ctaBlue = Color(0xFF1B89AE);
+const _ctaTeal = Color(0xFF0EA5E9);
 const _imageFallbackGradient = LinearGradient(
   colors: [Color(0xFF132548), Color(0xFF1E3C6B)],
   begin: Alignment.topLeft,

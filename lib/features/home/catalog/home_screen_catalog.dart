@@ -27,6 +27,8 @@ class _ProductCatalogScreen extends StatefulWidget {
 }
 
 class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
+  static const String _catalogCacheKeyPrefix = 'catalog_cache:';
+
   late String _city;
   late String _category;
   late String _price;
@@ -34,6 +36,11 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
   bool _loading = true;
   String? _error;
   late Set<String> _favoriteKeys;
+
+  String get _catalogCacheKey {
+    final encodedBaseUrl = base64Url.encode(utf8.encode(widget.apiBaseUrl));
+    return '$_catalogCacheKeyPrefix$encodedBaseUrl';
+  }
 
   @override
   void initState() {
@@ -87,7 +94,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                           ),
                           const SizedBox(width: 16),
                           Text(
-                            'Product Catalog',
+                            'Venue catalog',
                             style: GoogleFonts.plusJakartaSans(
                               color: Colors.white,
                               fontSize: 20,
@@ -171,7 +178,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
-                                  backgroundColor: const Color(0xFF1FA2FF),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -233,7 +241,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                 ElevatedButton.icon(
                                   onPressed: _fetchProducts,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1FA2FF),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 20,
@@ -285,7 +294,8 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                               ElevatedButton.icon(
                                 onPressed: _resetFilters,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1FA2FF),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20,
@@ -349,17 +359,28 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       _loading = true;
       _error = null;
     });
+
     try {
       final uri = Uri.parse('${widget.apiBaseUrl}/api/venues/');
       final getFn = catalogHttpGetOverride ?? http.get;
-      final res = await getFn(uri).timeout(const Duration(seconds: 8));
+      http.Response res;
+      try {
+        res = await getFn(uri).timeout(const Duration(seconds: 15));
+      } on TimeoutException {
+        res = await getFn(uri).timeout(const Duration(seconds: 25));
+      }
       if (res.statusCode != 200) {
         throw Exception('Failed to load venues');
       }
-      final decoded = jsonDecode(res.body) as List<dynamic>;
+
+      final decoded = jsonDecode(res.body);
+      if (decoded is! List) {
+        throw Exception('Unexpected catalog payload');
+      }
+
       final fetched = decoded
-          .map((raw) {
-            final map = raw as Map<String, dynamic>;
+          .whereType<Map<String, dynamic>>()
+          .map((map) {
             final location = (map['location'] ?? '').toString();
             final city = (map['city'] ?? '').toString();
             return _CatalogProduct(
@@ -379,15 +400,111 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
           })
           .where((product) => product.title.isNotEmpty)
           .toList();
+
+      if (!mounted) return;
       setState(() {
         _products = fetched;
         _loading = false;
       });
+      await _cacheCatalogResponse(res.body);
     } catch (err) {
+      final cached = await _loadCachedCatalog();
+      if (!mounted) return;
+
+      if (cached != null && cached.isNotEmpty) {
+        setState(() {
+          _products = cached;
+          _error = null;
+          _loading = false;
+        });
+        _showCatalogSnack(
+          'Menampilkan katalog terakhir. Tarik untuk refresh.',
+        );
+        return;
+      }
+
+      if (_products.isNotEmpty) {
+        setState(() {
+          _error = null;
+          _loading = false;
+        });
+        _showCatalogSnack(
+          'Gagal memperbarui katalog. Tarik untuk refresh.',
+        );
+        return;
+      }
+
       setState(() {
         _error = 'Tidak bisa memuat katalog. Tarik untuk refresh.';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _cacheCatalogResponse(String body) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_catalogCacheKey, body);
+    } catch (_) {
+      // ignore cache failures
+    }
+  }
+
+  Future<List<_CatalogProduct>?> _loadCachedCatalog() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(_catalogCacheKey);
+      if (cached == null || cached.trim().isEmpty) {
+        return null;
+      }
+      final decoded = jsonDecode(cached);
+      if (decoded is! List) {
+        return null;
+      }
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((map) {
+            final location = (map['location'] ?? '').toString();
+            final city = (map['city'] ?? '').toString();
+            return _CatalogProduct(
+              id: map['id'] is int
+                  ? map['id'] as int
+                  : int.tryParse(map['id']?.toString() ?? ''),
+              title: (map['title'] ?? '').toString(),
+              category: (map['type'] ?? '').toString(),
+              city: city.isNotEmpty ? city : (location.split(',').first.trim()),
+              description: (map['description'] ?? '').toString(),
+              price: int.tryParse(map['price']?.toString() ?? '') ?? 0,
+              rating:
+                  double.tryParse(map['average_rating']?.toString() ?? '') ?? 0,
+              imageUrl: (map['image_url'] ?? '').toString(),
+              addons: _VenueCardData._parseAddons(map['addons']),
+            );
+          })
+          .where((product) => product.title.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _showCatalogSnack(String message) {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: Colors.black.withValues(alpha: 0.8),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      );
+    } catch (_) {
+      // ignore if scaffold isn't ready
     }
   }
 

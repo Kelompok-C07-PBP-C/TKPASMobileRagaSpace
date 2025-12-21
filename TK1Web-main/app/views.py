@@ -1,17 +1,23 @@
 from datetime import datetime
 import json
 from typing import Any
+from urllib.parse import urlencode
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.apps import apps
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -19,6 +25,17 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from .forms import BookingForm, VenueForm
 from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue, WishlistEntry
 from .sync import sync_all_main_to_app
+
+
+_BOOKING_ANALYTICS_CACHE: dict[str, dict[str, list]] | None = None
+_BOOKING_ANALYTICS_CACHE_AT: datetime | None = None
+
+
+@require_GET
+@ensure_csrf_cookie
+def csrf_view(request: HttpRequest):
+    token = get_token(request)
+    return JsonResponse({"success": True, "csrfToken": token})
 
 
 
@@ -270,6 +287,68 @@ def _sync_legacy_wishlist_for_user(user):
         WishlistEntry.objects.get_or_create(user=user, venue=app_venue)
 
 
+def _sync_legacy_reviews_for_venue(app_venue: Venue) -> None:
+    """
+    Ensure TK1Web's interaksi.Review rows are mirrored into the app-level
+    Comment table so the mobile API and the web venue detail page stay aligned.
+    """
+    if not app_venue.linked_venue_id:
+        return
+
+    Review = apps.get_model("interaksi", "Review")
+    legacy_reviews = (
+        Review.objects.filter(venue_id=app_venue.linked_venue_id)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+    if not legacy_reviews.exists():
+        return
+
+    for review in legacy_reviews:
+        # Reviews always have a user, but stay defensive.
+        if not getattr(review, "user_id", None):
+            continue
+        desired_date = None
+        created_at = getattr(review, "created_at", None)
+        if created_at:
+            try:
+                desired_date = created_at.date()
+            except Exception:
+                desired_date = None
+        desired_date = desired_date or timezone.localdate()
+
+        comment = Comment.objects.filter(linked_review_id=review.pk).first()
+        if comment is None:
+            comment = Comment.objects.create(
+                user=review.user,
+                rating=int(review.rating),
+                comment=str(review.comment or ""),
+                date=desired_date,
+                linked_review_id=review.pk,
+            )
+        else:
+            updates: list[str] = []
+            if comment.user_id != review.user_id:
+                comment.user = review.user
+                updates.append("user")
+            if comment.rating != int(review.rating):
+                comment.rating = int(review.rating)
+                updates.append("rating")
+            if comment.comment != str(review.comment or ""):
+                comment.comment = str(review.comment or "")
+                updates.append("comment")
+            if comment.date != desired_date:
+                comment.date = desired_date
+                updates.append("date")
+            if comment.linked_review_id != review.pk:
+                comment.linked_review_id = review.pk
+                updates.append("linked_review_id")
+            if updates:
+                comment.save(update_fields=updates)
+
+        CommentVenue.objects.get_or_create(comment=comment, venue=app_venue)
+
+
 DEFAULT_PAGE_SIZE = 6
 MAX_PAGE_SIZE = 50
 DEMO_USERNAME_PREFIX = "demo."
@@ -305,6 +384,17 @@ def register_view(request: HttpRequest):
     if User.objects.filter(username=username).exists():
         return JsonResponse({"detail": "username already exists"}, status=409)
 
+    try:
+        validate_password(password)
+    except ValidationError as exc:
+        return JsonResponse(
+            {
+                "detail": "Password does not meet security requirements.",
+                "errors": list(exc.messages),
+            },
+            status=400,
+        )
+
     user = User.objects.create_user(username=username, password=password, email=email)
     login(request, user)
     return JsonResponse({"id": user.id, "username": user.username, "email": user.email})
@@ -324,7 +414,15 @@ def login_view(request: HttpRequest):
         return JsonResponse({"detail": "invalid credentials"}, status=401)
 
     login(request, user)
-    return JsonResponse({"id": user.id, "username": user.username})
+    return JsonResponse(
+        {
+            "id": user.id,
+            "username": user.username,
+            "is_staff": bool(user.is_staff),
+            "is_superuser": bool(user.is_superuser),
+            "is_admin": bool(user.is_staff or user.is_superuser),
+        }
+    )
 
 
 @csrf_exempt
@@ -357,6 +455,9 @@ def _serialize_user_account(user, request: HttpRequest | None = None):
         "last_name": user.last_name,
         "avatar_url": avatar_url,
         "phone_number": profile.phone_number,
+        "is_staff": bool(user.is_staff),
+        "is_superuser": bool(user.is_superuser),
+        "is_admin": bool(user.is_staff or user.is_superuser),
     }
 
 
@@ -370,7 +471,12 @@ def me_view(request: HttpRequest):
 
 
 def top_venues_view(request: HttpRequest):
-    sync_all_main_to_app()
+    # This endpoint is hit frequently by the mobile app. Avoid the heavier
+    # booking sync here to prevent lock contention/timeouts.
+    try:
+        sync_all_main_to_app(min_interval_seconds=60, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     try:
         limit = max(1, min(10, int(request.GET.get("limit", 3))))
     except (TypeError, ValueError):
@@ -378,21 +484,25 @@ def top_venues_view(request: HttpRequest):
 
     queryset = (
         Venue.objects.annotate(
+            bookings_count=Count("bookings", distinct=True),
             avg_rating=Avg("comments__rating"),
-            rating_count=Count("comments"),
+            rating_count=Count("comments", distinct=True),
         )
-        .order_by("-avg_rating", "-rating_count", "-created_at")[:limit]
+        .order_by("-bookings_count", "-id")[:limit]
     )
 
     data = []
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
-        image_url = venue.image_url
-        if not image_url and venue.image:
+        bookings_count = getattr(venue, "bookings_count", 0) or 0
+        image_url = ""
+        if venue.image:
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+        if not image_url:
+            image_url = venue.image_url
         image_url = _absolute_media_url(request, image_url)
         data.append(
             {
@@ -407,22 +517,29 @@ def top_venues_view(request: HttpRequest):
                 "image_url": image_url,
                 "avg_rating": round(float(avg_rating), 2),
                 "rating_count": venue.rating_count,
+                "bookings_count": int(bookings_count),
             }
         )
     return JsonResponse(data, safe=False)
 
 
 def venues_list_view(request: HttpRequest):
-    sync_all_main_to_app()
+    # Mobile catalog needs venues fast; skip booking sync to avoid timeouts.
+    try:
+        sync_all_main_to_app(min_interval_seconds=60, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     queryset = _admin_base_venue_queryset().order_by("title")
     data = []
     for venue in queryset:
-        image_url = venue.image_url
-        if not image_url and venue.image:
+        image_url = ""
+        if venue.image:
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+        if not image_url:
+            image_url = venue.image_url
         image_url = _absolute_media_url(request, image_url)
         city = venue.location.split(",")[0].strip() if venue.location else ""
         data.append(
@@ -514,6 +631,17 @@ def account_password_view(request: HttpRequest):
     if not user.check_password(current_password):
         return JsonResponse({"detail": "Current password is incorrect"}, status=400)
 
+    try:
+        validate_password(new_password, user=user)
+    except ValidationError as exc:
+        return JsonResponse(
+            {
+                "detail": "Password does not meet security requirements.",
+                "errors": list(exc.messages),
+            },
+            status=400,
+        )
+
     user.set_password(new_password)
     user.save()
     return JsonResponse({"success": True})
@@ -562,8 +690,6 @@ def booking_create_view(request: HttpRequest):
 
     if not venue_id:
         return JsonResponse({"detail": "venue_id is required"}, status=400)
-    if not phone_number:
-        return JsonResponse({"detail": "phone_number is required"}, status=400)
     if not start_date or not end_date:
         return JsonResponse({"detail": "start_date and end_date required"}, status=400)
     if end_date <= start_date:
@@ -745,6 +871,7 @@ def wishlist_view(request: HttpRequest):
 def venue_reviews_view(request: HttpRequest, venue_id: int):
     venue = get_object_or_404(Venue, pk=venue_id)
     if request.method == "GET":
+        _sync_legacy_reviews_for_venue(venue)
         comments = (
             Comment.objects.filter(venue_links__venue=venue)
             .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
@@ -871,12 +998,14 @@ def _admin_base_venue_queryset():
 
 
 def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
-    image_url = venue.image_url
-    if not image_url and venue.image:
+    image_url = ""
+    if venue.image:
         try:
             image_url = venue.image.url
         except (ValueError, AttributeError):
             image_url = ""
+    if not image_url:
+        image_url = venue.image_url or ""
     raw_facilities = venue.facilities or []
     if isinstance(raw_facilities, (list, tuple)):
         facilities = [str(item).strip() for item in raw_facilities if str(item).strip()]
@@ -1075,35 +1204,46 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
     }
 
 
+def _get_booking_analytics_cached(*, ttl_seconds: int = 20, force: bool = False) -> dict[str, dict[str, list]]:
+    """Return cached booking analytics to keep admin endpoints responsive."""
+    global _BOOKING_ANALYTICS_CACHE, _BOOKING_ANALYTICS_CACHE_AT
+
+    ttl_seconds = max(int(ttl_seconds), 0)
+    now = timezone.now()
+
+    if (
+        not force
+        and _BOOKING_ANALYTICS_CACHE is not None
+        and _BOOKING_ANALYTICS_CACHE_AT is not None
+        and (ttl_seconds == 0 or (now - _BOOKING_ANALYTICS_CACHE_AT).total_seconds() <= ttl_seconds)
+    ):
+        return _BOOKING_ANALYTICS_CACHE
+
+    analytics = _build_booking_analytics()
+    _BOOKING_ANALYTICS_CACHE = analytics
+    _BOOKING_ANALYTICS_CACHE_AT = now
+    return analytics
+
+
 @ensure_csrf_cookie
 def admin_login_view(request: HttpRequest):
-    if request.user.is_authenticated and request.user.is_staff:
+    """Deprecated: redirect to the shared /auth/login/ page."""
+    if request.user.is_authenticated:
         return redirect(request.GET.get("next") or "/admin/")
 
-    form = AuthenticationForm(request, data=request.POST or None)
-    error_message = None
-
-    if request.method == "POST":
-        if form.is_valid():
-            user = form.get_user()
-            if not user.is_staff:
-                error_message = "Akun ini tidak memiliki akses ke Control Center."
-            else:
-                login(request, user)
-                next_url = request.POST.get("next") or request.GET.get("next") or "/admin/"
-                return redirect(next_url)
-        else:
-            error_message = "Username atau password salah."
-
-    next_url = request.GET.get("next") or request.POST.get("next") or "/admin/"
-    context = {"form": form, "error": error_message, "next": next_url}
-    return render(request, "app/admin_login.html", context)
+    next_url = (request.GET.get("next") or request.POST.get("next") or "/admin/").strip()
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = "/admin/"
+    return redirect(f"/auth/login/?{urlencode({'next': next_url})}")
 
 
 @login_required
 @ensure_csrf_cookie
 def admin_panel(request: HttpRequest):
-    sync_all_main_to_app()
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, blocking=False)
+    except Exception:
+        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1124,7 +1264,7 @@ def admin_panel(request: HttpRequest):
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
-    analytics = _build_booking_analytics()
+    analytics = _get_booking_analytics_cached(ttl_seconds=30)
     UserModel = get_user_model()
     bookings_data, bookings_meta = _build_paginated_payload(
         bookings_queryset,
@@ -1147,13 +1287,16 @@ def admin_panel(request: HttpRequest):
 @login_required
 def admin_logout_view(request: HttpRequest):
     logout(request)
-    return redirect("/admin/login/")
+    return redirect("/auth/login/")
 
 
 @login_required
 @require_GET
 def admin_venues_list_api(request: HttpRequest):
-    sync_all_main_to_app()
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1190,6 +1333,8 @@ def admin_venues_create_api(request: HttpRequest):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1206,6 +1351,8 @@ def admin_venues_update_api(request: HttpRequest, venue_id: int):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1218,14 +1365,37 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
         return forbidden
 
     venue = get_object_or_404(Venue, pk=venue_id)
-    venue.delete()
+    linked_main_id = venue.linked_venue_id
+    title = (venue.title or "").strip()
+    city = (venue.location or "").split(",", 1)[0].strip()
+
+    MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+    with transaction.atomic():
+        # Delete the app venue first (cascades to mirrored bookings/comments).
+        Venue.objects.filter(pk=venue.pk).delete()
+
+        # Delete the matching main venue(s) so sync does not resurrect them.
+        if linked_main_id:
+            MLVenue.objects.filter(pk=linked_main_id).delete()
+        if title:
+            # Seed/pagination scripts can create multiple main Venue rows with the
+            # same name (sometimes across different cities). If we only delete the
+            # current city, the sync layer will re-create the app venue on the next
+            # refresh from the remaining duplicates. Delete by name to prevent
+            # "deleted venues reappearing" in the Flutter admin after a reload.
+            MLVenue.objects.filter(name__iexact=title).delete()
+
+        # Clean up any duplicate app venues that represent the same title/city.
+        dupes = Venue.objects.filter(title__iexact=title)
+        if city:
+            dupes = dupes.filter(location__istartswith=city)
+        dupes.delete()
     return JsonResponse({"success": True})
 
 
 @login_required
 @require_GET
 def admin_bookings_list_api(request: HttpRequest):
-    sync_all_main_to_app()
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1238,13 +1408,32 @@ def admin_bookings_list_api(request: HttpRequest):
         max_value=MAX_PAGE_SIZE,
     )
 
+    force_sync = str(request.GET.get("sync") or "").strip().lower() in {"1", "true", "yes"}
+    should_sync = force_sync
+    if not should_sync and page == 1 and not query.strip():
+        if not Booking.objects.exists():
+            should_sync = True
+        else:
+            try:
+                RentBooking = apps.get_model("rent", "Booking")
+                app_count = Booking.objects.exclude(linked_booking_id__isnull=True).count()
+                main_count = RentBooking.objects.count()
+                should_sync = app_count != main_count
+            except Exception:
+                should_sync = False
+    if should_sync:
+        try:
+            sync_all_main_to_app(min_interval_seconds=120, blocking=False)
+        except Exception:
+            pass
+
     queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
     queryset = _apply_booking_search(queryset, query)
-    analytics = _build_booking_analytics()
+    analytics = _get_booking_analytics_cached(ttl_seconds=20, force=force_sync)
     UserModel = get_user_model()
     data, meta = _build_paginated_payload(
         queryset,
@@ -1337,7 +1526,3 @@ def admin_users_search_api(request: HttpRequest):
             "meta": {"has_users": UserModel.objects.exists()},
         }
     )
-
-
-
-

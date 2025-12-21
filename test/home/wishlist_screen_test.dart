@@ -6,6 +6,7 @@ void main() {
   Map<String, dynamic> _venue({
     String key = '1',
     String name = 'Aurora Sports Dome',
+    double rating = 4.5,
   }) {
     return {
       'id': int.parse(key),
@@ -14,7 +15,7 @@ void main() {
       'location': 'Jakarta',
       'description': 'Indoor futsal pitch',
       'price': 200000,
-      'rating': 4.5,
+      'rating': rating,
       'imageUrl': '',
       'addons': const [],
     };
@@ -47,8 +48,8 @@ void main() {
   testWidgets('WishlistScreen dismiss & tap flows update state',
       (tester) async {
     final venues = [
-      _venue(key: '2', name: 'Harborview Badminton Center'),
-      _venue(key: '3', name: 'Downtown Arena'),
+      _venue(key: '2', name: 'Harborview Badminton Center', rating: 4.9),
+      _venue(key: '3', name: 'Downtown Arena', rating: 4.2),
     ];
     final removed = <Map<String, dynamic>>[];
     final selected = <Map<String, dynamic>>[];
@@ -68,7 +69,14 @@ void main() {
     expect(cardFinder, findsWidgets);
 
     // Swipe to dismiss the first venue -> triggers onRemove and removes it.
-    await tester.drag(cardFinder.first, const Offset(-500, 0));
+    final firstVenueTitle = find.text('Harborview Badminton Center');
+    expect(firstVenueTitle, findsOneWidget);
+    final dismissible = find.ancestor(
+      of: firstVenueTitle,
+      matching: find.byType(Dismissible),
+    );
+    final dragStart = tester.getTopLeft(dismissible) + const Offset(20, 20);
+    await tester.dragFrom(dragStart, const Offset(-500, 0));
     await tester.pumpAndSettle();
 
     expect(removed.length, 1);

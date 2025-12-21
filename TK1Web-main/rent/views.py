@@ -109,10 +109,23 @@ class BookedPlacesView(LoginRequiredMixin, ListView):
                     Booking.STATUS_COMPLETED,
                 ],
             )
-            .select_related("venue")
+            .select_related("venue", "venue__category")
             .prefetch_related("addons")
-            .order_by("-start_datetime")
+            .order_by("start_datetime")
         )
+
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        categories = []
+        seen_slugs = set()
+        for booking in context.get("bookings", []):
+            category = getattr(booking.venue, "category", None)
+            slug = getattr(category, "slug", None)
+            if category and slug and slug not in seen_slugs:
+                seen_slugs.add(slug)
+                categories.append(category)
+        context["categories"] = categories
+        return context
 
 
 def _serialize_booking(booking: Booking) -> Dict[str, Any]:
@@ -166,9 +179,9 @@ class BookedPlacesJSONView(LoginRequiredMixin, View):
                     Booking.STATUS_COMPLETED,
                 ],
             )
-            .select_related("venue")
+            .select_related("venue", "venue__category")
             .prefetch_related("addons")
-            .order_by("-start_datetime")
+            .order_by("start_datetime")
         )
         data = [_serialize_booking(b) for b in qs]
         return JsonResponse({"bookings": data})

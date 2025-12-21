@@ -518,7 +518,7 @@ class _CategoryFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = selected
-        ? const Color(0xFF2CD5FF).withValues(alpha: 0.65)
+        ? const Color(0xFF0EA5E9).withValues(alpha: 0.65)
         : Colors.white.withValues(alpha: 0.14);
     return GestureDetector(
       onTap: onTap,
@@ -529,29 +529,29 @@ class _CategoryFilterChip extends StatelessWidget {
             width: 96,
             height: 96,
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: selected
-                  ? const LinearGradient(
-                      colors: [Color(0xFF1FA2FF), Color(0xFF2CD5FF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              border: Border.all(color: borderColor),
-              color: selected
-                  ? null
-                  : Colors.white.withValues(alpha: 0.04),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: const Color(0x331FA2FF),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ]
-                  : null,
-            ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: selected
+                    ? const LinearGradient(
+                        colors: [Color(0xFF1B89AE), Color(0xFF0EA5E9)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                border: Border.all(color: borderColor),
+                color: selected
+                    ? null
+                    : Colors.white.withValues(alpha: 0.04),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0x331B89AE),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ]
+                    : null,
+              ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: _CategoryPreview(

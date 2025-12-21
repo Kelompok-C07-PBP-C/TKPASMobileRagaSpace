@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Wishlist • RagaSpace{% endblock %}
+{% block title %}Wishlist - RagaSpace{% endblock %}
 {% block content %}
 <section class="grid gap-8" data-animate>
   <div class="rounded-[3rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/50 backdrop-blur-2xl" data-animate>
@@ -14,9 +14,60 @@
         <p class="text-sm text-white/70">Complete the payment below to confirm your reservation.</p>
       </div>
     </div>
+    <div class="mt-4 flex flex-wrap gap-3" data-booking-toolbar>
+      <div class="flex items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-slate-800/70 via-slate-900/50 to-slate-800/70 px-3 py-2 text-sm font-semibold text-white/90 shadow-md shadow-slate-950/30 backdrop-blur">
+        <span class="text-[11px] uppercase tracking-[0.14em] text-white/60 inline-flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 6v6l4 2" />
+          </svg>
+          Time
+        </span>
+        <div class="relative">
+          <select class="appearance-none rounded-lg bg-white/10 px-3 py-1 pr-8 text-sm font-semibold text-white shadow-inner shadow-cyan-500/10 outline-none focus:ring-2 focus:ring-cyan-400/40" data-booking-sort>
+            <option value="soonest">Soonest</option>
+            <option value="latest">Latest</option>
+          </select>
+          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-slate-800/70 via-slate-900/50 to-slate-800/70 px-3 py-2 text-sm font-semibold text-white/90 shadow-md shadow-slate-950/30 backdrop-blur">
+        <span class="text-[11px] uppercase tracking-[0.14em] text-white/60 inline-flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M5 12h14M5 12a2 2 0 1 1 0-4h14a2 2 0 1 1 0 4M5 12a2 2 0 1 0 0 4h14a2 2 0 1 0 0-4" />
+          </svg>
+          Status
+        </span>
+        <div class="relative">
+          <select class="appearance-none rounded-lg bg-white/10 px-3 py-1 pr-8 text-sm font-semibold text-white shadow-inner shadow-cyan-500/10 outline-none focus:ring-2 focus:ring-cyan-400/40" data-booking-filter>
+            <option value="all">Semua</option>
+            <option value="paid">Sudah bayar</option>
+            <option value="unpaid">Belum bayar</option>
+          </select>
+          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
     <div class="mt-6 space-y-4">
       {% for booking in approved_bookings %}
-      <article class="card-tilt rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-slate-950/40" data-animate>
+      <article
+        class="card-tilt rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-slate-950/40"
+        data-animate
+        data-booking-item
+        data-name="{{ booking.venue.name|lower }}"
+        data-category="{{ booking.venue.category.name|default:booking.venue.city|default:'other'|lower }}"
+        data-city="{{ booking.venue.city|default:'other'|lower }}"
+        data-start="{{ booking.start_datetime|date:'U' }}"
+        data-price="{{ booking.total_cost|default:0 }}"
+        data-paid="{% if booking.payment and booking.payment.status != 'waiting' %}paid{% else %}unpaid{% endif %}"
+      >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p class="text-xs uppercase tracking-widest text-white/50">{{ booking.venue.city }}</p>
@@ -45,17 +96,59 @@
   </div>
   {% endif %}
 
-  <div class="rounded-[2.5rem] border border-white/10 bg-white/5 p-8 shadow-xl shadow-slate-950/40 backdrop-blur-2xl" data-animate>
+  <div class="rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 p-8 shadow-xl shadow-slate-950/40 backdrop-blur-2xl" data-animate>
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 class="text-2xl font-semibold text-white">Saved venues</h2>
         <p class="text-sm text-white/70">Keep track of venues you love. Quickly revisit them when you're ready to book.</p>
       </div>
     </div>
-    <div class="mt-6 space-y-6">
+    <div class="mt-4 space-y-4">
+      <div class="flex flex-wrap gap-3" data-wishlist-toolbar>
+        <div class="flex items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-slate-800/70 via-slate-900/50 to-slate-800/70 px-3 py-2 text-sm font-semibold text-white/90 shadow-md shadow-slate-950/30 backdrop-blur">
+          <span class="text-[11px] uppercase tracking-[0.14em] text-white/60 inline-flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M4 6h16M4 12h10M4 18h6" />
+            </svg>
+            Urutkan
+          </span>
+          <div class="relative">
+            <select class="appearance-none rounded-lg bg-white/10 px-3 py-1 pr-8 text-sm font-semibold text-white shadow-inner shadow-cyan-500/10 outline-none focus:ring-2 focus:ring-cyan-400/40" data-wishlist-sort>
+              <option value="newest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+            </select>
+            <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-slate-800/70 via-slate-900/50 to-slate-800/70 px-3 py-2 text-sm font-semibold text-white/90 shadow-md shadow-slate-950/30 backdrop-blur">
+          <span class="text-[11px] uppercase tracking-[0.14em] text-white/60 inline-flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 17.25 8.25 19l.75-4.5-3.5-3.5 4.75-.7L12 6l1.75 4.3 4.75.7-3.5 3.5.75 4.5z" />
+            </svg>
+            Ratings
+          </span>
+          <div class="relative">
+            <select class="appearance-none rounded-lg bg-white/10 px-3 py-1 pr-8 text-sm font-semibold text-white shadow-inner shadow-cyan-500/10 outline-none focus:ring-2 focus:ring-cyan-400/40" data-wishlist-rating>
+              <option value="high">Tertinggi</option>
+              <option value="low">Terendah</option>
+              <option value="none">Default</option>
+            </select>
+            <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-3 rounded-3xl border border-white/15 bg-gradient-to-r from-slate-900/60 via-slate-800/60 to-slate-900/60 p-3 shadow-inner shadow-slate-950/40" data-wishlist-categories></div>
       <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-wishlist-grid>
         {% for item in wishlists %}
-        {% include 'partials/wishlist_card.html' with venue=item.venue wishlist_description=item.venue.description|truncatechars:120 wishlist_next_url=request.get_full_path %}
+        {% include 'partials/wishlist_card.html' with venue=item.venue wishlist_description=item.venue.description|truncatechars:120 wishlist_next_url=request.get_full_path added_index=forloop.counter0 %}
         {% endfor %}
       </div>
       <p class="text-white/70 {% if wishlists %}hidden{% endif %}" data-wishlist-empty>You haven't saved any venues yet.</p>
