@@ -215,16 +215,41 @@ def sync_all_main_to_app(
 
         # Sync venues
         if sync_venues:
-            for venue in MLVenue.objects.select_related("category").prefetch_related("addons").all():
+            main_ids: set[int] = set()
+            for venue in (
+                MLVenue.objects.select_related("category")
+                .prefetch_related("addons")
+                .all()
+            ):
+                main_ids.add(int(venue.pk))
                 _ensure_app_venue_from_main(venue)
+
+            # Clean up app venues that reference deleted main venues so that
+            # deletions in the web admin do not leave phantom rows in the app UI.
+            if main_ids:
+                Venue.objects.exclude(linked_venue_id__isnull=True).exclude(
+                    linked_venue_id__in=main_ids
+                ).delete()
+            else:
+                Venue.objects.exclude(linked_venue_id__isnull=True).delete()
 
         # Sync bookings (includes related venue/add-ons)
         if sync_bookings:
+            main_booking_ids: set[int] = set()
             for booking in (
                 RentBooking.objects.select_related("venue", "user")
                 .prefetch_related("addons", "payment")
                 .all()
             ):
+                main_booking_ids.add(int(booking.pk))
                 _ensure_app_booking_from_main(booking)
+
+            # Clean up app bookings that reference deleted main bookings.
+            if main_booking_ids:
+                Booking.objects.exclude(linked_booking_id__isnull=True).exclude(
+                    linked_booking_id__in=main_booking_ids
+                ).delete()
+            else:
+                Booking.objects.exclude(linked_booking_id__isnull=True).delete()
     finally:
         _SYNC_LOCK.release()

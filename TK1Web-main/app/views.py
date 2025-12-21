@@ -11,6 +11,7 @@ from django.apps import apps
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -490,12 +491,14 @@ def top_venues_view(request: HttpRequest):
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
         bookings_count = getattr(venue, "bookings_count", 0) or 0
-        image_url = venue.image_url
-        if not image_url and venue.image:
+        image_url = ""
+        if venue.image:
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+        if not image_url:
+            image_url = venue.image_url
         image_url = _absolute_media_url(request, image_url)
         data.append(
             {
@@ -525,12 +528,14 @@ def venues_list_view(request: HttpRequest):
     queryset = _admin_base_venue_queryset().order_by("title")
     data = []
     for venue in queryset:
-        image_url = venue.image_url
-        if not image_url and venue.image:
+        image_url = ""
+        if venue.image:
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+        if not image_url:
+            image_url = venue.image_url
         image_url = _absolute_media_url(request, image_url)
         city = venue.location.split(",")[0].strip() if venue.location else ""
         data.append(
@@ -989,12 +994,14 @@ def _admin_base_venue_queryset():
 
 
 def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
-    image_url = venue.image_url
-    if not image_url and venue.image:
+    image_url = ""
+    if venue.image:
         try:
             image_url = venue.image.url
         except (ValueError, AttributeError):
             image_url = ""
+    if not image_url:
+        image_url = venue.image_url or ""
     raw_facilities = venue.facilities or []
     if isinstance(raw_facilities, (list, tuple)):
         facilities = [str(item).strip() for item in raw_facilities if str(item).strip()]
@@ -1208,7 +1215,10 @@ def admin_login_view(request: HttpRequest):
 @login_required
 @ensure_csrf_cookie
 def admin_panel(request: HttpRequest):
-    sync_all_main_to_app()
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, blocking=False)
+    except Exception:
+        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1258,7 +1268,10 @@ def admin_logout_view(request: HttpRequest):
 @login_required
 @require_GET
 def admin_venues_list_api(request: HttpRequest):
-    sync_all_main_to_app()
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1295,6 +1308,8 @@ def admin_venues_create_api(request: HttpRequest):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1311,6 +1326,8 @@ def admin_venues_update_api(request: HttpRequest, venue_id: int):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1323,14 +1340,41 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
         return forbidden
 
     venue = get_object_or_404(Venue, pk=venue_id)
-    venue.delete()
+    linked_main_id = venue.linked_venue_id
+    title = (venue.title or "").strip()
+    city = (venue.location or "").split(",", 1)[0].strip()
+
+    MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+    with transaction.atomic():
+        # Delete the app venue first (cascades to mirrored bookings/comments).
+        Venue.objects.filter(pk=venue.pk).delete()
+
+        # Delete the matching main venue(s) so sync does not resurrect them.
+        if linked_main_id:
+            MLVenue.objects.filter(pk=linked_main_id).delete()
+        if title:
+            # Seed/pagination scripts can create multiple main Venue rows with the
+            # same name (sometimes across different cities). If we only delete the
+            # current city, the sync layer will re-create the app venue on the next
+            # refresh from the remaining duplicates. Delete by name to prevent
+            # "deleted venues reappearing" in the Flutter admin after a reload.
+            MLVenue.objects.filter(name__iexact=title).delete()
+
+        # Clean up any duplicate app venues that represent the same title/city.
+        dupes = Venue.objects.filter(title__iexact=title)
+        if city:
+            dupes = dupes.filter(location__istartswith=city)
+        dupes.delete()
     return JsonResponse({"success": True})
 
 
 @login_required
 @require_GET
 def admin_bookings_list_api(request: HttpRequest):
-    sync_all_main_to_app()
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, blocking=False)
+    except Exception:
+        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
