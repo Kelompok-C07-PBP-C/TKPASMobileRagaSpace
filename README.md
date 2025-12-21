@@ -64,6 +64,7 @@ Aplikasi menyediakan 100+ lapangan di 10 kota besar Indonesia dengan kategori:
 * Mengelola wishlist pribadi
 * Mengatur profil dan pengaturan akun
 
+
 2. Admin (Pemilik Tempat)
 
 * Menambahkan atau menghapus data lapangan
@@ -171,28 +172,65 @@ Screenshot akan ditambahkan
 
 ## Alur Integrasi dengan Web Service
 
-┌─────────────┐     HTTP Request      ┌─────────────┐
-│   Flutter   │ ───────────────────▶  │   Django    │
-│   Mobile    │                       │   Backend   │
-│     App     │ ◀───────────────────  │   (REST)    │
-└─────────────┘    JSON Response      └─────────────┘
+<img width="645" height="364" alt="image" src="https://github.com/user-attachments/assets/14da48a5-527d-44a9-92ac-a36395417dd9" />
+
 
 Langkah-langkah Integrasi Aplikasi dengan Website :
 
-Membangun Wrapper Class untuk HTTP Request
-Membuat sebuah wrapper class yang memanfaatkan library HTTP dan MAP guna mendukung mekanisme cookie-based authentication pada aplikasi.
+1. Menambahkan Dependensi HTTP
+   Menambahkan package http dan pbp_django_auth pada pubspec.yaml untuk mendukung komunikasi dengan web service Django.
+   
+2. Membuat Wrapper Class untuk HTTP Request
+   Membuat wrapper class menggunakan library pbp_django_auth yang memanfaatkan mekanisme cookie-based authentication.
+   Class ini menangani session management dan menyimpan cookies secara otomatis.
 
-Mengimplementasikan REST API di Django
-Mengembangkan endpoint API pada Django melalui views.py dengan menggunakan JsonResponse atau Django JSON Serializer untuk memastikan data dikirim dalam format JSON yang konsisten.
+3. Mengimplementasikan REST API di Django
+   Mengembangkan endpoint API pada Django melalui views.py dengan menggunakan JsonResponse atau Django JSON Serializer untuk memastikan data dikirim dalam format JSON yang konsisten.
+   a. Konfigurasi CORS dan Cookies di settings.py
+   b. Membuat endpoint API di views.py
+   c. Routing di urls.py
 
-Mengembangkan Desain Front-End
-Mengimplementasikan tampilan antarmuka aplikasi berdasarkan desain website yang telah ada, sehingga memastikan keselarasan UI/UX.
+4. Membuat Model Dart dari JSON
+   Mengkonversi response JSON dari Django menjadi object Dart menggunakan model class dengan factory constructor.
 
-Integrasi Front-End dan Back-End secara Asinkron
-Menghubungkan front-end dengan API back-end menggunakan konsep asynchronous HTTP request agar komunikasi data lebih efisien dan responsif.
+5. Mengembangkan Desain Front-End
+   Mengimplementasikan tampilan antarmuka aplikasi berdasarkan desain Figma dengan memastikan keselarasan UI/UX antara versi web dan mobile.
+   Komponen utama:
+   * Screens: Halaman-halaman utama aplikasi (Home, Katalog, Detail, dll.)
+   * Widgets: Komponen reusable (Card, Button, Form Fields, dll.)
+   * Themes: Konsistensi warna, typography, dan styling
 
+6. Integrasi Front-End dan Back-End secara Asinkron
+   Menghubungkan front-end dengan API back-end menggunakan konsep asynchronous HTTP request dengan Future, async, dan await agar komunikasi data lebih efisien dan responsif.
+   * Implementasi dengan FutureBuilder
+   * State Management dengan Provider
+
+## Ringkasan API
+
+Method             Endpoint            Fungsi                  Modul
+POST/              auth/login/         Login user              Autentikasi
+POST/              auth/register/      Register user baru      Autentikasi
+POST/              auth/logout/        Logout user             Autentikasi
+GET/               json/               Ambil semua venue       Katalog
+GET/               json/<id>/          Ambil detail venue      Product Detail
+POST/              create-flutter/     Tambah venue baru       Admin
+POST/              booking/create/     Buat booking            Booking
+GET/               wishlist/json/      Ambil wishlist user     Wishlist
+POST/              wishlist/add/       Tambah ke wishlist      Wishlist
+POST/              account/update/     Update profil user      Account Setting
+  
 ___
 
+## Catatan
+Username admin: dinova
+Password admin: dinova132
+
+---
+
+## Video Promosi Platform RagaSpace
+https://youtu.be/t9Z0Ka4zslo?si=mtui485qQYaGMeE9
+
+---
 
 ## Lisensi
 Proyek ini dikembangkan untuk keperluan Tugas Akhir Mata Kuliah Pemrograman Berbasis Platform (PBP) - Fakultas Ilmu Komputer, Universitas Indonesia, Semester Ganjil 2024/2025.
