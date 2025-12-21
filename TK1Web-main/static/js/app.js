@@ -5,54 +5,16 @@ function getCookie(name) {
   return null;
 }
 
-const getCsrfTokenFromElement = (element) => {
-  if (!element) {
-    return '';
-  }
-  const form = element.closest('form');
-  if (!form) {
-    return '';
-  }
-  const input = form.querySelector('input[name="csrfmiddlewaretoken"]');
-  if (input && input.value) {
-    return input.value;
-  }
-  return '';
-};
-
-const getGlobalCsrfToken = () => {
-  const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
-  if (input && input.value) {
-    return input.value;
-  }
-  return '';
-};
-
-const getCsrfToken = (element) => {
+const getCsrfToken = () => {
   const cookieToken = getCookie('csrftoken');
   if (cookieToken) {
     return cookieToken;
   }
   const metaToken = document.querySelector('meta[name="csrf-token"]');
-  if (metaToken && metaToken.getAttribute('content')) {
+  if (metaToken) {
     return metaToken.getAttribute('content');
   }
-  const elementToken = getCsrfTokenFromElement(element);
-  if (elementToken) {
-    return elementToken;
-  }
-  return getGlobalCsrfToken();
-};
-
-const ensureCsrfCookie = (token) => {
-  if (typeof document === 'undefined' || !token) {
-    return;
-  }
-  const existing = getCookie('csrftoken');
-  if (existing === token) {
-    return;
-  }
-  document.cookie = `csrftoken=${token}; path=/`;
+  return '';
 };
 
 const escapeHtml = (value) => {
@@ -820,8 +782,7 @@ function toggleWishlist(button) {
 
   const previousState = button.getAttribute('aria-pressed') === 'true';
   const desiredState = !previousState;
-  const csrfToken = getCsrfToken(button);
-  ensureCsrfCookie(csrfToken);
+  const csrfToken = getCsrfToken();
   const toggleUrl = button.dataset.toggleUrl || `/api/wishlist/${venueId}/toggle/`;
   const form = button.closest('[data-wishlist-form]');
   const nextInput = form ? form.querySelector('input[name="next"]') : null;
@@ -1294,11 +1255,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!bookingCards.length || !bookingContainer) {
       return;
     }
-
-    // In case the server rendered these controls as disabled (e.g. older cached markup),
-    // explicitly enable them so the filtering UI always remains interactive.
-    if (bookingSort?.disabled) bookingSort.disabled = false;
-    if (bookingFilter?.disabled) bookingFilter.disabled = false;
 
     let activeBookingCategory = bookingCategories?.dataset.bookingActiveCategory || 'all';
 
