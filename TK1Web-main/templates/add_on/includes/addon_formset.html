@@ -1,0 +1,108 @@
+<div class="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl" data-addon-formset>
+  <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h2 class="text-xl font-semibold text-white">Add-ons</h2>
+      <p class="mt-1 text-sm text-white/70">Offer optional equipment or services that users can add during booking.</p>
+    </div>
+    <button
+      type="button"
+      class="inline-flex items-center justify-center rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+      data-addon-add
+    >
+      + Add add-on
+    </button>
+  </div>
+  {{ formset.management_form }}
+  <p
+    class="mt-3 rounded-xl border border-rose-300/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200{% if not formset.non_form_errors %} hidden{% endif %}"
+    data-field-error="addons"
+  >
+    {% if formset.non_form_errors %}{{ formset.non_form_errors|striptags }}{% endif %}
+  </p>
+  <div class="mt-4 space-y-4" data-addon-forms>
+    {% for addon_form in formset %}
+    <div class="space-y-4 rounded-2xl border border-white/10 bg-white/10 p-4" data-addon-form>
+      {% with error_key=addon_form.prefix|add:'-__all__' %}
+      <p
+        class="rounded-xl border border-rose-300/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200{% if not addon_form.non_field_errors %} hidden{% endif %}"
+        data-field-error="{{ error_key }}"
+      >
+        {% if addon_form.non_field_errors %}{{ addon_form.non_field_errors|striptags }}{% endif %}
+      </p>
+      {% endwith %}
+      {% for hidden in addon_form.hidden_fields %}
+      {{ hidden }}
+      {% endfor %}
+      <div class="grid gap-4 md:grid-cols-3">
+        {% for field in addon_form.visible_fields %}
+        {% if field.name != 'DELETE' %}
+        {% with error_key=addon_form.prefix|add:'-'|add:field.name %}
+        <div class="flex flex-col gap-2">
+          <label for="{{ field.id_for_label }}" class="text-sm font-medium text-white/70">{{ field.label }}</label>
+          {{ field }}
+          <p class="text-sm text-rose-300{% if not field.errors %} hidden{% endif %}" data-field-error="{{ error_key }}">
+            {% if field.errors %}{{ field.errors|striptags }}{% endif %}
+          </p>
+        </div>
+        {% endwith %}
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% if addon_form.can_delete %}
+      {{ addon_form.DELETE }}
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="rounded-xl border border-rose-300/40 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/20"
+          data-addon-remove
+          data-remove-label="Remove add-on"
+          data-restore-label="Undo removal"
+        >
+          Remove add-on
+        </button>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="mt-3 text-xs text-white/50">Leave the fields blank if a slot is unused. Removed add-ons will disappear from the booking page.</p>
+  <template data-addon-empty-form>
+    {% with addon_form=formset.empty_form %}
+    <div class="space-y-4 rounded-2xl border border-white/10 bg-white/10 p-4" data-addon-form>
+      {% for hidden in addon_form.hidden_fields %}
+      {{ hidden }}
+      {% endfor %}
+      {% with error_key=addon_form.prefix|add:'-__all__' %}
+      <p class="hidden rounded-xl border border-rose-300/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200" data-field-error="{{ error_key }}"></p>
+      {% endwith %}
+      <div class="grid gap-4 md:grid-cols-3">
+        {% for field in addon_form.visible_fields %}
+        {% if field.name != 'DELETE' %}
+        {% with error_key=addon_form.prefix|add:'-'|add:field.name %}
+        <div class="flex flex-col gap-2">
+          <label for="{{ field.id_for_label }}" class="text-sm font-medium text-white/70">{{ field.label }}</label>
+          {{ field }}
+          <p class="hidden text-sm text-rose-300" data-field-error="{{ error_key }}"></p>
+        </div>
+        {% endwith %}
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% if addon_form.can_delete %}
+      {{ addon_form.DELETE }}
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="rounded-xl border border-rose-300/40 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/20"
+          data-addon-remove
+          data-remove-label="Remove add-on"
+          data-restore-label="Undo removal"
+        >
+          Remove add-on
+        </button>
+      </div>
+      {% endif %}
+    </div>
+    {% endwith %}
+  </template>
+</div>

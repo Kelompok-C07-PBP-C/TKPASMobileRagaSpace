@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RagaSpace – Catalog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      /* EMERALD MIST THEME — fresh green shades (still green, new tones) */
+      --g-100:#EAF9E5; --g-200:#D4F2CF; --g-300:#B6E8BA; --g-400:#8DDCB0; --g-500:#5CC9A8; --g-600:#2EB1A2; --g-700:#128E8B; --g-800:#0E6F73; --g-900:#0A5056;
+      --bg:#071418;                 /* base behind gradients */
+      --surface:#ffffff;            /* cards & header */
+      --panel:rgba(10,80,86,.82);   /* deep glass from new greens */
+      --panel-border:#0E6F73;       /* border tint */
+      --ink:#0b1a21;                /* dark text */
+      --ink-on-dark:#F6FCF9;        /* text on dark */
+      --muted:#B6E8BA;              /* secondary text */
+      --accent:#EAF9E5;             /* highlight */
+      --action:#2EB1A2;             /* primary action */
+      --shadow:0 16px 48px rgba(0,0,0,.32);
+      --radius:18px;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;font-family:"Poppins",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial, "Noto Sans", sans-serif; background:
+      radial-gradient(820px 520px at 6% -4%, rgba(234,249,229,.32) 0%, transparent 62%),
+      radial-gradient(900px 560px at 104% 6%, rgba(182,232,186,.22) 0%, transparent 65%),
+      radial-gradient(820px 520px at 0% 100%, rgba(92,201,168,.18) 0%, transparent 60%),
+      linear-gradient(180deg, #0A5056 0%, #0E6F73 30%, #128E8B 55%, #2EB1A2 78%, #B6E8BA 100%);
+      color:var(--ink-on-dark); overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    .container{width:min(1200px, 92vw);margin-inline:auto}
+
+    /* Header */
+    .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#042A2E 0%, #07393E 50%, #0A5056 100%);backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid rgba(255,255,255,.22);color:#FFFFFF}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand .logo{width:30px;height:30px;border-radius:10px;background:conic-gradient(from 170deg, #2EB1A2, #0E6F73, #0A5056);display:grid;place-items:center;color:#EAF9E5;box-shadow:0 0 0 2px rgba(255,255,255,.18) inset}
+    .links{display:flex;gap:34px}
+    .links a{font-weight:800;color:#FFFFFF}
+    .links a:hover{color:#B6E8BA}
+    .links a:hover{color:var(--g-300)}
+    .actions{display:flex;gap:8px}
+    .icon-btn{width:36px;height:36px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);border-radius:12px;display:grid;place-items:center}
+
+    /* Search bar */
+    .search-wrap{padding:26px 0 0}
+    .search-bar{position:relative;background:linear-gradient(180deg, rgba(6,52,59,.96) 0%, rgba(10,80,86,.94) 100%);border:1px solid #128E8B;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.38)}
+    .pill-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    .pill{display:flex;align-items:center;gap:10px;background:rgba(4,37,39,.55);border:1px solid #2EB1A2;border-radius:14px;padding:12px 16px;min-width:190px}
+    .pill small{display:block;color:#EAF9E5;opacity:.95;line-height:1;font-weight:700}
+    .pill b{display:block;color:#FFFFFF}
+    .big-search{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:60px;height:60px;border-radius:50%;cursor:pointer;
+      background:radial-gradient(120% 120% at 30% 30%, #0B2E35 0%, #0A2328 70%);
+      border:2px solid #B6E8BA;
+      box-shadow:0 12px 26px rgba(0,0,0,.45), inset 0 0 0 6px rgba(182,232,186,.10);
+      display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .2s ease, box-shadow .2s ease; color:#EAF9E5;}
+    .big-search:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 14px 30px rgba(0,0,0,.55), inset 0 0 0 7px rgba(182,232,186,.18)}
+    .big-search span{display:none;font-weight:800;color:#FFFFFF;letter-spacing:.2px;font-size:15px}
+    .big-search svg{display:block}
+
+    /* Cards */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:28px 0}
+    @media (max-width:990px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}}
+
+    .card{background:var(--surface);color:var(--ink);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);border:1px solid #E6EFF0}
+    .media{height:180px;position:relative}
+    .media img{width:100%;height:100%;object-fit:cover}
+    .badge{position:absolute;left:12px;top:12px;background:linear-gradient(135deg, var(--g-200), var(--g-500));color:#06343b;font-weight:800;font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid #ffffff55}
+    .heart{position:absolute;right:12px;top:12px;width:36px;height:36px;border-radius:10px;background:#ffffffcc;border:1px solid #e2e8ea;display:grid;place-items:center;cursor:pointer}
+    .heart.active{background:#ffe5ea;border-color:#ffd0da}
+    .card-body{padding:16px 18px;background:linear-gradient(180deg, rgba(7,57,62,.98) 0%, rgba(14,111,115,.96) 60%, rgba(46,177,162,.98) 100%);color:#FFFFFF;border-top:1px solid rgba(255,255,255,.12)}
+    .title{font-weight:800;margin:0 0 6px;color:#F6FCF9;letter-spacing:.2px}
+    .meta{display:flex;gap:8px;align-items:center;color:rgba(255,255,255,.94);font-size:13px}
+    .price{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+    .price .big{font-weight:900;color:#FFFFFF}
+    .link{color:var(--accent);font-weight:800}
+    
+    .link:hover{color:var(--g-200)}
+    
+
+    /* Footer */
+    footer{background:linear-gradient(180deg,#1E6091 0%, #184E77 70%, #0F2E4B 100%);color:#EAF9E5;border-top:4px solid #168AAD;box-shadow:0 -8px 40px rgba(0,0,0,.25) inset}
+    .footer-inner{padding:18px 0 10px}
+    .footer-top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:20px;align-items:start}
+    @media (max-width:980px){.footer-top{grid-template-columns:1fr 1fr}}
+    @media (max-width:620px){.footer-top{grid-template-columns:1fr}}
+    .tagline{font-size:28px;font-weight:900}
+    .meta-col{font-size:14px;color:#38454e;display:grid;gap:8px}
+    .foot-logo{display:flex;align-items:center;gap:12px}
+    .foot-logo .mark{width:48px;height:48px;border-radius:14px;background:conic-gradient(from 140deg,#1E6091,#168AAD,#184E77);display:grid;place-items:center;color:#EAF9E5;box-shadow:0 0 0 2px rgba(255,255,255,.12) inset}
+    .bottom{display:flex;justify-content:space-between;align-items:center;color:#D6EEF5;font-size:12px;border-top:1px solid rgba(255,255,255,.18);padding:12px 0;margin-top:12px}
+    footer .meta-col{color:#EAF9E5}
+    footer .meta-col a{color:#EAF9E5}
+    footer .meta-col a:hover{color:#B6E8BA}
+    footer .meta-col strong{color:#FFFFFF}
+    .address{margin-top:12px;color:#EAF9E5;opacity:.96}
+    footer .tagline{color:#FFFFFF}
+
+    /* Chat / help widget */
+    .help{position:fixed;right:16px;bottom:18px;background:#ffffff;box-shadow:0 14px 40px rgba(0,0,0,.25);border-radius:18px;padding:10px 12px;display:flex;gap:12px;align-items:center;z-index:60;border:1px solid #e7eef0}
+    .help .bubble{width:44px;height:44px;border-radius:12px;border:1px solid #e7eef0;background:#f3f7f9;display:grid;place-items:center}
+
+    /* Tiny helpers */
+    .muted{color:rgba(234,249,229,.92)}
+    /* =====================
+     MOBILE LAYOUT FIXES
+     ===================== */
+  @media (max-width: 980px) and (min-width: 641px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width: 880px){
+    .links{gap:18px}
+    .links a{font-size:15px}
+    .search-wrap{padding:16px 0 0}
+    .search-bar{padding:16px}
+    .pill-row{display:grid;grid-template-columns:1fr;gap:12px}
+    .pill{min-width:0;width:100%;padding:12px;border-radius:12px}
+    /* Search button becomes a full-width pill */
+    .big-search{position:static;transform:none;width:100%;height:56px;margin:12px 0 0 auto;border-width:1px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(180deg,#0E6F73 0%, #128E8B 100%);border:1px solid #2EB1A2;box-shadow:0 10px 24px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.06)}
+    .big-search span{display:inline}
+    .big-search svg{width:22px;height:22px}
+    .media{height:160px}
+  }
+  @media (max-width: 600px){
+    .nav{padding:8px 2px}
+    .brand{font-size:14px}
+    .links{gap:12px}
+    .links a{font-size:14px}
+    .container{width:min(1200px,94vw)}
+  }
+  @media (max-width: 420px){
+    .links a{font-size:13px}
+    .big-search{height:50px}
+    .media{height:150px}
+  }
+</style>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="container nav">
+      <div class="brand"><div class="logo">🐾</div> RagaSpace</div>
+      <nav class="links">
+      <a href="{% url 'main:landing' %}">Home</a>
+      <a class="active" href="{% url 'main:catalog' %}">Catalog</a>
+      <a href="#">Wishlist</a>
+     </nav>
+      <div class="actions">
+        <button class="icon-btn" title="Refresh" aria-label="Refresh">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="#9cc6cf" stroke-width="1.7" stroke-linecap="round"/><path d="m21 5-2.5-.5L20 2" stroke="#9cc6cf" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" title="Profile" aria-label="Profile">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="4" stroke="#9cc6cf" stroke-width="1.7"/><path d="M5 20a7 7 0 0 1 14 0" stroke="#9cc6cf" stroke-width="1.7"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Search Bar -->
+  <section class="search-wrap container">
+    <div class="search-bar">
+      <div class="pill-row">
+        <div class="pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4.5 8-12a8 8 0 1 0-16 0c0 7.5 8 12 8 12Zm0-9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" stroke="#d9e9ee" stroke-width="1.6"/></svg>
+          <div><small>Location</small><b>City</b></div>
+        </div>
+        <div class="pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14M7 8h10M9 16h6" stroke="#d9e9ee" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <div><small>Sports Category</small><b>Category</b></div>
+        </div>
+        <div class="pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13a2.5 2.5 0 0 1 0 5h-13A2.5 2.5 0 0 1 3 7.5Zm0 9A2.5 2.5 0 0 1 5.5 14h13a2.5 2.5 0 0 1 0 5h-13A2.5 2.5 0 0 1 3 16.5Z" stroke="#d9e9ee" stroke-width="1.6"/></svg>
+          <div><small>Price</small><b>Range Min – Range Max</b></div>
+        </div>
+      </div>
+      <div class="big-search" role="button" tabindex="0" aria-label="Search">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="6.5" stroke="#EAF9E5" stroke-width="2.5"/><path d="M16.5 16.5L21 21" stroke="#EAF9E5" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <span>Search</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Grid of Cards -->
+  <main class="container">
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-inner">
+      <div class="footer-top">
+        <div>
+          <div class="foot-logo"><div class="mark">🐾</div><div class="tagline">Your Next Game is Just a Tap Away.</div></div>
+          <div class="address">
+            Jl. Wahid Hasyim No. 10D<br>Jakarta Pusat 10340, DKI Jakarta, Indonesia
+          </div>
+        </div>
+        <div class="meta-col">
+          <strong>Contact</strong>
+          <div>📞 021 - 1234 5678</div>
+          <div>✉️ ragospace@gmail.com</div>
+          <div>📍 ragaspace</div>
+        </div>
+        <div class="meta-col">
+          <strong>Company</strong>
+          <a href="#">About RagaSpace</a>
+          <a href="#">Careers</a>
+        </div>
+        <div class="meta-col">
+          <strong>Support</strong>
+          <a href="#">Support Docs</a>
+          <a href="#">Help Center</a>
+        </div>
+      </div>
+      <div class="bottom">
+        <div>© 2025 RagaSpace All Right Served</div>
+        <div><a href="#">Privacy Policy</a> · <a href="#">Terms</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating Help Widget -->
+  <div class="help" aria-label="help-widget">
+    <div class="bubble" title="Chat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12c0 4.418-4.03 8-9 8-.93 0-1.826-.12-2.668-.35L3 21l1.558-3.117C4.21 16.58 3 14.41 3 12 3 7.582 7.03 4 12 4s9 3.582 9 8Z" stroke="#0F172A" stroke-width="1.6"/></svg>
+    </div>
+    <div class="bubble" title="Hand">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 11V6a2 2 0 0 1 4 0v5" stroke="#0F172A" stroke-width="1.6"/><path d="M11 11V5a2 2 0 0 1 4 0v6" stroke="#0F172A" stroke-width="1.6"/><path d="M15 11V7a2 2 0 1 1 4 0v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-2" stroke="#0F172A" stroke-width="1.6"/></svg>
+    </div>
+    <div class="bubble" title="Dark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="#0F172A" stroke-width="1.6"/></svg>
+    </div>
+  </div>
+
+  <script>
+    // ---- Local, reliable SVG images (no external requests) ----
+    function pitchArt(width=1200, height=700){
+      const m = 32; // margin
+      const pw = width - 2*m;
+      const ph = height - 2*m;
+      const stripes = Array.from({length:10}).map((_,i)=>`<rect x='${m}' y='${m + i*(ph/10)}' width='${pw}' height='${ph/20}' fill='rgba(255,255,255,0.06)'/>`).join('');
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}' width='${width}' height='${height}'>
+        <defs>
+          <linearGradient id='grass' x1='0' y1='0' x2='0' y2='1'>
+            <stop offset='0%' stop-color='#76C893'/>
+            <stop offset='100%' stop-color='#52B69A'/>
+          </linearGradient>
+        </defs>
+        <rect width='100%' height='100%' fill='url(#grass)'/>
+        ${stripes}
+        <!-- touchlines / boundary -->
+        <rect x='${m+6}' y='${m+6}' width='${pw-12}' height='${ph-12}' rx='16' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <!-- halfway line -->
+        <line x1='${m + pw/2}' y1='${m+6}' x2='${m + pw/2}' y2='${m + ph - 6}' stroke='#F3FAF7' stroke-width='4'/>
+        <!-- center circle & spot -->
+        <circle cx='${m + pw/2}' cy='${m + ph/2}' r='${Math.min(pw,ph)*0.12}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <circle cx='${m + pw/2}' cy='${m + ph/2}' r='6' fill='#F3FAF7'/>
+        <!-- penalty areas -->
+        <rect x='${m+6}' y='${m + (ph*0.2) + 6}' width='${pw*0.18}' height='${ph*0.6 - 12}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <rect x='${m + pw - 6 - pw*0.18}' y='${m + (ph*0.2) + 6}' width='${pw*0.18}' height='${ph*0.6 - 12}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <!-- 6-yard boxes -->
+        <rect x='${m+6}' y='${m + (ph*0.33) + 6}' width='${pw*0.06}' height='${ph*0.34 - 12}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <rect x='${m + pw - 6 - pw*0.06}' y='${m + (ph*0.33) + 6}' width='${pw*0.06}' height='${ph*0.34 - 12}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <!-- penalty spots & arcs -->
+        <circle cx='${m+6 + pw*0.12}' cy='${m + ph/2}' r='6' fill='#F3FAF7'/>
+        <circle cx='${m + pw - 6 - pw*0.12}' cy='${m + ph/2}' r='6' fill='#F3FAF7'/>
+        <path d='M ${m+6 + pw*0.12} ${m + ph/2 - 60} A 60 60 0 0 1 ${m+6 + pw*0.12} ${m + ph/2 + 60}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+        <path d='M ${m + pw - 6 - pw*0.12} ${m + ph/2 - 60} A 60 60 0 0 0 ${m + pw - 6 - pw*0.12} ${m + ph/2 + 60}' fill='none' stroke='#F3FAF7' stroke-width='4'/>
+      </svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    function placeholder(width=800,height=500){ return pitchArt(width,height); }
+
+    // Data
+    const venues = Array.from({length:9}).map((_,i)=>({
+      title:"Haikyuu Court",
+      image:pitchArt(1000,600),
+      address:"Jl. Wahid Hasyim No. 10D, Jakarta Pusat 10340, DKI Jakarta, Indonesia",
+      price:"Rp 100.000",
+      liked: (i % 3 === 0)
+    }));
+
+    const grid = document.getElementById('grid');
+
+    const heartSVG = (filled)=> filled ? `
+      <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12.1 20.3S4 15 4 9.8C4 7.2 6 5 8.6 5c1.4 0 2.8.7 3.5 1.9C12.9 5.7 14.3 5 15.7 5 18.3 5 20.3 7.2 20.3 9.8c0 5.2-8.2 10.5-8.2 10.5Z\" fill=\"#ff4d63\" stroke=\"#ff4d63\"/></svg>` : `
+      <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12.1 20.3S4 15 4 9.8C4 7.2 6 5 8.6 5c1.4 0 2.8.7 3.5 1.9C12.9 5.7 14.3 5 15.7 5 18.3 5 20.3 7.2 20.3 9.8c0 5.2-8.2 10.5-8.2 10.5Z\" stroke=\"#7f8e99\" stroke-width=\"1.6\"/></svg>`;
+
+    function render(){
+      grid.innerHTML = venues.map((v,idx)=>`
+        <article class=\"card\">
+          <div class=\"media\">
+            <img src=\"${v.image}\" alt=\"Football pitch illustration\" onerror=\"this.onerror=null;this.src='${placeholder(1000,600)}'\">
+            <span class=\"badge\">available</span>
+            <button class=\"heart\" data-idx=\"${idx}\" aria-label=\"Toggle wishlist\">${heartSVG(v.liked)}</button>
+          </div>
+          <div class=\"card-body\">
+            <h3 class=\"title\">${v.title}</h3>
+            <div class=\"meta\">
+              <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 22s8-4.5 8-12a8 8 0 1 0-16 0c0 7.5 8 12 8 12Zm0-9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z\" stroke=\"#6b7a85\" stroke-width=\"1.6\"/></svg>
+              <span>${v.address}</span>
+            </div>
+            <div class=\"price\">
+              <div>
+                <div class=\"muted\" style=\"font-size:12px\">Price</div>
+                <div class=\"big\">${v.price} <span class=\"muted\" style=\"font-weight:600\">/ Sesi</span></div>
+              </div>
+              <a class=\"link\" href=\"#\">View Product →</a>
+            </div>
+          </div>
+        </article>
+      `).join("");
+
+      document.querySelectorAll('.heart').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const i = +btn.dataset.idx;
+          venues[i].liked = !venues[i].liked;
+          btn.classList.toggle('active', venues[i].liked);
+          btn.innerHTML = heartSVG(venues[i].liked);
+        })
+      })
+    }
+
+    render();
+  </script>
+</body>
+</html>
