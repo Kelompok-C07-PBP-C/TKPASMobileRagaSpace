@@ -29,9 +29,12 @@ class _ProductCatalogScreen extends StatefulWidget {
 class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
   static const String _catalogCacheKeyPrefix = 'catalog_cache:';
 
-  late String _city;
-  late String _category;
-  late String _price;
+  late String _selectedCity;
+  late String _selectedCategory;
+  late String _selectedPrice;
+  late String _appliedCity;
+  late String _appliedCategory;
+  late String _appliedPrice;
   List<_CatalogProduct> _products = const <_CatalogProduct>[];
   bool _loading = true;
   String? _error;
@@ -45,9 +48,12 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
   @override
   void initState() {
     super.initState();
-    _city = widget.initialCity;
-    _category = widget.initialCategory;
-    _price = widget.initialPrice;
+    _selectedCity = widget.initialCity;
+    _selectedCategory = widget.initialCategory;
+    _selectedPrice = widget.initialPrice;
+    _appliedCity = _selectedCity;
+    _appliedCategory = _selectedCategory;
+    _appliedPrice = _selectedPrice;
     _favoriteKeys = Set<String>.from(widget.initialWishlistKeys);
     _fetchProducts();
   }
@@ -127,24 +133,27 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                 final dropdowns = [
                                   _CatalogDropdown(
                                     label: 'All cities',
-                                    value: _city,
+                                    value: _selectedCity,
                                     items: _filterCities,
-                                    onChanged: (value) =>
-                                        setState(() => _city = value!),
+                                    onChanged: (value) => setState(
+                                      () => _selectedCity = value!,
+                                    ),
                                   ),
                                   _CatalogDropdown(
                                     label: 'All categories',
-                                    value: _category,
+                                    value: _selectedCategory,
                                     items: _filterCategories,
-                                    onChanged: (value) =>
-                                        setState(() => _category = value!),
+                                    onChanged: (value) => setState(
+                                      () => _selectedCategory = value!,
+                                    ),
                                   ),
                                   _CatalogDropdown(
                                     label: 'Max price',
-                                    value: _price,
+                                    value: _selectedPrice,
                                     items: _filterPrices,
-                                    onChanged: (value) =>
-                                        setState(() => _price = value!),
+                                    onChanged: (value) => setState(
+                                      () => _selectedPrice = value!,
+                                    ),
                                   ),
                                 ];
                                 if (isNarrow) {
@@ -173,7 +182,13 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: () => setState(() {}),
+                                onPressed: () {
+                                  setState(() {
+                                    _appliedCity = _selectedCity;
+                                    _appliedCategory = _selectedCategory;
+                                    _appliedPrice = _selectedPrice;
+                                  });
+                                },
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
@@ -348,9 +363,12 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
 
   void _resetFilters() {
     setState(() {
-      _city = _filterCities.first;
-      _category = _filterCategories.first;
-      _price = _filterPrices.first;
+      _selectedCity = _filterCities.first;
+      _selectedCategory = _filterCategories.first;
+      _selectedPrice = _filterPrices.first;
+      _appliedCity = _filterCities.first;
+      _appliedCategory = _filterCategories.first;
+      _appliedPrice = _filterPrices.first;
     });
   }
 
@@ -403,7 +421,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
 
       if (!mounted) return;
       setState(() {
-        _products = fetched;
+        _products = _dedupeProducts(fetched);
         _loading = false;
       });
       await _cacheCatalogResponse(res.body);
@@ -461,7 +479,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       if (decoded is! List) {
         return null;
       }
-      return decoded
+      return _dedupeProducts(decoded
           .whereType<Map<String, dynamic>>()
           .map((map) {
             final location = (map['location'] ?? '').toString();
@@ -482,7 +500,7 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
             );
           })
           .where((product) => product.title.isNotEmpty)
-          .toList();
+          .toList());
     } catch (_) {
       return null;
     }
@@ -523,9 +541,9 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       );
       return _filterVenues(
         [dummyVenue],
-        city: _city,
-        category: _category,
-        price: _price,
+        city: _appliedCity,
+        category: _appliedCategory,
+        price: _appliedPrice,
       ).isNotEmpty;
     }).toList();
   }
@@ -569,6 +587,19 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
       imageUrl: product.imageUrl,
       addons: product.addons,
     );
+  }
+
+  List<_CatalogProduct> _dedupeProducts(List<_CatalogProduct> products) {
+    final Map<String, _CatalogProduct> byKey = {};
+
+    for (final product in products) {
+      final id = product.id;
+      final key = id != null
+          ? 'id:$id'
+          : '${product.title.trim().toLowerCase()}|${product.city.trim().toLowerCase()}';
+      byKey[key] = product;
+    }
+    return byKey.values.toList();
   }
 }
 
