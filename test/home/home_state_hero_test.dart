@@ -33,8 +33,8 @@ void main() {
     state.debugStartTestimonialAutoScrollForTests();
     state.debugPauseTestimonialAutoScrollForTests();
 
-    // Sticky nav visibility via scroll handler.
-    expect(state.debugStickyNavVisibleForTests(), isFalse);
+    // Sticky nav stays visible so profile menu is always discoverable.
+    expect(state.debugStickyNavVisibleForTests(), isTrue);
     state.debugHandleScrollForTests(150);
     expect(state.debugStickyNavVisibleForTests(), isTrue);
   });

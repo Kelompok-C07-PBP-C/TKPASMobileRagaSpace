@@ -173,8 +173,7 @@ class Profile(models.Model):
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
-  if created:
-      Profile.objects.get_or_create(user=instance)
+  Profile.objects.get_or_create(user=instance)
 
 
 def _normalize_addons(raw: Any) -> list[dict[str, object]]:
@@ -231,11 +230,42 @@ def _resolve_category_for_app_venue(app_venue: "Venue"):
 
   venue_type = (app_venue.type or "").strip()
   if venue_type:
+      normalized_type = venue_type.lower()
+
+      # Handle legacy/new spelling mismatch for volley/volly so venues don't drop to "Imported".
+      if normalized_type in {"volly ball", "volley ball", "volly-ball", "volley-ball", "volleyball"}:
+          category = (
+              Category.objects.filter(slug__iexact="volly-ball").first()
+              or Category.objects.filter(slug__iexact="volley-ball").first()
+              or Category.objects.filter(name__iexact="Volly Ball").first()
+              or Category.objects.filter(name__iexact="Volley Ball").first()
+          )
+          if category is None:
+              category, _ = Category.objects.get_or_create(slug="volly-ball", defaults={"name": "Volly Ball"})
+          else:
+              updated_fields: list[str] = []
+              if category.slug != "volly-ball":
+                  category.slug = "volly-ball"
+                  updated_fields.append("slug")
+              if category.name != "Volly Ball":
+                  category.name = "Volly Ball"
+                  updated_fields.append("name")
+              if updated_fields:
+                  category.save(update_fields=updated_fields)
+          return category
+
       # Try a case-insensitive name match first so that "Tennis" in the
       # admin UI maps to the Tennis category used by the catalog filters.
       category = Category.objects.filter(name__iexact=venue_type).first()
       if category:
           return category
+
+      # As a secondary attempt, try matching by slugified name to catch near-matches.
+      slug_candidate = slugify(venue_type)
+      if slug_candidate:
+          category = Category.objects.filter(slug=slug_candidate).first()
+          if category:
+              return category
 
   # As a safe fallback, keep using / creating the generic "Imported" bucket.
   return _get_or_create_import_category()
@@ -245,13 +275,6 @@ def _resolve_main_venue(app_venue: Venue):
   """Ensure a corresponding manajemen_lapangan.Venue exists and return it."""
   MLVenue = apps.get_model("manajemen_lapangan", "Venue")
   category = _resolve_category_for_app_venue(app_venue)
-
-  slug_base = slugify(app_venue.title) or f"venue-{app_venue.pk}"
-  slug = slug_base
-  counter = 1
-  while MLVenue.objects.exclude(pk=app_venue.linked_venue_id or None).filter(slug=slug).exists():
-      counter += 1
-      slug = f"{slug_base}-{counter}"
 
   raw_facilities = getattr(app_venue, "facilities", [])
   facilities_parts: list[str] = []
@@ -269,7 +292,14 @@ def _resolve_main_venue(app_venue: Venue):
       facilities_parts = [segment.strip() for segment in raw_facilities.split(",") if segment.strip()]
   facilities_text = ", ".join(facilities_parts)
 
-  city = app_venue.location.split(",")[0].strip() if app_venue.location else ""
+  raw_location = (app_venue.location or "").strip()
+  city = ""
+  location_detail = raw_location
+  if raw_location:
+      parts = [part.strip() for part in raw_location.split(",", 1)]
+      city = parts[0]
+      if len(parts) > 1 and parts[1]:
+          location_detail = parts[1]
   image_url = app_venue.image_url
   if not image_url and app_venue.image:
       try:
@@ -277,12 +307,41 @@ def _resolve_main_venue(app_venue: Venue):
       except Exception:
           image_url = ""
 
+  ml_venue = None
+  if app_venue.linked_venue_id:
+      ml_venue = MLVenue.objects.filter(pk=app_venue.linked_venue_id).first()
+
+  if ml_venue is None:
+      # Avoid creating duplicate venues when the linkage is missing: prefer an
+      # existing venue with the same name (and city, if available).
+      match_qs = MLVenue.objects.filter(name__iexact=app_venue.title)
+      if city:
+          match_qs = match_qs.filter(city__iexact=city)
+      ml_venue = match_qs.order_by("id").first()
+
+  if ml_venue is None:
+      slug_candidate = slugify(app_venue.title)
+      if slug_candidate:
+          ml_venue = MLVenue.objects.filter(slug=slug_candidate).order_by("id").first()
+
+  if ml_venue is not None and not app_venue.linked_venue_id:
+      _update_instance_link(Venue, app_venue.pk, "linked_venue_id", ml_venue.pk)
+      app_venue.linked_venue_id = ml_venue.pk
+
+  slug_base = slugify(app_venue.title) or f"venue-{app_venue.pk}"
+  slug = slug_base
+  if ml_venue is None:
+      counter = 1
+      while MLVenue.objects.filter(slug=slug).exists():
+          counter += 1
+          slug = f"{slug_base}-{counter}"
+
   defaults = {
       "category": category,
       "name": app_venue.title,
       "slug": slug,
       "description": app_venue.description,
-      "location": app_venue.location,
+      "location": location_detail,
       "city": city,
       "address": "",
       "price_per_hour": Decimal(app_venue.price or 0),
@@ -291,11 +350,11 @@ def _resolve_main_venue(app_venue: Venue):
       "image_url": image_url or "",
   }
 
-  ml_venue = None
-  if app_venue.linked_venue_id:
-      ml_venue = MLVenue.objects.filter(pk=app_venue.linked_venue_id).first()
   if ml_venue:
+      # Do not overwrite the slug for existing venues: changing it breaks URLs.
       for field, value in defaults.items():
+          if field == "slug":
+              continue
           setattr(ml_venue, field, value)
       if not ml_venue.slug:
           ml_venue.slug = slug
@@ -460,27 +519,74 @@ def delete_wishlist_from_tk1web(sender, instance: WishlistEntry, **kwargs):
 @receiver(post_save, sender=Comment)
 def sync_comment_to_tk1web(sender, instance: Comment, **kwargs):
   """Mirror comments to TK1Web's interaksi.Review for visibility across apps."""
-  Review = apps.get_model("interaksi", "Review")
-  link = instance.venue_links.select_related("venue").first()
-  if not link or not instance.user:
+  _sync_comment_to_tk1web_review(instance)
+
+
+def _sync_comment_to_tk1web_review(comment: Comment, *, app_venue: Venue | None = None) -> None:
+  """Ensure the given app Comment has a matching TK1Web interaksi.Review row."""
+  if not comment.user:
       return
-  venue = _resolve_main_venue(link.venue)
+
+  if app_venue is None:
+      link = comment.venue_links.select_related("venue").first()
+      if not link:
+          return
+      app_venue = link.venue
+
+  venue = _resolve_main_venue(app_venue)
   if venue is None:
       return
-  review, created = Review.objects.get_or_create(
-      user=instance.user,
-      venue=venue,
-      defaults={"rating": instance.rating, "comment": instance.comment},
-  )
+
+  Review = apps.get_model("interaksi", "Review")
+  review = None
+  if comment.linked_review_id:
+      review = Review.objects.filter(pk=comment.linked_review_id).first()
+
+  if review is None:
+      # Each app Comment maps to its own Review so users can leave multiple reviews.
+      review = Review(
+          user=comment.user,
+          venue=venue,
+          rating=comment.rating,
+          comment=comment.comment,
+      )
+      setattr(review, "_skip_app_comment_sync", True)
+      review.save()
+      _update_instance_link(Comment, comment.pk, "linked_review_id", review.pk)
+      return
+
+  updates: list[str] = []
+  if review.user_id != comment.user_id:
+      review.user = comment.user
+      updates.append("user")
+  if review.venue_id != venue.pk:
+      review.venue = venue
+      updates.append("venue")
+  if int(getattr(review, "rating", 0) or 0) != int(comment.rating or 0):
+      review.rating = comment.rating
+      updates.append("rating")
+  if str(getattr(review, "comment", "") or "") != str(comment.comment or ""):
+      review.comment = comment.comment
+      updates.append("comment")
+  if updates:
+      setattr(review, "_skip_app_comment_sync", True)
+      review.save(update_fields=updates + ["updated_at"])
+  if comment.linked_review_id != review.pk:
+      _update_instance_link(Comment, comment.pk, "linked_review_id", review.pk)
+
+
+@receiver(post_save, sender=CommentVenue)
+def sync_comment_venue_to_tk1web(sender, instance: CommentVenue, created: bool, **kwargs):
+  """Ensure newly-linked comments are mirrored to the web Review model."""
   if not created:
-      changed = False
-      if review.rating != instance.rating:
-          review.rating = instance.rating
-          changed = True
-      if review.comment != instance.comment:
-          review.comment = instance.comment
-          changed = True
-      if changed:
-          review.save(update_fields=["rating", "comment", "updated_at"])
-  if instance.linked_review_id != review.pk:
-      _update_instance_link(Comment, instance.pk, "linked_review_id", review.pk)
+      return
+  _sync_comment_to_tk1web_review(instance.comment, app_venue=instance.venue)
+
+
+@receiver(post_delete, sender=Comment)
+def delete_comment_from_tk1web(sender, instance: Comment, **kwargs):
+  """Keep TK1Web's interaksi.Review table in sync when an app Comment is deleted."""
+  if not instance.linked_review_id:
+      return
+  Review = apps.get_model("interaksi", "Review")
+  Review.objects.filter(pk=instance.linked_review_id).delete()

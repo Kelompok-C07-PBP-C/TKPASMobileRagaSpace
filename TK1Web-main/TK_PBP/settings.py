@@ -59,7 +59,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'TK_PBP.cors.SimpleCorsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'TK_PBP.csrf.LocalDevCsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'TK_PBP.admin_redirect.AdminRedirectMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -167,7 +167,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_REDIRECT_URL = "home"
-LOGOUT_REDIRECT_URL = "authentication:login"
+LOGOUT_REDIRECT_URL = "home"
 LOGIN_URL = "authentication:login"
 
 CSRF_COOKIE_SECURE = os.getenv("DJANGO_CSRF_COOKIE_SECURE", "0") == "1"

@@ -7,12 +7,12 @@ class AuroraPalette {
   /// Deep-sky gradient inspired by the provided aurora references.
   static const LinearGradient sky = LinearGradient(
     colors: [
-      Color(0xFF01030C),
-      Color(0xFF120B2F),
-      Color(0xFF241852),
-      Color(0xFF1A3D71),
+      Color(0xFF020617),
+      Color(0xFF0A192F),
+      Color(0xFF0B2348),
+      Color(0xFF082032),
       Color(0xFF0B5F63),
-      Color(0xFF0AD794),
+      Color(0xFF1B89AE),
     ],
     stops: [0.0, 0.22, 0.45, 0.67, 0.83, 1.0],
     begin: Alignment.topLeft,

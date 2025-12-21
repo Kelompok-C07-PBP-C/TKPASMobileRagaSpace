@@ -5,8 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:tk2ragaspace/features/home/home_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   Map<String, dynamic> _productJson({
     required int id,
     required String title,
@@ -68,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Header and filter panel.
-    expect(find.text('Product Catalog'), findsOneWidget);
+    expect(find.text('Venue catalog'), findsOneWidget);
     expect(find.text('Filter venues'), findsOneWidget);
 
     // Change each dropdown to exercise onChanged handlers.

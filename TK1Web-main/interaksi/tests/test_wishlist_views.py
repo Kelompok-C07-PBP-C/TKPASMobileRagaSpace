@@ -122,11 +122,19 @@ class ReviewModelTests(TestCase):
         self.assertEqual(review.rating, 5)
         self.assertEqual(review.comment, "Great place!")
 
-    def test_duplicate_review_not_allowed(self) -> None:
-        """A user cannot review the same venue twice."""
+    def test_user_can_review_same_venue_multiple_times(self) -> None:
+        """A user can review the same venue multiple times."""
         Review.objects.create(user=self.user, venue=self.venue, rating=4, comment="Nice!")
-        with self.assertRaises(Exception):
-            Review.objects.create(user=self.user, venue=self.venue, rating=3, comment="Duplicate")
+        Review.objects.create(
+            user=self.user,
+            venue=self.venue,
+            rating=3,
+            comment="Second review",
+        )
+        self.assertEqual(
+            Review.objects.filter(user=self.user, venue=self.venue).count(),
+            2,
+        )
 
     def test_rating_must_be_between_1_and_5(self) -> None:
         """Invalid rating outside range should raise ValidationError."""

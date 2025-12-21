@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -8,10 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tk2ragaspace/theme/aurora_palette.dart';
 import 'package:tk2ragaspace/widgets/aurora_backdrop.dart';
 import 'package:tk2ragaspace/widgets/twinkle_overlay.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api.dart';
-import '../../services/base_url_resolver.dart';
 import '../../widgets/gradient_button.dart';
 
 typedef AccountUserIdProvider = int? Function();
@@ -39,8 +36,6 @@ typedef AccountAvatarImageFactory = ImageProvider<Object> Function(
   File? file,
   String? url,
 );
-
-const _cachedAvatarStorageKey = 'cached_avatar_url';
 
 /// Test-only overrides used by widget tests.
 AccountUserIdProvider? accountUserIdOverride;
@@ -83,7 +78,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   void initState() {
     super.initState();
     _picker = widget.picker ?? ImagePicker();
-    _restoreCachedAvatar();
     _loadAccount();
   }
 
@@ -117,13 +111,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         _firstNameCtrl.text = (data['first_name'] ?? '').toString();
         _lastNameCtrl.text = (data['last_name'] ?? '').toString();
         _phoneCtrl.text = (data['phone_number'] ?? '').toString();
-        final resolved = _coerceAvatarFromPayload(data);
-        _avatarUrl = resolved ?? _avatarUrl;
+        _avatarUrl = (data['avatar_url'] ?? '').toString();
         _loading = false;
       });
-      if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
-        unawaited(_persistCachedAvatar(_avatarUrl!));
-      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -190,42 +180,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               avatarBytes: _avatarBytes,
               avatarFilename: _avatarFilename,
             );
-      final newAvatarUrl = _coerceAvatarFromPayload(data);
-      Map<String, dynamic>? refreshed;
-      try {
-        refreshed = accountFetchOverride != null
-            ? await accountFetchOverride!(api, userId)
-            : await api.fetchAccount(userId);
-      } catch (_) {
-        // Ignore refresh failures; fall back to the update response.
-      }
-
-      final refreshedAvatar = _coerceAvatarFromPayload(refreshed);
       setState(() {
-        if (refreshed != null) {
-          _usernameCtrl.text = (refreshed['username'] ?? _usernameCtrl.text).toString();
-          _emailCtrl.text = (refreshed['email'] ?? _emailCtrl.text).toString();
-          _firstNameCtrl.text = (refreshed['first_name'] ?? _firstNameCtrl.text).toString();
-          _lastNameCtrl.text = (refreshed['last_name'] ?? _lastNameCtrl.text).toString();
-          _phoneCtrl.text = (refreshed['phone_number'] ?? _phoneCtrl.text).toString();
-        }
-        final resolvedAvatar = <String?>[
-          refreshedAvatar,
-          newAvatarUrl,
-          _coerceAvatarFromPayload(data),
-          _avatarUrl,
-        ].firstWhere(
-          (value) => value != null && value.isNotEmpty,
-          orElse: () => null,
-        );
-
-        if (resolvedAvatar != null && resolvedAvatar.isNotEmpty) {
-          _avatarUrl = resolvedAvatar;
-          _avatarBytes = null;
-          _avatarFile = null;
-          _avatarFilename = null;
-          unawaited(_persistCachedAvatar(resolvedAvatar));
-        }
+        _avatarUrl = (data['avatar_url'] ?? '').toString();
+        _avatarFile = null;
+        _avatarBytes = null;
+        _avatarFilename = null;
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -243,61 +202,56 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop(_avatarUrl);
-        return false;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Account settings', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700)),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          iconTheme: const IconThemeData(color: Colors.white),
-          foregroundColor: Colors.white,
-        ),
-        extendBodyBehindAppBar: true,
-        body: Stack(
-          children: [
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(gradient: AuroraPalette.sky),
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Account settings', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700)),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
+      ),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: AuroraPalette.sky),
             ),
-            const Positioned.fill(
-              child: AuroraBackdrop(
-                variant: AuroraBackdropVariant.dense,
-                opacity: 0.65,
-              ),
+          ),
+          const Positioned.fill(
+            child: AuroraBackdrop(
+              variant: AuroraBackdropVariant.dense,
+              opacity: 0.65,
             ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withValues(alpha: 0.55),
-                      Colors.black.withValues(alpha: 0.25),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.25),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
               ),
             ),
-            const Positioned.fill(child: TwinkleOverlay(opacity: 0.16)),
-            SafeArea(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : _error != null
-                      ? _buildError()
-                      : _buildForm(),
-            ),
-          ],
-        ),
+          ),
+          const Positioned.fill(child: TwinkleOverlay(opacity: 0.16)),
+          SafeArea(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : _error != null
+                    ? _buildError()
+                    : _buildForm(),
+          ),
+        ],
       ),
     );
   }
@@ -400,11 +354,35 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       backgroundColor: Colors.white.withValues(alpha: 0.15),
       child: const Icon(Icons.person_rounded, color: Colors.white, size: 44),
     );
-    final avatarWidget = _buildAvatarImage(
-      provider: _resolveAvatarProvider(),
-      placeholder: placeholder,
-      radius: 48,
-    );
+    Widget avatarWidget;
+    if (_avatarBytes != null) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(null, null)
+          : MemoryImage(_avatarBytes!);
+      avatarWidget = CircleAvatar(
+        radius: 48,
+        backgroundImage: provider as ImageProvider<Object>,
+      );
+    } else if (_avatarFile != null) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(_avatarFile, null)
+          : FileImage(_avatarFile!);
+      avatarWidget = CircleAvatar(
+        radius: 48,
+        backgroundImage: provider,
+      );
+    } else if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      final provider = accountAvatarImageFactoryOverride != null
+          ? accountAvatarImageFactoryOverride!(null, _avatarUrl)
+          : NetworkImage(_avatarUrl!);
+      avatarWidget = CircleAvatar(
+        radius: 48,
+        backgroundImage: provider,
+        backgroundColor: Colors.transparent,
+      );
+    } else {
+      avatarWidget = placeholder;
+    }
     return Column(
       children: [
         SizedBox(
@@ -420,7 +398,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 bottom: 0,
                 right: MediaQuery.of(context).size.width * 0.5 - 48 - 6,
                 child: Material(
-                  color: const Color(0xFF1FA2FF),
+                  color: Theme.of(context).colorScheme.primary,
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
@@ -441,51 +419,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           style: GoogleFonts.plusJakartaSans(color: Colors.white70),
         ),
       ],
-    );
-  }
-
-  ImageProvider<Object>? _resolveAvatarProvider() {
-    if (_avatarBytes != null) {
-      return accountAvatarImageFactoryOverride != null
-          ? accountAvatarImageFactoryOverride!(null, null)
-          : MemoryImage(_avatarBytes!);
-    }
-    if (_avatarFile != null) {
-      return accountAvatarImageFactoryOverride != null
-          ? accountAvatarImageFactoryOverride!(_avatarFile, null)
-          : FileImage(_avatarFile!);
-    }
-    if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
-      return accountAvatarImageFactoryOverride != null
-          ? accountAvatarImageFactoryOverride!(null, _avatarUrl)
-          : NetworkImage(_avatarUrl!);
-    }
-    return null;
-  }
-
-  Widget _buildAvatarImage({
-    required ImageProvider<Object>? provider,
-    required Widget placeholder,
-    required double radius,
-  }) {
-    if (provider == null) return placeholder;
-    final size = radius * 2;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: Image(
-          image: provider,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => placeholder,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return placeholder;
-          },
-        ),
-      ),
     );
   }
 
@@ -532,76 +465,4 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   Widget debugBuildAvatarForTests() => _buildAvatar();
-
-  String? _coerceAvatarFromPayload(Map<String, dynamic>? data) {
-    final raw = _extractAvatarRaw(data);
-    final resolved = _resolveAvatarUrl(raw);
-    if (resolved.isEmpty) return _avatarUrl;
-    return resolved;
-  }
-
-  Future<void> _restoreCachedAvatar() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getString(_cachedAvatarStorageKey);
-      if (cached != null && cached.isNotEmpty && mounted) {
-        setState(() {
-          _avatarUrl = cached;
-        });
-      }
-    } catch (_) {
-      // ignore cache failures
-    }
-  }
-
-  Future<void> _persistCachedAvatar(String avatarUrl) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_cachedAvatarStorageKey, avatarUrl);
-    } catch (_) {
-      // ignore cache failures
-    }
-  }
-
-  String? _extractAvatarRaw(Map<String, dynamic>? data) {
-    if (data == null) return null;
-    final nested = data['data'];
-    final profile = data['profile'];
-    final candidates = [
-      data['avatar_url'],
-      data['avatarUrl'],
-      data['avatar'],
-      data['avatar_path'],
-      data['avatarPath'],
-      if (nested is Map<String, dynamic>) ...[
-        nested['avatar_url'],
-        nested['avatar'],
-        nested['avatar_path'],
-        nested['avatarPath'],
-      ],
-      if (profile is Map<String, dynamic>) ...[
-        profile['avatar_url'],
-        profile['avatar'],
-        profile['avatar_path'],
-        profile['avatarPath'],
-      ],
-    ];
-    for (final value in candidates) {
-      if (value == null) continue;
-      final text = value.toString().trim();
-      if (text.isNotEmpty && text.toLowerCase() != 'null') {
-        return text;
-      }
-    }
-    return null;
-  }
-
-  String _resolveAvatarUrl(String? rawUrl) {
-    final value = (rawUrl ?? '').trim();
-    if (value.isEmpty || value.toLowerCase() == 'null') return '';
-    if (value.startsWith('http')) return value;
-    final baseHost = resolveBaseApiHost().replaceFirst(RegExp(r'/api/?$'), '');
-    if (value.startsWith('/')) return '$baseHost$value';
-    return '$baseHost/$value';
-  }
 }

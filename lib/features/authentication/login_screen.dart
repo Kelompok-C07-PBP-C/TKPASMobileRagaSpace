@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api.dart';
 import '../../widgets/aurora_route.dart';
@@ -7,7 +8,9 @@ import '../../widgets/auth_background.dart';
 import 'register_screen.dart';
 import 'loading_screen.dart';
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.returnToPrevious = false});
+
+  final bool returnToPrevious;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -38,12 +41,16 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Signed in successfully')));
+        ).showSnackBar(const SnackBar(content: Text('Login successful')));
         await Future<void>.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          AuroraWarpRoute(const LoadingScreen()),
-        );
+        if (widget.returnToPrevious) {
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.of(context).pushReplacement(
+            AuroraWarpRoute(const LoadingScreen()),
+          );
+        }
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -79,9 +86,13 @@ class _LoginScreenState extends State<LoginScreen>
     if (!mounted) return;
     setState(() => _loading = false);
     if (success) {
-      Navigator.of(context).pushReplacement(
-        AuroraWarpRoute(const LoadingScreen()),
-      );
+      if (widget.returnToPrevious) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          AuroraWarpRoute(const LoadingScreen()),
+        );
+      }
     }
   }
 
@@ -217,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   const SizedBox(height: 18),
                   GradientButton(
-                    label: 'Sign In',
+                    label: 'Login',
                     onPressed: _loading ? null : _login,
                     loading: _loading,
                   ),
@@ -235,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                 child: const Text(
-                  "Don't have an account? Sign Up",
+                  "Don't have an account? Register now",
                   style: TextStyle(color: Colors.white),
                 ),
               ),
@@ -316,10 +327,15 @@ class _LoginHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                colors: [scheme.primary, scheme.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: scheme.primary.withValues(alpha: 0.25),
@@ -328,10 +344,15 @@ class _LoginHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(
-              Icons.login_rounded,
-              color: scheme.primary,
-              size: 30,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: SvgPicture.asset(
+                'assets/ragaspace-logo.svg',
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 18),
@@ -340,7 +361,7 @@ class _LoginHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Login',
+                  'Login to RagaSpace',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -348,7 +369,7 @@ class _LoginHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Welcome back! Please sign in to continue.',
+                  'Welcome back! Please login to continue.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.75),
                     height: 1.5,

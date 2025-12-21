@@ -5,6 +5,7 @@ from .views import (
     AdminLandingView,
     AuthLoginView,
     AuthLogoutView,
+    ProfileView,
     RegisterView,
     UserLandingView,
 )
@@ -17,4 +18,5 @@ urlpatterns = [
     path("auth/login/", AuthLoginView.as_view(), name="login"),
     path("auth/logout/", AuthLogoutView.as_view(), name="logout"),
     path("auth/register/", RegisterView.as_view(), name="register"),
+    path("auth/profile/", ProfileView.as_view(), name="profile"),
 ]

@@ -92,9 +92,34 @@
         </div>
         <div class="hidden flex-1 items-center justify-end gap-4 text-base font-medium md:flex">
           {% if user.is_authenticated %}
-          <span class="text-base font-medium text-slate-900">{{ request.user.username }}</span>
+          {% with display_name=request.user.get_full_name|default:request.user.username %}
+          <a href="{% url 'authentication:profile' %}" class="flex items-center gap-2 text-base font-medium text-slate-900 transition hover:text-[#1B89AE]">
+            {% if request.user.profile.avatar %}
+            <img
+              src="{{ request.user.profile.avatar.url }}"
+              alt="Profile picture of {{ display_name }}"
+              class="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200"
+              loading="lazy"
+              decoding="async"
+              onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=128&rounded=true&bold=true';"
+            />
+            {% else %}
+            <img
+              src="https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=128&rounded=true&bold=true"
+              alt="Avatar for {{ display_name }}"
+              class="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200"
+              loading="lazy"
+              decoding="async"
+            />
+            {% endif %}
+            <span>{{ request.user.username }}</span>
+          </a>
+          {% endwith %}
           <span aria-hidden="true" class="text-slate-300">|</span>
-          <a href="{% url 'authentication:logout' %}" class="font-medium text-red-500 transition hover:text-red-600">Logout</a>
+          <form method="post" action="{% url 'authentication:logout' %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="font-medium text-red-500 transition hover:text-red-600">Logout</button>
+          </form>
           {% else %}
           <a href="{% url 'authentication:login' %}" class="font-medium text-slate-900 transition hover:text-[#1B89AE]">Login</a>
           <a href="{% url 'authentication:register' %}" class="rounded-xl bg-[#1B89AE] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#15647F]">Register</a>
@@ -127,8 +152,33 @@
           </div>
           <div class="flex flex-col gap-2 border-t border-slate-200 pt-3">
             {% if user.is_authenticated %}
-            <span class="text-base font-medium text-slate-900">{{ request.user.username }}</span>
-            <a href="{% url 'authentication:logout' %}" class="font-medium text-red-500 transition hover:text-red-600">Logout</a>
+            {% with display_name=request.user.get_full_name|default:request.user.username %}
+            <a href="{% url 'authentication:profile' %}" class="flex items-center gap-2 text-base font-medium text-slate-900 transition hover:text-[#1B89AE]">
+              {% if request.user.profile.avatar %}
+              <img
+                src="{{ request.user.profile.avatar.url }}"
+                alt="Profile picture of {{ display_name }}"
+                class="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200"
+                loading="lazy"
+                decoding="async"
+                onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=128&rounded=true&bold=true';"
+              />
+              {% else %}
+              <img
+                src="https://ui-avatars.com/api/?name={{ display_name|urlencode }}&background=132548&color=ffffff&size=128&rounded=true&bold=true"
+                alt="Avatar for {{ display_name }}"
+                class="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200"
+                loading="lazy"
+                decoding="async"
+              />
+              {% endif %}
+              <span>{{ request.user.username }}</span>
+            </a>
+            {% endwith %}
+            <form method="post" action="{% url 'authentication:logout' %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="text-left font-medium text-red-500 transition hover:text-red-600">Logout</button>
+            </form>
             {% else %}
             <a href="{% url 'authentication:login' %}" class="transition hover:text-[#1B89AE]">Login</a>
             <a href="{% url 'authentication:register' %}" class="rounded-xl bg-[#1B89AE] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#15647F]">Register</a>

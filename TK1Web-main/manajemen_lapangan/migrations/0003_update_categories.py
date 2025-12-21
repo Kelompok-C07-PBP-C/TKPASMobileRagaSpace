@@ -11,7 +11,7 @@ NEW_CATEGORY_DEFINITIONS = [
     ("futsal", "Futsal"),
     ("billiard", "Billiard"),
     ("tenis-meja", "Tenis Meja"),
-    ("volley-ball", "Volley Ball"),
+    ("volly-ball", "Volly Ball"),
 ]
 
 RENAMED_SLUGS = {
@@ -67,7 +67,7 @@ def revert_categories(apps, schema_editor):
         "mini-soccer",
         "billiard",
         "tenis-meja",
-        "volley-ball",
+        "volly-ball",
     }
     Category.objects.filter(slug__in=added_slugs).delete()
 

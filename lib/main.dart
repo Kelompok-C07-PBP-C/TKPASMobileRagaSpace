@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'features/authentication/login_screen.dart';
+import 'features/home/home_screen.dart';
 
 const bool _showPerfOverlay =
     bool.fromEnvironment('ENABLE_PERF_OVERLAY', defaultValue: false);
@@ -53,12 +53,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF2F55B5),
-      secondary: const Color(0xFF68D4FF),
-      surface: const Color(0xFFF5F9FF),
+      seedColor: const Color(0xFF1B89AE),
+      secondary: const Color(0xFF15647F),
+      brightness: Brightness.dark,
+      surface: const Color(0xFF020617),
     );
     return MaterialApp(
-      title: 'Auth Flutter',
+      title: 'RagaSpace',
       debugShowCheckedModeBanner: false,
       showPerformanceOverlay: _showPerfOverlay,
       theme: ThemeData(
@@ -68,12 +69,12 @@ class MyApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.85),
+          fillColor: Colors.white.withValues(alpha: 0.08),
           contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         ),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const HomeScreen(),
     );
   }
 }

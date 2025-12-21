@@ -1,3 +1,9 @@
+# RagaSpace
+[![Build Status](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/status.svg?token=8l3C6fh7DiaWRYezq6kBIw&branch=main)](https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd)
+
+## Download
+https://app.bitrise.io/app/8494dc3d-c505-42f0-8cc8-5f317362e2dd/installable-artifacts/83f6c87d02ff9f1b/public-install-page/28514b763be4390a1312a832286ec85e
+
 # Aplikasi Penyewaan Lapangan Olahraga
 
 ## Anggota Kelompok :
