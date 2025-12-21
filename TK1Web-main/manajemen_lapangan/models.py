@@ -6,14 +6,10 @@ from datetime import time
 
 from django.core.exceptions import ValidationError
 from django.db import models
-<<<<<<< HEAD
-from django.utils.text import slugify
-=======
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils.text import slugify
 from django.apps import apps
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 
 
 class TimestampedModel(models.Model):
@@ -94,8 +90,6 @@ class VenueAvailability(TimestampedModel):
     def clean(self):  # pragma: no cover - requires Django validation
         if self.end_datetime <= self.start_datetime:
             raise ValidationError("End datetime must be greater than start datetime")
-<<<<<<< HEAD
-=======
 
 
 @receiver(post_delete, sender=Venue)
@@ -123,4 +117,3 @@ def delete_mirrored_app_venue(sender, instance: Venue, **kwargs):  # pragma: no 
         qs.distinct().delete()
     except Exception:
         return
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb

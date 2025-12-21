@@ -11,10 +11,7 @@ from django.apps import apps
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-<<<<<<< HEAD
-=======
 from django.db import transaction
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -30,13 +27,10 @@ from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue,
 from .sync import sync_all_main_to_app
 
 
-<<<<<<< HEAD
-=======
 _BOOKING_ANALYTICS_CACHE: dict[str, dict[str, list]] | None = None
 _BOOKING_ANALYTICS_CACHE_AT: datetime | None = None
 
 
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 @require_GET
 @ensure_csrf_cookie
 def csrf_view(request: HttpRequest):
@@ -501,22 +495,14 @@ def top_venues_view(request: HttpRequest):
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
         bookings_count = getattr(venue, "bookings_count", 0) or 0
-<<<<<<< HEAD
-        image_url = venue.image_url
-        if not image_url and venue.image:
-=======
         image_url = ""
         if venue.image:
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
-<<<<<<< HEAD
-=======
         if not image_url:
             image_url = venue.image_url
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         image_url = _absolute_media_url(request, image_url)
         data.append(
             {
@@ -546,22 +532,14 @@ def venues_list_view(request: HttpRequest):
     queryset = _admin_base_venue_queryset().order_by("title")
     data = []
     for venue in queryset:
-<<<<<<< HEAD
-        image_url = venue.image_url
-        if not image_url and venue.image:
-=======
         image_url = ""
         if venue.image:
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
-<<<<<<< HEAD
-=======
         if not image_url:
             image_url = venue.image_url
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         image_url = _absolute_media_url(request, image_url)
         city = venue.location.split(",")[0].strip() if venue.location else ""
         data.append(
@@ -1020,22 +998,14 @@ def _admin_base_venue_queryset():
 
 
 def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
-<<<<<<< HEAD
-    image_url = venue.image_url
-    if not image_url and venue.image:
-=======
     image_url = ""
     if venue.image:
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         try:
             image_url = venue.image.url
         except (ValueError, AttributeError):
             image_url = ""
-<<<<<<< HEAD
-=======
     if not image_url:
         image_url = venue.image_url or ""
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     raw_facilities = venue.facilities or []
     if isinstance(raw_facilities, (list, tuple)):
         facilities = [str(item).strip() for item in raw_facilities if str(item).strip()]
@@ -1234,8 +1204,6 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
     }
 
 
-<<<<<<< HEAD
-=======
 def _get_booking_analytics_cached(*, ttl_seconds: int = 20, force: bool = False) -> dict[str, dict[str, list]]:
     """Return cached booking analytics to keep admin endpoints responsive."""
     global _BOOKING_ANALYTICS_CACHE, _BOOKING_ANALYTICS_CACHE_AT
@@ -1257,7 +1225,6 @@ def _get_booking_analytics_cached(*, ttl_seconds: int = 20, force: bool = False)
     return analytics
 
 
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 @ensure_csrf_cookie
 def admin_login_view(request: HttpRequest):
     """Deprecated: redirect to the shared /auth/login/ page."""
@@ -1273,14 +1240,10 @@ def admin_login_view(request: HttpRequest):
 @login_required
 @ensure_csrf_cookie
 def admin_panel(request: HttpRequest):
-<<<<<<< HEAD
-    sync_all_main_to_app()
-=======
     try:
         sync_all_main_to_app(min_interval_seconds=30, blocking=False)
     except Exception:
         pass
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1301,11 +1264,7 @@ def admin_panel(request: HttpRequest):
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
-<<<<<<< HEAD
-    analytics = _build_booking_analytics()
-=======
     analytics = _get_booking_analytics_cached(ttl_seconds=30)
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     UserModel = get_user_model()
     bookings_data, bookings_meta = _build_paginated_payload(
         bookings_queryset,
@@ -1334,14 +1293,10 @@ def admin_logout_view(request: HttpRequest):
 @login_required
 @require_GET
 def admin_venues_list_api(request: HttpRequest):
-<<<<<<< HEAD
-    sync_all_main_to_app()
-=======
     try:
         sync_all_main_to_app(min_interval_seconds=30, sync_bookings=False, blocking=False)
     except Exception:
         pass
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1378,11 +1333,8 @@ def admin_venues_create_api(request: HttpRequest):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
-<<<<<<< HEAD
-=======
     if request.FILES.get("image"):
         form.instance.image_url = ""
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1399,11 +1351,8 @@ def admin_venues_update_api(request: HttpRequest, venue_id: int):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
-<<<<<<< HEAD
-=======
     if request.FILES.get("image"):
         form.instance.image_url = ""
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1416,9 +1365,6 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
         return forbidden
 
     venue = get_object_or_404(Venue, pk=venue_id)
-<<<<<<< HEAD
-    venue.delete()
-=======
     linked_main_id = venue.linked_venue_id
     title = (venue.title or "").strip()
     city = (venue.location or "").split(",", 1)[0].strip()
@@ -1444,17 +1390,12 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
         if city:
             dupes = dupes.filter(location__istartswith=city)
         dupes.delete()
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     return JsonResponse({"success": True})
 
 
 @login_required
 @require_GET
 def admin_bookings_list_api(request: HttpRequest):
-<<<<<<< HEAD
-    sync_all_main_to_app()
-=======
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1467,8 +1408,6 @@ def admin_bookings_list_api(request: HttpRequest):
         max_value=MAX_PAGE_SIZE,
     )
 
-<<<<<<< HEAD
-=======
     force_sync = str(request.GET.get("sync") or "").strip().lower() in {"1", "true", "yes"}
     should_sync = force_sync
     if not should_sync and page == 1 and not query.strip():
@@ -1488,18 +1427,13 @@ def admin_bookings_list_api(request: HttpRequest):
         except Exception:
             pass
 
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
     queryset = _apply_booking_search(queryset, query)
-<<<<<<< HEAD
-    analytics = _build_booking_analytics()
-=======
     analytics = _get_booking_analytics_cached(ttl_seconds=20, force=force_sync)
->>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     UserModel = get_user_model()
     data, meta = _build_paginated_payload(
         queryset,

@@ -3,15 +3,16 @@
   class="card-tilt group relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/40 backdrop-blur-xl"
   data-animate
   data-wishlist-item="{{ venue.id }}"
+  data-name="{{ venue.name|lower }}"
+  data-category="{{ venue.category.name|default:'Other'|lower }}"
+  data-price="{{ venue.price_per_hour|default:0 }}"
+  data-rating="{{ venue.average_rating|default:0 }}"
+  data-added="{{ added_index|default:0 }}"
+  data-image="{{ venue.image_url|default:'' }}"
 >
-  <img src="{{ venue.image_url }}" alt="{{ venue.name }}" class="h-48 w-full rounded-2xl object-cover" />
-  <div class="mt-4 flex items-start justify-between">
-    <div>
-      <p class="text-xs uppercase tracking-[0.4em] text-white/50">{{ venue.category.name }}</p>
-      <h3 class="text-xl font-semibold text-white">{{ venue.name }}</h3>
-      <p class="text-sm text-white/60">{{ venue.city }}</p>
-    </div>
-    <form method="post" action="{% url 'wishlist-toggle' venue.id %}" data-wishlist-form>
+  <div class="relative">
+    <img src="{{ venue.image_url }}" alt="{{ venue.name }}" class="h-48 w-full rounded-2xl object-cover" />
+    <form method="post" action="{% url 'wishlist-toggle' venue.id %}" class="absolute right-3 top-3" data-wishlist-form>
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ wishlist_next_url|default:request.get_full_path }}" />
       <button
@@ -36,6 +37,11 @@
         </svg>
       </button>
     </form>
+  </div>
+  <div class="mt-4 space-y-1">
+    <p class="text-xs uppercase tracking-[0.4em] text-white/50">{{ venue.category.name }}</p>
+    <h3 class="text-xl font-semibold text-white">{{ venue.name }}</h3>
+    <p class="text-sm text-white/60">{{ venue.city }}</p>
   </div>
   <p class="mt-2 text-sm text-white/70">{{ description }}</p>
   <div class="mt-4 flex items-center justify-between">

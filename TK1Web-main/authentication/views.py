@@ -103,7 +103,7 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         for field in form.fields.values():
             field.widget.attrs.setdefault(
                 "class",
-                "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
             )
         return form
 

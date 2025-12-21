@@ -26,4 +26,3 @@ class LocalDevCsrfViewMiddleware(CsrfViewMiddleware):
                 ):
                     return True
         return super()._origin_verified(request)
-

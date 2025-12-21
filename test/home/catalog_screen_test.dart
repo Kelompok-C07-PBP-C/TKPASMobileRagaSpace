@@ -39,6 +39,77 @@ void main() {
     catalogHttpGetOverride = null;
   });
 
+  testWidgets('CatalogScreen dedupes duplicate venues', (tester) async {
+    final noId = _productJson(
+      id: 99,
+      title: 'Seaside Court',
+      city: 'Makassar',
+    );
+    noId['id'] = null; // exercise no-id dedupe path
+
+    catalogHttpGetOverride = (_) async => http.Response(
+          jsonEncode([
+            _productJson(id: 10, title: 'Aurora Sports Dome'),
+            _productJson(id: 10, title: 'Aurora Sports Dome (dup)'), // same id
+            noId,
+            {
+              ...noId,
+              'description': 'duplicate payload with same title + city',
+            },
+          ]),
+          200,
+        );
+
+    await tester.pumpWidget(
+      buildCatalogTestApp(
+        onToggleFavorite: (_) async => false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final cardFinder = find.byWidgetPredicate(
+      (w) => w.runtimeType.toString() == '_CatalogProductCard',
+    );
+    expect(cardFinder, findsNWidgets(2));
+  });
+
+  testWidgets('Catalog filters apply only after Search tapped', (tester) async {
+    catalogHttpGetOverride = (_) async => http.Response(
+          jsonEncode([
+            _productJson(id: 21, title: 'Apply Test Venue', city: 'Jakarta'),
+          ]),
+          200,
+        );
+
+    await tester.pumpWidget(
+      buildCatalogTestApp(
+        onToggleFavorite: (_) async => false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final cardFinder = find.byWidgetPredicate(
+      (w) => w.runtimeType.toString() == '_CatalogProductCard',
+    );
+    expect(cardFinder, findsOneWidget);
+
+    // Change city filter but do not tap Search yet.
+    await tester.tap(find.text('All cities'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bandung').last);
+    await tester.pumpAndSettle();
+
+    // Card should still be visible because filter not applied.
+    expect(cardFinder, findsOneWidget);
+
+    // Apply filter via Search button -> card disappears and empty state shown.
+    await tester.tap(find.text('Search venues'));
+    await tester.pumpAndSettle();
+
+    expect(cardFinder, findsNothing);
+    expect(find.text('Tidak ada venue dengan filter ini.'), findsOneWidget);
+  });
+
   testWidgets('CatalogScreen loads products, filters, and favorites (wide)',
       (tester) async {
     final completer = Completer<http.Response>();

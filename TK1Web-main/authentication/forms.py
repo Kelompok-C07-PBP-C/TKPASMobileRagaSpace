@@ -138,7 +138,8 @@ class ProfileUpdateForm(forms.ModelForm):
         required=False,
         widget=forms.FileInput(
             attrs={
-                "class": "w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-white placeholder-white/60 backdrop-blur file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/30",
+                "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-cyan-500/30 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
+                "accept": "image/*",
             }
         ),
     )
@@ -147,7 +148,7 @@ class ProfileUpdateForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(
             attrs={
-                "class": "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
                 "placeholder": "Phone number (optional)",
             }
         ),
@@ -159,25 +160,25 @@ class ProfileUpdateForm(forms.ModelForm):
         widgets = {
             "username": forms.TextInput(
                 attrs={
-                    "class": "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                    "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
                     "placeholder": "Username",
                 }
             ),
             "email": forms.EmailInput(
                 attrs={
-                    "class": "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                    "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
                     "placeholder": "Email (optional)",
                 }
             ),
             "first_name": forms.TextInput(
                 attrs={
-                    "class": "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                    "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
                     "placeholder": "First name (optional)",
                 }
             ),
             "last_name": forms.TextInput(
                 attrs={
-                    "class": "w-full rounded-xl bg-white/10 border border-white/30 px-4 py-3 text-white placeholder-white/60 backdrop-blur",
+                    "class": "w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/40 backdrop-blur",
                     "placeholder": "Last name (optional)",
                 }
             ),

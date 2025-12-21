@@ -5,16 +5,54 @@ function getCookie(name) {
   return null;
 }
 
-const getCsrfToken = () => {
+const getCsrfTokenFromElement = (element) => {
+  if (!element) {
+    return '';
+  }
+  const form = element.closest('form');
+  if (!form) {
+    return '';
+  }
+  const input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+  if (input && input.value) {
+    return input.value;
+  }
+  return '';
+};
+
+const getGlobalCsrfToken = () => {
+  const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  if (input && input.value) {
+    return input.value;
+  }
+  return '';
+};
+
+const getCsrfToken = (element) => {
   const cookieToken = getCookie('csrftoken');
   if (cookieToken) {
     return cookieToken;
   }
   const metaToken = document.querySelector('meta[name="csrf-token"]');
-  if (metaToken) {
+  if (metaToken && metaToken.getAttribute('content')) {
     return metaToken.getAttribute('content');
   }
-  return '';
+  const elementToken = getCsrfTokenFromElement(element);
+  if (elementToken) {
+    return elementToken;
+  }
+  return getGlobalCsrfToken();
+};
+
+const ensureCsrfCookie = (token) => {
+  if (typeof document === 'undefined' || !token) {
+    return;
+  }
+  const existing = getCookie('csrftoken');
+  if (existing === token) {
+    return;
+  }
+  document.cookie = `csrftoken=${token}; path=/`;
 };
 
 const escapeHtml = (value) => {
@@ -678,14 +716,22 @@ const syncWishlistGrid = ({ venueId, wishlisted, venueData, wishlistItemHtml }) 
   if (!grid) {
     return;
   }
+  const wishlistScope = grid.parentElement || document;
   const emptyState = document.querySelector('[data-wishlist-empty]');
+  const refreshWishlistUi = () => {
+    if (window.RagaSpace && typeof window.RagaSpace.refreshInteractive === 'function') {
+      window.RagaSpace.refreshInteractive(wishlistScope);
+    }
+    updateWishlistEmptyState(grid, emptyState);
+    hydrateWishlistPage(wishlistScope);
+  };
   const selector = `[data-wishlist-item="${escapeSelector(venueId)}"]`;
   const existingCard = grid.querySelector(selector);
   if (!wishlisted) {
     if (existingCard) {
       existingCard.remove();
     }
-    updateWishlistEmptyState(grid, emptyState);
+    refreshWishlistUi();
     return;
   }
   if (typeof wishlistItemHtml === 'string' && wishlistItemHtml.trim() !== '') {
@@ -705,27 +751,21 @@ const syncWishlistGrid = ({ venueId, wishlisted, venueData, wishlistItemHtml }) 
         prepareWishlistButtons(newCard);
       }
     }
-    if (window.RagaSpace && typeof window.RagaSpace.refreshInteractive === 'function') {
-      window.RagaSpace.refreshInteractive(grid);
-    }
-    updateWishlistEmptyState(grid, emptyState);
+    refreshWishlistUi();
     return;
   }
   if (existingCard) {
-    updateWishlistEmptyState(grid, emptyState);
+    refreshWishlistUi();
     return;
   }
   if (!venueData) {
-    updateWishlistEmptyState(grid, emptyState);
+    refreshWishlistUi();
     return;
   }
   const card = createWishlistCard(venueData);
   grid.prepend(card);
   prepareWishlistButtons(card);
-  if (window.RagaSpace && typeof window.RagaSpace.refreshInteractive === 'function') {
-    window.RagaSpace.refreshInteractive(card);
-  }
-  updateWishlistEmptyState(grid, emptyState);
+  refreshWishlistUi();
 };
 
 const syncWishlistButtons = ({ venueId, wishlisted, venueData }) => {
@@ -780,7 +820,8 @@ function toggleWishlist(button) {
 
   const previousState = button.getAttribute('aria-pressed') === 'true';
   const desiredState = !previousState;
-  const csrfToken = getCsrfToken();
+  const csrfToken = getCsrfToken(button);
+  ensureCsrfCookie(csrfToken);
   const toggleUrl = button.dataset.toggleUrl || `/api/wishlist/${venueId}/toggle/`;
   const form = button.closest('[data-wishlist-form]');
   const nextInput = form ? form.querySelector('input[name="next"]') : null;
@@ -808,7 +849,7 @@ function toggleWishlist(button) {
     credentials: 'same-origin',
     body: JSON.stringify(payload),
   })
-    .then((response) => {
+    .then(async (response) => {
       if (response.redirected) {
         window.location.href = response.url;
         throw new Error('Authentication required');
@@ -817,13 +858,16 @@ function toggleWishlist(button) {
         throw new Error(`Wishlist toggle failed with status ${response.status}`);
       }
       const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('Unexpected response format');
+      if (contentType.includes('application/json')) {
+        return response.json();
       }
-      return response.json();
+      // Some servers may return an empty body or HTML redirect even after
+      // applying the toggle successfully. Treat those as success and fall back
+      // to the optimistic state the user requested.
+      return { wishlisted: desiredState };
     })
     .then((data) => {
-      const wishlisted = Boolean(data && data.wishlisted);
+      const wishlisted = data && typeof data.wishlisted === 'boolean' ? data.wishlisted : desiredState;
       const fallbackVenueData = extractVenueData(button) || { id: venueId };
       const serverVenue = data && typeof data.venue === 'object' && data.venue !== null ? data.venue : null;
       const venueData = {
@@ -1062,12 +1106,394 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.interactive-glow, [data-ripple]').forEach((element) => attachRipple(element));
 
+  const resolveScopedElement = (root, selector) => {
+    if (!selector) {
+      return null;
+    }
+    const scope = root instanceof Element || root instanceof Document ? root : document;
+    if (scope instanceof Element && typeof scope.matches === 'function' && scope.matches(selector)) {
+      return scope;
+    }
+    if (typeof scope.querySelector === 'function') {
+      return scope.querySelector(selector);
+    }
+    return null;
+  };
+
+  const hydrateWishlistPage = (root = document) => {
+    const scope = root instanceof Element || root instanceof Document ? root : document;
+    const grid = resolveScopedElement(scope, '[data-wishlist-grid]');
+    const categoriesWrap = resolveScopedElement(scope, '[data-wishlist-categories]');
+    const sortSelect = resolveScopedElement(scope, '[data-wishlist-sort]');
+    const ratingSelect = resolveScopedElement(scope, '[data-wishlist-rating]');
+    const emptyState = resolveScopedElement(scope, '[data-wishlist-empty]');
+
+    if (!grid) {
+      return;
+    }
+
+    const wasBound = grid.dataset.wishlistUiBound === 'true';
+    grid.dataset.wishlistUiBound = 'true';
+    let activeCategory = grid.dataset.wishlistActiveCategory || 'all';
+
+    const getItems = () => Array.from(grid.querySelectorAll('[data-wishlist-item]'));
+    const uniqueCategories = () => Array.from(new Set(getItems().map((el) => el.dataset.category || 'other')));
+    const collectImages = () => {
+      const images = { global: [], perCategory: {} };
+      getItems().forEach((el) => {
+        const category = el.dataset.category || 'other';
+        const image = el.dataset.image || '';
+        if (!image) {
+          return;
+        }
+        images.global.push(image);
+        if (!images.perCategory[category]) {
+          images.perCategory[category] = [];
+        }
+        if (images.perCategory[category].length < 4) {
+          images.perCategory[category].push(image);
+        }
+      });
+      return images;
+    };
+
+    const highlightChip = (target) => {
+      if (!categoriesWrap) return;
+      categoriesWrap.querySelectorAll('button[data-category-chip]').forEach((chip) => {
+        const isActive = chip === target;
+        chip.classList.toggle('ring-2', isActive);
+        chip.classList.toggle('ring-white/70', isActive);
+        chip.classList.toggle('bg-white/20', isActive);
+        chip.classList.toggle('border-white/60', isActive);
+        chip.classList.toggle('shadow-cyan-500/30', isActive);
+      });
+    };
+
+    const renderCategoryChips = () => {
+      if (!categoriesWrap) return;
+      const { global, perCategory } = collectImages();
+      const categories = uniqueCategories();
+      categoriesWrap.innerHTML = '';
+      if (!getItems().length) {
+        categoriesWrap.classList.add('hidden');
+        activeCategory = 'all';
+        grid.dataset.wishlistActiveCategory = activeCategory;
+        return;
+      }
+      categoriesWrap.classList.remove('hidden');
+      const createChip = (label, value) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.dataset.categoryChip = value;
+        card.className =
+          'flex min-w-[92px] max-w-[126px] flex-col items-center gap-2 rounded-2xl border border-white/20 bg-gradient-to-b from-slate-800/70 to-slate-900/70 px-3 py-3 text-sm font-semibold text-white/80 shadow-lg shadow-slate-950/30 transition hover:border-white/50 hover:shadow-cyan-500/30';
+
+        const thumb = document.createElement('div');
+        thumb.className =
+          'grid h-16 w-16 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 ring-2 ring-white/20';
+        const imgs = value === 'all' ? global.slice(0, 4) : (perCategory[value] || []).slice(0, 4);
+        for (let i = 0; i < 4; i += 1) {
+          const cell = document.createElement('div');
+          cell.className = 'h-full w-full bg-slate-800/40';
+          const src = imgs[i];
+          if (src) {
+            cell.style.backgroundImage = `url('${src}')`;
+            cell.style.backgroundSize = 'cover';
+            cell.style.backgroundPosition = 'center';
+          } else {
+            cell.style.background = 'linear-gradient(135deg, #22d3ee55, #0ea5e955)';
+          }
+          thumb.appendChild(cell);
+        }
+
+        const text = document.createElement('span');
+        text.textContent = label;
+        text.className = 'text-xs font-semibold text-white';
+
+        card.appendChild(thumb);
+        card.appendChild(text);
+        return card;
+      };
+      categoriesWrap.appendChild(createChip('Semua', 'all'));
+      categories.forEach((cat) => {
+        const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+        categoriesWrap.appendChild(createChip(label, cat));
+      });
+      const desired =
+        categoriesWrap.querySelector(`[data-category-chip="${escapeSelector(activeCategory)}"]`) ||
+        categoriesWrap.querySelector('button[data-category-chip="all"]');
+      if (desired) {
+        activeCategory = desired.dataset.categoryChip || 'all';
+        grid.dataset.wishlistActiveCategory = activeCategory;
+        highlightChip(desired);
+      }
+    };
+
+    const applyWishlist = () => {
+      const items = getItems();
+      const ratingOrder = ratingSelect?.value || 'none';
+      const matchesCategory = (el) => {
+        const category = el.dataset.category || 'other';
+        return activeCategory === 'all' || category === activeCategory;
+      };
+
+      const visible = items.filter(matchesCategory);
+      const hidden = items.filter((el) => !matchesCategory(el));
+      const sortedVisible = [...visible].sort((a, b) => {
+        const by = sortSelect?.value || 'newest';
+        const addedA = parseFloat(a.dataset.added || '0') || 0;
+        const addedB = parseFloat(b.dataset.added || '0') || 0;
+        const ratingA = parseFloat(a.dataset.rating || '0') || 0;
+        const ratingB = parseFloat(b.dataset.rating || '0') || 0;
+        if (by === 'oldest') {
+          if (addedA !== addedB) return addedA - addedB;
+        } else if (addedA !== addedB) {
+          return addedB - addedA;
+        }
+        if (ratingOrder === 'high') return ratingB - ratingA;
+        if (ratingOrder === 'low') return ratingA - ratingB;
+        return 0;
+      });
+
+      items.forEach((el) => el.classList.add('hidden'));
+      sortedVisible.forEach((el) => {
+        el.classList.remove('hidden');
+        grid.appendChild(el);
+      });
+      hidden.forEach((el) => grid.appendChild(el));
+      if (emptyState) {
+        emptyState.classList.toggle('hidden', sortedVisible.length > 0);
+      }
+    };
+
+    renderCategoryChips();
+    if (!wasBound) {
+      categoriesWrap?.addEventListener('click', (event) => {
+        const target = event.target.closest('button[data-category-chip]');
+        if (!target) return;
+        activeCategory = target.dataset.categoryChip || 'all';
+        grid.dataset.wishlistActiveCategory = activeCategory;
+        highlightChip(target);
+        applyWishlist();
+      });
+      sortSelect?.addEventListener('change', applyWishlist);
+      ratingSelect?.addEventListener('change', applyWishlist);
+    }
+    applyWishlist();
+  };
+
+  const hydrateBookedPlaces = (root = document) => {
+    const scope = root instanceof Element || root instanceof Document ? root : document;
+    const bookingCards = Array.from(scope.querySelectorAll('[data-booking-item]'));
+    const bookingSort = resolveScopedElement(scope, '[data-booking-sort]');
+    const bookingFilter = resolveScopedElement(scope, '[data-booking-filter]');
+    const bookingCategories = resolveScopedElement(scope, '[data-booking-categories]');
+    const bookingEmpty = resolveScopedElement(scope, '[data-booking-empty]');
+    const bookingContainer = bookingCards[0]?.parentElement || null;
+
+    if (!bookingCards.length || !bookingContainer) {
+      return;
+    }
+
+    // In case the server rendered these controls as disabled (e.g. older cached markup),
+    // explicitly enable them so the filtering UI always remains interactive.
+    if (bookingSort?.disabled) bookingSort.disabled = false;
+    if (bookingFilter?.disabled) bookingFilter.disabled = false;
+
+    let activeBookingCategory = bookingCategories?.dataset.bookingActiveCategory || 'all';
+
+    const bookingCategoriesList = () => {
+      const map = new Map();
+      bookingCards.forEach((card) => {
+        const key = (card.dataset.category || 'other').toLowerCase();
+        const label = card.dataset.categoryLabel || key;
+        if (!map.has(key)) {
+          map.set(key, { key, label });
+        }
+      });
+      return Array.from(map.values());
+    };
+
+    const collectBookingImages = () => {
+      const images = { global: [], perCategory: {} };
+      bookingCards.forEach((card) => {
+        const key = (card.dataset.category || 'other').toLowerCase();
+        const image = card.dataset.image || '';
+        if (!image) return;
+        images.global.push(image);
+        if (!images.perCategory[key]) {
+          images.perCategory[key] = [];
+        }
+        if (images.perCategory[key].length < 4) {
+          images.perCategory[key].push(image);
+        }
+      });
+      return images;
+    };
+
+    const updateBookingChipState = () => {
+      bookingCategories?.querySelectorAll('[data-booking-category-chip]').forEach((chip) => {
+        const isActive = (chip.dataset.categoryChip || 'all') === activeBookingCategory;
+        chip.classList.toggle('ring-2', isActive);
+        chip.classList.toggle('ring-white/70', isActive);
+        chip.classList.toggle('bg-white/20', isActive);
+        chip.classList.toggle('border-white/60', isActive);
+        chip.classList.toggle('shadow-cyan-500/30', isActive);
+        chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    };
+
+    const renderBookingCategoryChips = () => {
+      if (!bookingCategories) return;
+      const categories = bookingCategoriesList();
+      const { global, perCategory } = collectBookingImages();
+      bookingCategories.innerHTML = '';
+      if (!bookingCards.length) {
+        bookingCategories.classList.add('hidden');
+        return;
+      }
+      bookingCategories.classList.remove('hidden');
+
+      const createChip = (label, value) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.dataset.bookingCategoryChip = 'true';
+        card.dataset.categoryChip = value;
+        card.className =
+          'flex min-w-[92px] max-w-[126px] flex-col items-center gap-2 rounded-2xl border border-white/20 bg-gradient-to-b from-slate-800/70 to-slate-900/70 px-3 py-3 text-sm font-semibold text-white/80 shadow-lg shadow-slate-950/30 transition hover:border-white/50 hover:shadow-cyan-500/30';
+
+        const thumb = document.createElement('div');
+        thumb.className =
+          'grid h-16 w-16 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 ring-2 ring-white/20';
+        const imgs = value === 'all' ? global.slice(0, 4) : (perCategory[value] || []).slice(0, 4);
+        for (let i = 0; i < 4; i += 1) {
+          const cell = document.createElement('div');
+          cell.className = 'h-full w-full bg-slate-800/40';
+          const src = imgs[i];
+          if (src) {
+            cell.style.backgroundImage = `url('${src}')`;
+            cell.style.backgroundSize = 'cover';
+            cell.style.backgroundPosition = 'center';
+          } else {
+            cell.style.background = 'linear-gradient(135deg, #22d3ee55, #0ea5e955)';
+          }
+          thumb.appendChild(cell);
+        }
+
+        const text = document.createElement('span');
+        text.textContent = label;
+        text.className = 'text-xs font-semibold text-white';
+
+        card.appendChild(thumb);
+        card.appendChild(text);
+        return card;
+      };
+
+      bookingCategories.appendChild(createChip('Semua', 'all'));
+      categories.forEach(({ key, label }) => {
+        bookingCategories.appendChild(createChip(label, key));
+      });
+
+      const desired =
+        bookingCategories.querySelector(`[data-booking-category-chip][data-category-chip="${escapeSelector(activeBookingCategory)}"]`) ||
+        bookingCategories.querySelector('[data-booking-category-chip][data-category-chip="all"]');
+      if (desired) {
+        activeBookingCategory = desired.dataset.categoryChip || 'all';
+        bookingCategories.dataset.bookingActiveCategory = activeBookingCategory;
+      }
+      updateBookingChipState();
+    };
+
+    const applyBookings = () => {
+      const by = bookingSort?.value || 'soonest';
+      const filter = bookingFilter?.value || 'all';
+      const category = activeBookingCategory || 'all';
+
+      const filtered = bookingCards.filter((el) => {
+        const paid = (el.dataset.paid || '').toLowerCase();
+        if (filter === 'paid') return paid === 'paid';
+        if (filter === 'unpaid') return paid === 'unpaid';
+        return true;
+      });
+
+      const categorised = filtered.filter((el) => {
+        if (category === 'all') return true;
+        const itemCategory = (el.dataset.category || '').toLowerCase();
+        return itemCategory === category;
+      });
+
+      const sorted = categorised.sort((a, b) => {
+        const startA = parseFloat(a.dataset.start || '0') || 0;
+        const startB = parseFloat(b.dataset.start || '0') || 0;
+        if (by === 'latest') return startB - startA;
+        return startA - startB;
+      });
+
+      bookingContainer.innerHTML = '';
+      sorted.forEach((card) => bookingContainer.appendChild(card));
+      if (bookingEmpty) {
+        bookingEmpty.classList.toggle('hidden', sorted.length > 0);
+      }
+    };
+
+    if (bookingContainer.dataset.bookingUiBound !== 'true') {
+      bookingContainer.dataset.bookingUiBound = 'true';
+      bookingSort?.addEventListener('change', applyBookings);
+      bookingFilter?.addEventListener('change', applyBookings);
+      bookingCategories?.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-booking-category-chip]');
+        if (!target) return;
+        activeBookingCategory = target.dataset.categoryChip || 'all';
+        bookingCategories.dataset.bookingActiveCategory = activeBookingCategory;
+        updateBookingChipState();
+        applyBookings();
+      });
+    }
+
+    renderBookingCategoryChips();
+    applyBookings();
+  };
+
+  const bindAvatarUpload = (root = document) => {
+    const scope = root instanceof Element || root instanceof Document ? root : document;
+    const avatarInput = resolveScopedElement(scope, 'input[name="avatar"]');
+    const avatarPreview = resolveScopedElement(scope, '[data-avatar-preview]');
+    const profileForm = resolveScopedElement(scope, '#profile-form');
+    if (!avatarInput || avatarInput.dataset.avatarBound === 'true') {
+      return;
+    }
+    avatarInput.dataset.avatarBound = 'true';
+    avatarInput.addEventListener('change', () => {
+      const [file] = avatarInput.files || [];
+      if (!file) {
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      if (avatarPreview) {
+        avatarPreview.src = url;
+      }
+      document.querySelectorAll('[data-avatar-mirror]').forEach((img) => {
+        if (img instanceof HTMLImageElement) {
+          img.src = url;
+        }
+      });
+      if (profileForm && typeof profileForm.requestSubmit === 'function') {
+        profileForm.requestSubmit();
+      } else if (profileForm) {
+        profileForm.submit();
+      }
+    });
+  };
+
   const refreshInteractive = (root = document) => {
     const scope = root instanceof Element ? root : document;
     setupNavigationToggles(scope);
     scope.querySelectorAll('[data-animate]').forEach((element) => observeAnimated(element));
     scope.querySelectorAll('.interactive-glow, [data-ripple]').forEach((element) => attachRipple(element));
     setupModals(scope);
+    hydrateWishlistPage(scope);
+    hydrateBookedPlaces(scope);
+    bindAvatarUpload(scope);
   };
 
   let transitionOverlay = document.getElementById('page-transition');
@@ -1485,6 +1911,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   runInitialReveal();
+  refreshInteractive(document);
 
   // Ensure the page shell is visible once the full page is loaded,
   // even if an earlier animation or script step failed.
