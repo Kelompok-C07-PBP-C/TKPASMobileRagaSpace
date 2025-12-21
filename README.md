@@ -121,7 +121,7 @@ Setiap data mencakup:
 
 ## Desain
 
-* *Link Design (Figma/Prototype)*: https://www.figma.com/design/jXh9W3tagXfWVRxPSbpGmP/DESIGN-MOBILE?m=auto&t=bbgBl0vK2AYZvu3Z-1 (view only)
+*Link Design (Figma/Prototype)*: https://www.figma.com/design/jXh9W3tagXfWVRxPSbpGmP/DESIGN-MOBILE?m=auto&t=bbgBl0vK2AYZvu3Z-1 (view only)
 
 ---
 

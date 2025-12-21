@@ -39,10 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _lastName;
   String? _username;
   String? _avatarUrl;
-  File? _avatarFile;
-  Uint8List? _avatarBytes;
-  String? _avatarFilename;
-  late final ImagePicker _picker;
 
   final _currentPassCtrl = TextEditingController();
   final _newPassCtrl = TextEditingController();
@@ -99,6 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _firstNameCtrl.text = _firstName ?? '';
         _lastNameCtrl.text = _lastName ?? '';
         _phoneCtrl.text = (data['phone_number'] ?? '').toString();
+        _email = (data['email'] ?? '').toString();
+        _avatarUrl = (data['avatar_url'] ?? '').toString();
         _loading = false;
       });
     } catch (e) {
