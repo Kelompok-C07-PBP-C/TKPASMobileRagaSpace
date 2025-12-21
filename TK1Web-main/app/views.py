@@ -11,6 +11,10 @@ from django.apps import apps
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+<<<<<<< HEAD
+=======
+from django.db import transaction
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 from django.db.models import Avg, Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Cast, Coalesce, Concat
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -26,6 +30,13 @@ from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue,
 from .sync import sync_all_main_to_app
 
 
+<<<<<<< HEAD
+=======
+_BOOKING_ANALYTICS_CACHE: dict[str, dict[str, list]] | None = None
+_BOOKING_ANALYTICS_CACHE_AT: datetime | None = None
+
+
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 @require_GET
 @ensure_csrf_cookie
 def csrf_view(request: HttpRequest):
@@ -490,12 +501,22 @@ def top_venues_view(request: HttpRequest):
     for venue in queryset:
         avg_rating = venue.avg_rating or 0
         bookings_count = getattr(venue, "bookings_count", 0) or 0
+<<<<<<< HEAD
         image_url = venue.image_url
         if not image_url and venue.image:
+=======
+        image_url = ""
+        if venue.image:
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+<<<<<<< HEAD
+=======
+        if not image_url:
+            image_url = venue.image_url
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         image_url = _absolute_media_url(request, image_url)
         data.append(
             {
@@ -525,12 +546,22 @@ def venues_list_view(request: HttpRequest):
     queryset = _admin_base_venue_queryset().order_by("title")
     data = []
     for venue in queryset:
+<<<<<<< HEAD
         image_url = venue.image_url
         if not image_url and venue.image:
+=======
+        image_url = ""
+        if venue.image:
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
             try:
                 image_url = venue.image.url
             except (ValueError, AttributeError):
                 image_url = ""
+<<<<<<< HEAD
+=======
+        if not image_url:
+            image_url = venue.image_url
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         image_url = _absolute_media_url(request, image_url)
         city = venue.location.split(",")[0].strip() if venue.location else ""
         data.append(
@@ -989,12 +1020,22 @@ def _admin_base_venue_queryset():
 
 
 def _admin_serialize_venue(venue: Venue) -> dict[str, object]:
+<<<<<<< HEAD
     image_url = venue.image_url
     if not image_url and venue.image:
+=======
+    image_url = ""
+    if venue.image:
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
         try:
             image_url = venue.image.url
         except (ValueError, AttributeError):
             image_url = ""
+<<<<<<< HEAD
+=======
+    if not image_url:
+        image_url = venue.image_url or ""
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     raw_facilities = venue.facilities or []
     if isinstance(raw_facilities, (list, tuple)):
         facilities = [str(item).strip() for item in raw_facilities if str(item).strip()]
@@ -1193,6 +1234,30 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
     }
 
 
+<<<<<<< HEAD
+=======
+def _get_booking_analytics_cached(*, ttl_seconds: int = 20, force: bool = False) -> dict[str, dict[str, list]]:
+    """Return cached booking analytics to keep admin endpoints responsive."""
+    global _BOOKING_ANALYTICS_CACHE, _BOOKING_ANALYTICS_CACHE_AT
+
+    ttl_seconds = max(int(ttl_seconds), 0)
+    now = timezone.now()
+
+    if (
+        not force
+        and _BOOKING_ANALYTICS_CACHE is not None
+        and _BOOKING_ANALYTICS_CACHE_AT is not None
+        and (ttl_seconds == 0 or (now - _BOOKING_ANALYTICS_CACHE_AT).total_seconds() <= ttl_seconds)
+    ):
+        return _BOOKING_ANALYTICS_CACHE
+
+    analytics = _build_booking_analytics()
+    _BOOKING_ANALYTICS_CACHE = analytics
+    _BOOKING_ANALYTICS_CACHE_AT = now
+    return analytics
+
+
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 @ensure_csrf_cookie
 def admin_login_view(request: HttpRequest):
     """Deprecated: redirect to the shared /auth/login/ page."""
@@ -1208,7 +1273,14 @@ def admin_login_view(request: HttpRequest):
 @login_required
 @ensure_csrf_cookie
 def admin_panel(request: HttpRequest):
+<<<<<<< HEAD
     sync_all_main_to_app()
+=======
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, blocking=False)
+    except Exception:
+        pass
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1229,7 +1301,11 @@ def admin_panel(request: HttpRequest):
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
+<<<<<<< HEAD
     analytics = _build_booking_analytics()
+=======
+    analytics = _get_booking_analytics_cached(ttl_seconds=30)
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     UserModel = get_user_model()
     bookings_data, bookings_meta = _build_paginated_payload(
         bookings_queryset,
@@ -1258,7 +1334,14 @@ def admin_logout_view(request: HttpRequest):
 @login_required
 @require_GET
 def admin_venues_list_api(request: HttpRequest):
+<<<<<<< HEAD
     sync_all_main_to_app()
+=======
+    try:
+        sync_all_main_to_app(min_interval_seconds=30, sync_bookings=False, blocking=False)
+    except Exception:
+        pass
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1295,6 +1378,11 @@ def admin_venues_create_api(request: HttpRequest):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+<<<<<<< HEAD
+=======
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1311,6 +1399,11 @@ def admin_venues_update_api(request: HttpRequest, venue_id: int):
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": _admin_form_errors(form)}, status=400)
 
+<<<<<<< HEAD
+=======
+    if request.FILES.get("image"):
+        form.instance.image_url = ""
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     venue = form.save()
     return JsonResponse({"success": True, "data": _admin_serialize_venue(venue)})
 
@@ -1323,14 +1416,45 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
         return forbidden
 
     venue = get_object_or_404(Venue, pk=venue_id)
+<<<<<<< HEAD
     venue.delete()
+=======
+    linked_main_id = venue.linked_venue_id
+    title = (venue.title or "").strip()
+    city = (venue.location or "").split(",", 1)[0].strip()
+
+    MLVenue = apps.get_model("manajemen_lapangan", "Venue")
+    with transaction.atomic():
+        # Delete the app venue first (cascades to mirrored bookings/comments).
+        Venue.objects.filter(pk=venue.pk).delete()
+
+        # Delete the matching main venue(s) so sync does not resurrect them.
+        if linked_main_id:
+            MLVenue.objects.filter(pk=linked_main_id).delete()
+        if title:
+            # Seed/pagination scripts can create multiple main Venue rows with the
+            # same name (sometimes across different cities). If we only delete the
+            # current city, the sync layer will re-create the app venue on the next
+            # refresh from the remaining duplicates. Delete by name to prevent
+            # "deleted venues reappearing" in the Flutter admin after a reload.
+            MLVenue.objects.filter(name__iexact=title).delete()
+
+        # Clean up any duplicate app venues that represent the same title/city.
+        dupes = Venue.objects.filter(title__iexact=title)
+        if city:
+            dupes = dupes.filter(location__istartswith=city)
+        dupes.delete()
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     return JsonResponse({"success": True})
 
 
 @login_required
 @require_GET
 def admin_bookings_list_api(request: HttpRequest):
+<<<<<<< HEAD
     sync_all_main_to_app()
+=======
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1343,13 +1467,39 @@ def admin_bookings_list_api(request: HttpRequest):
         max_value=MAX_PAGE_SIZE,
     )
 
+<<<<<<< HEAD
+=======
+    force_sync = str(request.GET.get("sync") or "").strip().lower() in {"1", "true", "yes"}
+    should_sync = force_sync
+    if not should_sync and page == 1 and not query.strip():
+        if not Booking.objects.exists():
+            should_sync = True
+        else:
+            try:
+                RentBooking = apps.get_model("rent", "Booking")
+                app_count = Booking.objects.exclude(linked_booking_id__isnull=True).count()
+                main_count = RentBooking.objects.count()
+                should_sync = app_count != main_count
+            except Exception:
+                should_sync = False
+    if should_sync:
+        try:
+            sync_all_main_to_app(min_interval_seconds=120, blocking=False)
+        except Exception:
+            pass
+
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
     queryset = _apply_booking_search(queryset, query)
+<<<<<<< HEAD
     analytics = _build_booking_analytics()
+=======
+    analytics = _get_booking_analytics_cached(ttl_seconds=20, force=force_sync)
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
     UserModel = get_user_model()
     data, meta = _build_paginated_payload(
         queryset,

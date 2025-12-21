@@ -6,7 +6,14 @@ from datetime import time
 
 from django.core.exceptions import ValidationError
 from django.db import models
+<<<<<<< HEAD
 from django.utils.text import slugify
+=======
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from django.utils.text import slugify
+from django.apps import apps
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
 
 
 class TimestampedModel(models.Model):
@@ -87,3 +94,33 @@ class VenueAvailability(TimestampedModel):
     def clean(self):  # pragma: no cover - requires Django validation
         if self.end_datetime <= self.start_datetime:
             raise ValidationError("End datetime must be greater than start datetime")
+<<<<<<< HEAD
+=======
+
+
+@receiver(post_delete, sender=Venue)
+def delete_mirrored_app_venue(sender, instance: Venue, **kwargs):  # pragma: no cover - integration glue
+    """Remove mirrored app.Venue rows when a main venue is deleted.
+
+    The Flutter app/admin panel reads from the mirrored `app.Venue` table. When
+    admins delete a venue in the web workspace (manajemen_lapangan), we must
+    also delete the mirror so it does not reappear in the app UI.
+    """
+
+    try:
+        AppVenue = apps.get_model("app", "Venue")
+    except Exception:
+        return
+    try:
+        qs = AppVenue.objects.filter(linked_venue_id=instance.pk)
+        title = (getattr(instance, "name", "") or "").strip()
+        city = (getattr(instance, "city", "") or "").strip()
+        if title:
+            extras = AppVenue.objects.filter(title__iexact=title)
+            if city:
+                extras = extras.filter(location__istartswith=city)
+            qs = qs | extras
+        qs.distinct().delete()
+    except Exception:
+        return
+>>>>>>> aaf05d481f79c6f7dd3f03a6a274f04d3e8c21fb
