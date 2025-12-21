@@ -141,29 +141,6 @@ Setiap data mencakup:
 
 ---
 
-## Screenshot
-
-* Home Screen
-<!-- ![Home Screen](screenshots/home.png) -->
-Screenshot akan ditambahkan
-
-* Katalog Lapangan
-<!-- ![Katalog](screenshots/katalog.png) -->
-Screenshot akan ditambahkan
-
-* Detail & Booking
-<!-- ![Detail](screenshots/detail.png) -->
-Screenshot akan ditambahkan
-
-* Wishlist
-<!-- ![Wishlist](screenshots/wishlist.png) -->
-Screenshot akan ditambahkan
-
-* Account Setting
-<!-- ![Setting](screenshots/setting.png) -->
-Screenshot akan ditambahkan
-
-
 ## Desain
 
 *Link Design (Figma/Prototype)*: https://www.figma.com/design/jXh9W3tagXfWVRxPSbpGmP/DESIGN-MOBILE?m=auto&t=bbgBl0vK2AYZvu3Z-1 (view only)
