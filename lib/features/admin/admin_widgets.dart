@@ -2101,11 +2101,25 @@ class AdminDialogs {
     required Future<void> Function() onDeleted,
   }) async {
     final title = (venue['title'] ?? '').toString();
+    final titleStyle = GoogleFonts.plusJakartaSans(
+      color: AdminPalette.textPrimary,
+      fontWeight: FontWeight.w800,
+      fontSize: 18,
+    );
+    final contentStyle = GoogleFonts.plusJakartaSans(
+      color: AdminPalette.textPrimary.withValues(alpha: 0.9),
+      fontWeight: FontWeight.w600,
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete venue?'),
-        content: Text('Delete "$title"? This cannot be undone.'),
+        backgroundColor: AdminPalette.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text('Delete venue?', style: titleStyle),
+        content: Text(
+          'Delete "$title"? This cannot be undone.',
+          style: contentStyle,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -2144,11 +2158,25 @@ class AdminDialogs {
   }) async {
     final label =
         (booking['guest_label'] ?? booking['username'] ?? '').toString();
+    final titleStyle = GoogleFonts.plusJakartaSans(
+      color: AdminPalette.textPrimary,
+      fontWeight: FontWeight.w800,
+      fontSize: 18,
+    );
+    final contentStyle = GoogleFonts.plusJakartaSans(
+      color: AdminPalette.textPrimary.withValues(alpha: 0.9),
+      fontWeight: FontWeight.w600,
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete booking?'),
-        content: Text('Delete "$label"? This cannot be undone.'),
+        backgroundColor: AdminPalette.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text('Delete booking?', style: titleStyle),
+        content: Text(
+          'Delete "$label"? This cannot be undone.',
+          style: contentStyle,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),

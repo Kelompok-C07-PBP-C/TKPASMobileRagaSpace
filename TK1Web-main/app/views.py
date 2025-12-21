@@ -27,6 +27,10 @@ from .models import Venue, Booking, BookingDate, Profile, Comment, CommentVenue,
 from .sync import sync_all_main_to_app
 
 
+_BOOKING_ANALYTICS_CACHE: dict[str, dict[str, list]] | None = None
+_BOOKING_ANALYTICS_CACHE_AT: datetime | None = None
+
+
 @require_GET
 @ensure_csrf_cookie
 def csrf_view(request: HttpRequest):
@@ -1200,6 +1204,27 @@ def _build_booking_analytics() -> dict[str, dict[str, list]]:
     }
 
 
+def _get_booking_analytics_cached(*, ttl_seconds: int = 20, force: bool = False) -> dict[str, dict[str, list]]:
+    """Return cached booking analytics to keep admin endpoints responsive."""
+    global _BOOKING_ANALYTICS_CACHE, _BOOKING_ANALYTICS_CACHE_AT
+
+    ttl_seconds = max(int(ttl_seconds), 0)
+    now = timezone.now()
+
+    if (
+        not force
+        and _BOOKING_ANALYTICS_CACHE is not None
+        and _BOOKING_ANALYTICS_CACHE_AT is not None
+        and (ttl_seconds == 0 or (now - _BOOKING_ANALYTICS_CACHE_AT).total_seconds() <= ttl_seconds)
+    ):
+        return _BOOKING_ANALYTICS_CACHE
+
+    analytics = _build_booking_analytics()
+    _BOOKING_ANALYTICS_CACHE = analytics
+    _BOOKING_ANALYTICS_CACHE_AT = now
+    return analytics
+
+
 @ensure_csrf_cookie
 def admin_login_view(request: HttpRequest):
     """Deprecated: redirect to the shared /auth/login/ page."""
@@ -1239,7 +1264,7 @@ def admin_panel(request: HttpRequest):
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
-    analytics = _build_booking_analytics()
+    analytics = _get_booking_analytics_cached(ttl_seconds=30)
     UserModel = get_user_model()
     bookings_data, bookings_meta = _build_paginated_payload(
         bookings_queryset,
@@ -1371,10 +1396,6 @@ def admin_venues_delete_api(request: HttpRequest, venue_id: int):
 @login_required
 @require_GET
 def admin_bookings_list_api(request: HttpRequest):
-    try:
-        sync_all_main_to_app(min_interval_seconds=30, blocking=False)
-    except Exception:
-        pass
     forbidden = _admin_forbid_if_not_staff(request)
     if forbidden:
         return forbidden
@@ -1387,13 +1408,32 @@ def admin_bookings_list_api(request: HttpRequest):
         max_value=MAX_PAGE_SIZE,
     )
 
+    force_sync = str(request.GET.get("sync") or "").strip().lower() in {"1", "true", "yes"}
+    should_sync = force_sync
+    if not should_sync and page == 1 and not query.strip():
+        if not Booking.objects.exists():
+            should_sync = True
+        else:
+            try:
+                RentBooking = apps.get_model("rent", "Booking")
+                app_count = Booking.objects.exclude(linked_booking_id__isnull=True).count()
+                main_count = RentBooking.objects.count()
+                should_sync = app_count != main_count
+            except Exception:
+                should_sync = False
+    if should_sync:
+        try:
+            sync_all_main_to_app(min_interval_seconds=120, blocking=False)
+        except Exception:
+            pass
+
     queryset = (
         Booking.objects.select_related("venue", "date", "user")
         .exclude(user__username__startswith=DEMO_USERNAME_PREFIX)
         .order_by("-created_at", "-date__start_date")
     )
     queryset = _apply_booking_search(queryset, query)
-    analytics = _build_booking_analytics()
+    analytics = _get_booking_analytics_cached(ttl_seconds=20, force=force_sync)
     UserModel = get_user_model()
     data, meta = _build_paginated_payload(
         queryset,
