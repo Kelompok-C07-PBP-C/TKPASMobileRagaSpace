@@ -314,6 +314,11 @@
         if (!entityForm || entityForm.dataset.section !== 'bookings') {
           return;
         }
+        setCurrentVenuePrice(
+          item && item.price !== undefined && Number.isFinite(Number(item.price))
+            ? Number(item.price)
+            : null
+        );
         const venueId =
           item && item.id !== undefined ? item.id : getCurrentVenueId();
         const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
@@ -323,6 +328,7 @@
         hydrateAddonsField([]);
         const available = getCurrentVenueAddons();
         setBookingAddonsAvailability(available.length > 0, venueId);
+        updateBookingSubtotalDisplay();
       },
     });
 
@@ -333,12 +339,14 @@
           return;
         }
         if (!venueTextInput.value.trim()) {
+          setCurrentVenuePrice(null);
           const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
           if (bookingAddonsField) {
             bookingAddonsField.value = '[]';
           }
           hydrateAddonsField([]);
           setBookingAddonsAvailability(false, null);
+          updateBookingSubtotalDisplay();
         }
       });
     }

@@ -546,8 +546,9 @@ class _AdminBookingEditorSheetState extends State<AdminBookingEditorSheet> {
             .toList();
       }
     } else {
-      _start = DateTime.now().add(const Duration(hours: 1));
-      _end = DateTime.now().add(const Duration(hours: 2));
+      final now = DateTime.now();
+      _start = _normalizeToHour(now.add(const Duration(hours: 1)));
+      _end = _normalizeToHour(now.add(const Duration(hours: 2)));
     }
     _syncDateControllers();
   }
@@ -593,6 +594,10 @@ class _AdminBookingEditorSheetState extends State<AdminBookingEditorSheet> {
     });
   }
 
+  DateTime _normalizeToHour(DateTime value) {
+    return DateTime(value.year, value.month, value.day, value.hour);
+  }
+
   int _subtotal() {
     final start = _start;
     final end = _end;
@@ -612,21 +617,22 @@ class _AdminBookingEditorSheetState extends State<AdminBookingEditorSheet> {
   }
 
   Future<DateTime?> _pickDateTime(DateTime initial) async {
+    final normalizedInitial = _normalizeToHour(initial);
     final date = await showDatePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      initialDate: initial,
+      initialDate: normalizedInitial,
     );
     if (!mounted) return null;
     if (date == null) return null;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
+      initialTime: TimeOfDay(hour: normalizedInitial.hour, minute: 0),
     );
     if (!mounted) return null;
     if (time == null) return null;
-    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    return _normalizeToHour(DateTime(date.year, date.month, date.day, time.hour));
   }
 
   String _addonKeyFromOption(Map<String, dynamic> addon) {
@@ -1632,13 +1638,13 @@ class _AdminReadOnlyField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return InputDecorator(
       key: ValueKey<String>('readonly:$label:$value'),
-      readOnly: true,
-      enabled: false,
-      initialValue: value,
-      style: GoogleFonts.plusJakartaSans(color: AdminPalette.textPrimary),
       decoration: _adminInputDecoration(label),
+      child: Text(
+        value,
+        style: GoogleFonts.plusJakartaSans(color: AdminPalette.textPrimary),
+      ),
     );
   }
 }

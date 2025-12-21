@@ -195,15 +195,21 @@ class _ProductCatalogScreenState extends State<_ProductCatalogScreen> {
                                   ),
                                   backgroundColor:
                                       Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
+                                  ),
+                                icon: const Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.white,
                                 ),
-                                icon: const Icon(Icons.search_rounded),
                                 label: Text(
                                   'Search venues',
                                   style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
                                     fontWeight: FontWeight.w700,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),

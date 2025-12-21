@@ -607,6 +607,21 @@
     return null;
   }
 
+  function setCurrentVenuePrice(price) {
+    if (!entityForm) {
+      return;
+    }
+    const hiddenInput = entityForm.querySelector('input[name="venue"]');
+    if (!hiddenInput) {
+      return;
+    }
+    if (Number.isFinite(price)) {
+      hiddenInput.dataset.price = String(price);
+    } else {
+      delete hiddenInput.dataset.price;
+    }
+  }
+
   function getAddonRows() {
     const { list } = getAddonElements();
     if (!list) {

@@ -18,8 +18,17 @@
     const hours = Math.max(1, Math.round(rawHours));
 
     let pricePerSession = 0;
+    const hiddenVenueInput = entityForm
+      ? entityForm.querySelector('input[name="venue"]')
+      : null;
+    if (hiddenVenueInput && hiddenVenueInput.dataset.price) {
+      const parsedPrice = Number(hiddenVenueInput.dataset.price);
+      if (Number.isFinite(parsedPrice) && parsedPrice > 0) {
+        pricePerSession = parsedPrice;
+      }
+    }
     const venueId = getCurrentVenueId();
-    if (venueId != null) {
+    if (pricePerSession <= 0 && venueId != null) {
       const venue = state.venues.find((item) => Number(item.id) === Number(venueId));
       if (venue && Number.isFinite(Number(venue.price))) {
         pricePerSession = Number(venue.price);
@@ -45,11 +54,8 @@
       return;
     }
     const subtotal = computeBookingSubtotal();
-    if (!Number.isFinite(subtotal) || subtotal <= 0) {
-      field.value = '';
-      return;
-    }
-    field.value = formatCurrency(subtotal);
+    const valid = Number.isFinite(subtotal) && subtotal > 0;
+    field.value = formatCurrency(valid ? subtotal : 0);
   }
 
   function updateBookingAddonOptionStates() {

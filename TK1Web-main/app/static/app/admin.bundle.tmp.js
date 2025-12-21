@@ -607,6 +607,21 @@
     return null;
   }
 
+  function setCurrentVenuePrice(price) {
+    if (!entityForm) {
+      return;
+    }
+    const hiddenInput = entityForm.querySelector('input[name="venue"]');
+    if (!hiddenInput) {
+      return;
+    }
+    if (Number.isFinite(price)) {
+      hiddenInput.dataset.price = String(price);
+    } else {
+      delete hiddenInput.dataset.price;
+    }
+  }
+
   function getAddonRows() {
     const { list } = getAddonElements();
     if (!list) {
@@ -1018,8 +1033,17 @@
     const hours = Math.max(1, Math.round(rawHours));
 
     let pricePerSession = 0;
+    const hiddenVenueInput = entityForm
+      ? entityForm.querySelector('input[name="venue"]')
+      : null;
+    if (hiddenVenueInput && hiddenVenueInput.dataset.price) {
+      const parsedPrice = Number(hiddenVenueInput.dataset.price);
+      if (Number.isFinite(parsedPrice) && parsedPrice > 0) {
+        pricePerSession = parsedPrice;
+      }
+    }
     const venueId = getCurrentVenueId();
-    if (venueId != null) {
+    if (pricePerSession <= 0 && venueId != null) {
       const venue = state.venues.find((item) => Number(item.id) === Number(venueId));
       if (venue && Number.isFinite(Number(venue.price))) {
         pricePerSession = Number(venue.price);
@@ -1045,11 +1069,8 @@
       return;
     }
     const subtotal = computeBookingSubtotal();
-    if (!Number.isFinite(subtotal) || subtotal <= 0) {
-      field.value = '';
-      return;
-    }
-    field.value = formatCurrency(subtotal);
+    const valid = Number.isFinite(subtotal) && subtotal > 0;
+    field.value = formatCurrency(valid ? subtotal : 0);
   }
 
   function updateBookingAddonOptionStates() {
@@ -2433,6 +2454,11 @@
         if (!entityForm || entityForm.dataset.section !== 'bookings') {
           return;
         }
+        setCurrentVenuePrice(
+          item && item.price !== undefined && Number.isFinite(Number(item.price))
+            ? Number(item.price)
+            : null
+        );
         const venueId =
           item && item.id !== undefined ? item.id : getCurrentVenueId();
         const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
@@ -2442,6 +2468,7 @@
         hydrateAddonsField([]);
         const available = getCurrentVenueAddons();
         setBookingAddonsAvailability(available.length > 0, venueId);
+        updateBookingSubtotalDisplay();
       },
     });
 
@@ -2452,12 +2479,14 @@
           return;
         }
         if (!venueTextInput.value.trim()) {
+          setCurrentVenuePrice(null);
           const bookingAddonsField = entityForm.querySelector('[data-addons-input]');
           if (bookingAddonsField) {
             bookingAddonsField.value = '[]';
           }
           hydrateAddonsField([]);
           setBookingAddonsAvailability(false, null);
+          updateBookingSubtotalDisplay();
         }
       });
     }
@@ -2843,6 +2872,11 @@
             const venueTitle = booking.venue ? booking.venue.title : '';
             const venueId = booking.venue ? booking.venue.id : '';
             autocompleteControllers.venue.setSelection(venueTitle, venueId);
+            setCurrentVenuePrice(
+              booking.venue && booking.venue.price !== undefined
+                ? Number(booking.venue.price)
+                : null
+            );
           }
           const startInput = entityForm.querySelector('input[name="start_date"]');
           if (startInput) {
@@ -2872,6 +2906,7 @@
       if (autocompleteControllers.venue) {
         autocompleteControllers.venue.setSelection('', '');
       }
+      setCurrentVenuePrice(null);
       setBookingAddonsAvailability(false, null);
     }
 

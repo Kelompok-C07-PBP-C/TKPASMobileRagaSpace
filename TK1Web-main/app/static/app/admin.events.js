@@ -124,6 +124,11 @@
             const venueTitle = booking.venue ? booking.venue.title : '';
             const venueId = booking.venue ? booking.venue.id : '';
             autocompleteControllers.venue.setSelection(venueTitle, venueId);
+            setCurrentVenuePrice(
+              booking.venue && booking.venue.price !== undefined
+                ? Number(booking.venue.price)
+                : null
+            );
           }
           const startInput = entityForm.querySelector('input[name="start_date"]');
           if (startInput) {
@@ -153,6 +158,7 @@
       if (autocompleteControllers.venue) {
         autocompleteControllers.venue.setSelection('', '');
       }
+      setCurrentVenuePrice(null);
       setBookingAddonsAvailability(false, null);
     }
 
