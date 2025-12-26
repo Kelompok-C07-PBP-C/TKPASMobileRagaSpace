@@ -6,7 +6,7 @@
     <application
         android:label="ragaspace"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/ragaspace_icon"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
